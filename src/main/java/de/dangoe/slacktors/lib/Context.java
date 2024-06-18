@@ -1,8 +1,10 @@
 package de.dangoe.slacktors.lib;
 
-public interface Context {
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Supplier;
 
-    <A extends Actor<M>, M> ActorHandle<M> actorOf(Class<A> type);
+public interface Context extends ActorFactory {
 
-    <A extends Actor<M>, M> ActorHandle<M> select(ActorPath path);
+    <A extends AbstractActor<M>, M> Optional<ActorHandle<M>> select(ActorPath path);
 }

@@ -1,6 +1,6 @@
 package de.dangoe.slacktors.lib;
 
-public interface ActorHandle<M> {
+public interface ActorHandle<M> extends ActorFactory {
 
     ActorPath path();
 

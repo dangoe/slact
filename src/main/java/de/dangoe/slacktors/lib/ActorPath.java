@@ -1,6 +1,7 @@
 package de.dangoe.slacktors.lib;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public abstract class ActorPath {
 
@@ -8,6 +9,11 @@ public abstract class ActorPath {
 
         private Root() {
             super();
+        }
+
+        @Override
+        public Optional<ActorPath> parent() {
+            return Optional.empty();
         }
 
         @Override
@@ -27,7 +33,7 @@ public abstract class ActorPath {
 
         @Override
         public String toString() {
-            return  "";
+            return "";
         }
     }
 
@@ -41,6 +47,14 @@ public abstract class ActorPath {
             super();
             this.parent = parent;
             this.name = name;
+        }
+
+        @Override
+        public Optional<ActorPath> parent() {
+            if (parent instanceof Root) {
+                return Optional.empty();
+            }
+            return Optional.of(parent);
         }
 
         @Override
@@ -72,4 +86,7 @@ public abstract class ActorPath {
     }
 
     public abstract ActorPath append(final String name);
+
+
+    public abstract Optional<ActorPath> parent();
 }
