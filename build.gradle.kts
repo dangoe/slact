@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    application
 }
 
 group = "de.dangoe"
@@ -22,4 +23,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+application {
+    mainClass = "de.dangoe.slacktors.Main"
 }

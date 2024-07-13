@@ -2,14 +2,10 @@ package de.dangoe.slacktors;
 
 import de.dangoe.slacktors.lib.AbstractActor;
 import de.dangoe.slacktors.lib.ActorHandle;
-import de.dangoe.slacktors.lib.ActorPath;
 import de.dangoe.slacktors.lib.Director;
-
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.IntStream;
 
 public class Main {
 
@@ -20,9 +16,11 @@ public class Main {
 
         @Override
         protected void onMessage(Object msg) {
+            System.out.println("Received %s from %s".formatted(msg, sender()));
+
             counter++;
 
-            if (counter % 1000 == 0) {
+            if (counter % 2 == 0) {
                 final var now = Instant.now();
                 long millis = Duration.between(lastTick, now).toMillis();
                 System.out.println(millis);
@@ -31,36 +29,44 @@ public class Main {
         }
     }
 
-    public static class MyActor extends AbstractActor<Object> {
+    public static class MyActor extends AbstractActor<String> {
 
         @Override
-        protected void onMessage(Object msg) {
-
+        protected void onMessage(String msg) {
             final var maybeParent = self().path().parent();
 
             if (maybeParent.isPresent()) {
-                maybeParent.flatMap(context()::select).ifPresent(actor -> actor.send(msg));
+                maybeParent
+                    .flatMap(context()::select)
+                    .ifPresent(actor -> actor.send(msg, MyActor.this.self()));
             } else {
-                context().select(counter.path()).ifPresent(actor -> actor.send(msg));
+                context()
+                    .select(counter.path())
+                    .ifPresent(actor -> actor.send(msg, MyActor.this.self()));
             }
         }
     }
 
-    private static final Director system = Director.forName(UUID.randomUUID().toString());
+    private static final Director director = Director.forName(
+        UUID.randomUUID().toString()
+    );
 
-    private static final ActorHandle<Object> counter = system.actorOf(CounterActor::new);
+    private static final ActorHandle<Object> counter = director.actorOf(
+        CounterActor::new
+    );
 
-    public static void main(String[] args) {
-
-
-        final var firstActor = system.actorOf(MyActor::new);
+    public static void main(String[] args) throws Exception {
+        final var firstActor = director.actorOf(MyActor::new);
         final var nestedActor = firstActor.actorOf(MyActor::new);
 
-        while (true) {
-
-            firstActor.send("Hello world!");
-            nestedActor.send("Hello world!");
-
+        for (int i = 0; i < 1000; i++) {
+            firstActor.send("Hello world %s!".formatted(i), director);
+            nestedActor.send("Hello world %s!".formatted(i), director);
+            Thread.sleep(10);
         }
+
+        Thread.sleep(60000);
+
+        director.shutdown();
     }
 }

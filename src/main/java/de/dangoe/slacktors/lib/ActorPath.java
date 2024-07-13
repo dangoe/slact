@@ -33,7 +33,7 @@ public abstract class ActorPath {
 
         @Override
         public String toString() {
-            return "";
+            return "/";
         }
     }
 
@@ -67,7 +67,10 @@ public abstract class ActorPath {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             Element element = (Element) o;
-            return Objects.equals(parent, element.parent) && Objects.equals(name, element.name);
+            return (
+                Objects.equals(parent, element.parent) &&
+                Objects.equals(name, element.name)
+            );
         }
 
         @Override
@@ -77,16 +80,21 @@ public abstract class ActorPath {
 
         @Override
         public String toString() {
-            return "%s/%s".formatted(parent, name);
+            if (parent == root) {
+                return "/%s".formatted(name);
+            } else {
+                return "%s/%s".formatted(parent, name);
+            }
         }
     }
 
+    private static final ActorPath root = new Root();
+
     public static ActorPath root() {
-        return new Root();
+        return root;
     }
 
     public abstract ActorPath append(final String name);
-
 
     public abstract Optional<ActorPath> parent();
 }
