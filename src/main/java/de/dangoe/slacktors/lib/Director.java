@@ -1,19 +1,45 @@
 package de.dangoe.slacktors.lib;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
-public class Director implements Context, ActorHandle<Object> {
+public class Director implements ActorContext, ActorHandle<Serializable> {
+
+    private class NestedActorContext implements ActorContext {
+
+        private final ActorPath path;
+        private final ActorSelector actorSelector;
+
+        public NestedActorContext(final ActorPath path, final ActorSelector actorSelector) {
+            super();
+            this.path = path;
+            this.actorSelector = actorSelector;
+        }
+
+        @Override
+        public ActorPath path() {
+            return this.path;
+        }
+
+        @Override
+        public <M extends Serializable> Optional<ActorHandle<M>> select(final ActorPath path) {
+            return this.actorSelector.select(path);
+        }
+
+        @Override
+        public <A extends AbstractActor<M>, M extends Serializable> ActorHandle<M> actorOf(final String name, final Supplier<A> initializer) {
+            return newActor(path().append(name), initializer);
+        }
+    }
 
     private final String name;
 
-    private final ExecutorService executor;
+    private final ScheduledExecutorService executor;
 
     private final AtomicBoolean stopped = new AtomicBoolean(false);
 
@@ -22,7 +48,7 @@ public class Director implements Context, ActorHandle<Object> {
     private Director(final String name) {
         super();
         this.name = name;
-        this.executor = Executors.newFixedThreadPool(12);
+        this.executor = Executors.newScheduledThreadPool(12);
     }
 
     public void shutdown() {
@@ -36,28 +62,25 @@ public class Director implements Context, ActorHandle<Object> {
         executor.close();
     }
 
-    <A extends AbstractActor<M>, M> ActorHandle<M> actorOf(
-        final ActorPath path,
-        final Supplier<A> factory
-    ) {
-        final var actor = new ActorWrapper<>(path, factory.get(), this);
-        actors.put(path, actor);
+    @Override
+    public <A extends AbstractActor<M>, M extends Serializable> ActorHandle<M> actorOf(final String name, final Supplier<A> initializer) {
+        return newActor(ActorPath.root().append(name), initializer);
+    }
+
+    private <A extends AbstractActor<M>, M extends Serializable> ActorHandle<M> newActor(final ActorPath path, final Supplier<A> initializer) {
+        final var actor = new ActorWrapper<>(initializer.get(), new NestedActorContext(path, this), executor);
+        this.actors.put(path, actor);
         return actor;
     }
 
     @Override
-    public <A extends AbstractActor<M>, M> ActorHandle<M> newActor(
-        final String name,
-        final Supplier<A> factory
-    ) {
-        return actorOf(ActorPath.root().append(name), factory);
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
-    public <A extends AbstractActor<M>, M> Optional<ActorHandle<M>> select(
-        ActorPath path
-    ) {
+    public <M extends Serializable> Optional<ActorHandle<M>> select(final ActorPath path) {
+
+        if (path == ActorPath.root()) {
+            return Optional.of((ActorHandle<M>) this);
+        }
+
         return Optional.ofNullable((ActorHandle<M>) this.actors.get(path));
     }
 
@@ -69,17 +92,13 @@ public class Director implements Context, ActorHandle<Object> {
         return stopped.get();
     }
 
-    Executor executor() {
-        return executor;
-    }
-
     @Override
     public ActorPath path() {
         return ActorPath.root();
     }
 
     @Override
-    public void send(Object message, ActorHandle<?> sender) {
+    public void send(Serializable message, ActorHandle<?> sender) {
         System.out.println(message);
     }
 }

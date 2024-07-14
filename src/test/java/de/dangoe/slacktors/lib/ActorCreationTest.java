@@ -42,15 +42,15 @@ class ActorCreationTest {
 
     @Test
     void actorPathShouldBeChildOfRoot() {
-        final var actor = director.newActor("actor", TestActor::new);
+        final var actor = director.actorOf("actor", TestActor::new);
 
         assertThat(actor.path()).isEqualTo(ActorPath.root().append("actor"));
     }
 
     @Test
     void childActorPathShouldBeSubNodeOfParentActorPath() {
-        final var actor = director.newActor("actor", TestActor::new);
-        final var childActor = actor.newActor("child-actor", () ->
+        final var actor = director.actorOf("actor", TestActor::new);
+        final var childActor = actor.actorOf("child-actor", () ->
             new TestChildActor(actor)
         );
 

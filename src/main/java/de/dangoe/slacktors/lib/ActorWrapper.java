@@ -1,112 +1,68 @@
 package de.dangoe.slacktors.lib;
 
+import java.io.Serializable;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-final class ActorWrapper<M> implements ActorHandle<M>, Context {
+final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
 
-    private final class ActorScopedContext implements Context {
+    private final Queue<RoutedMessage<M>> messages = new LinkedBlockingQueue<>();
 
-        @Override
-        public <A extends AbstractActor<M>, M> ActorHandle<M> newActor(
-            String name,
-            Supplier<A> initializer
-        ) {
-            return ActorWrapper.this.newActor(name, initializer);
-        }
+    private final AbstractActor<M> delegate;
+    private final ActorContext context;
 
-        @Override
-        public <A extends AbstractActor<M>, M> Optional<ActorHandle<M>> select(
-            ActorPath path
-        ) {
-            return ActorWrapper.this.select(path);
-        }
+    public ActorWrapper(final AbstractActor<M> delegate, final ActorContext context, final ScheduledExecutorService executorService) {
+
+        super();
+
+        this.delegate = delegate;
+        this.context = context;
+
+        executorService.scheduleAtFixedRate(this::processMessages, 0, 150, TimeUnit.NANOSECONDS);
     }
 
-    private final Queue<RoutedMessage<M>> messages =
-        new LinkedBlockingQueue<>();
+    private void processMessages() {
 
-    private final ActorPath path;
-    private final AbstractActor<M> delegate;
-    private final Director director;
+        var msg = messages.poll();
 
-    public ActorWrapper(
-        final ActorPath path,
-        final AbstractActor<M> delegate,
-        final Director director
-    ) {
-        super();
-        this.path = path;
-        this.delegate = delegate;
-        this.director = director;
+        while (msg != null) {
 
-        director
-            .executor()
-            .execute(() -> {
-                while (!director.stopped()) {
-                    try {
-                        final var msg = messages.poll();
+            final var sender = this.context.select(msg.sender());
+            final var recipient = this.context.select(msg.recipient());
 
-                        if (msg != null) {
-                            final var sender = select(msg.sender());
-                            final var recipient = select(msg.recipient());
+            if (sender.isPresent() && recipient.isPresent()) {
 
-                            if (sender.isPresent() && recipient.isPresent()) {
-                                final ActorHandle<?> senderHandle =
-                                    sender.get();
-                                final ActorHandle<M> recipientHandle =
-                                    (ActorHandle<M>) recipient.get();
-                                final M message = msg.message();
-                                this.delegate.onMessage(
-                                        message,
-                                        senderHandle,
-                                        recipientHandle,
-                                        new ActorScopedContext()
-                                    );
-                            }
-                        }
+                final ActorHandle<?> senderHandle = sender.get();
+                @SuppressWarnings("unchecked") final ActorHandle<M> recipientHandle = (ActorHandle<M>) recipient.get();
 
-                        Thread.sleep(0, 50);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            });
+                final M message = msg.message();
+
+                this.delegate.onMessage(message, senderHandle, recipientHandle, this.context);
+            }
+
+            msg = messages.poll();
+        }
     }
 
     @Override
     public ActorPath path() {
-        return this.path;
+        return this.context.path();
     }
 
     @Override
-    public <A extends AbstractActor<M>, M> ActorHandle<M> newActor(
-        final String name,
-        final Supplier<A> factory
-    ) {
-        return director.actorOf(path().append(name), factory);
-    }
-
-    @Override
-    public <A extends AbstractActor<M>, M> Optional<ActorHandle<M>> select(
-        ActorPath path
-    ) {
-        if (path == ActorPath.root()) {
-            return Optional.of((ActorHandle<M>) this.director);
-        }
-
-        return this.director.select(path);
+    public <A extends AbstractActor<M2>, M2 extends Serializable> ActorHandle<M2> actorOf(final String name, final Supplier<A> initializer) {
+        return this.context.actorOf(name, initializer);
     }
 
     @Override
     public void send(final M message, final ActorHandle<?> sender) {
         if (this.messages.size() < 10) {
-            this.messages.add(
-                    new RoutedMessage<>(sender.path(), this.path(), message)
-                );
+            this.messages.add(new RoutedMessage<>(sender.path(), this.path(), message));
         } else {
             // TODO Use overflow strategy
         }
@@ -117,11 +73,11 @@ final class ActorWrapper<M> implements ActorHandle<M>, Context {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ActorWrapper<?> that = (ActorWrapper<?>) o;
-        return Objects.equals(path, that.path);
+        return Objects.equals(this.context.path(), that.context.path());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(path);
+        return Objects.hashCode(this.context.path());
     }
 }

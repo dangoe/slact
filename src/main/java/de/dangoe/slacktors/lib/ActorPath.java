@@ -67,10 +67,7 @@ public abstract class ActorPath {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             Element element = (Element) o;
-            return (
-                Objects.equals(parent, element.parent) &&
-                Objects.equals(name, element.name)
-            );
+            return (Objects.equals(parent, element.parent) && Objects.equals(name, element.name));
         }
 
         @Override

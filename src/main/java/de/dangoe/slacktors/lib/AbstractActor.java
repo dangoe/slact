@@ -1,18 +1,15 @@
 package de.dangoe.slacktors.lib;
 
-public abstract class AbstractActor<M> {
+import java.io.Serializable;
 
-    private Context context;
+public abstract class AbstractActor<M extends Serializable> {
+
+    private ActorContext context;
     private ActorHandle<M> self;
 
     private ActorHandle<?> sender;
 
-    final void onMessage(
-        final M message,
-        final ActorHandle<?> sender,
-        final ActorHandle<M> self,
-        final Context context
-    ) {
+    final void onMessage(final M message, final ActorHandle<?> sender, final ActorHandle<M> self, final ActorContext context) {
         this.context = context;
         this.self = self;
         this.sender = sender;
@@ -21,7 +18,7 @@ public abstract class AbstractActor<M> {
 
     protected abstract void onMessage(M message);
 
-    protected final Context context() {
+    protected final ActorContext context() {
         return this.context;
     }
 

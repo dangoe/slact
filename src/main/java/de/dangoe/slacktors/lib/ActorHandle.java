@@ -1,6 +1,10 @@
 package de.dangoe.slacktors.lib;
 
-public interface ActorHandle<M> extends ActorFactory {
+import java.io.Serializable;
+
+public interface ActorHandle<M extends Serializable> extends ActorFactory {
+
     ActorPath path();
+
     void send(M message, ActorHandle<?> sender);
 }
