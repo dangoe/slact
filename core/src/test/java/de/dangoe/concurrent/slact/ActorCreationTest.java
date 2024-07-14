@@ -1,8 +1,8 @@
-package de.dangoe.slacktors.lib;
-
-import static org.assertj.core.api.Assertions.*;
+package de.dangoe.concurrent.slact;
 
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ActorCreationTest {
 
@@ -22,23 +22,23 @@ class ActorCreationTest {
         }
     }
 
-    private final Actors container = Actors.createRuntime();
+    private final Slact slact = Slact.createRuntime();
 
     @Test
     void directorPathShouldBeRootPath() {
-        assertThat(container.path()).isSameAs(ActorPath.root());
+        assertThat(slact.path()).isSameAs(ActorPath.root());
     }
 
     @Test
     void actorPathShouldBeChildOfRoot() {
-        final var actor = container.register("actor", TestActor::new);
+        final var actor = slact.register("actor", TestActor::new);
 
         assertThat(actor.path()).isEqualTo(ActorPath.root().append("actor"));
     }
 
     @Test
     void childActorPathShouldBeSubNodeOfParentActorPath() {
-        final var actor = container.register("actor", TestActor::new);
+        final var actor = slact.register("actor", TestActor::new);
         final var childActor = actor.register("child-actor", TestChildActor::new);
 
         assertThat(childActor.path()).isEqualTo(ActorPath.root().append("actor").append("child-actor"));

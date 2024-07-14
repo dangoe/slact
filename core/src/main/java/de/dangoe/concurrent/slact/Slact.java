@@ -1,4 +1,4 @@
-package de.dangoe.slacktors.lib;
+package de.dangoe.concurrent.slact;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -8,7 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Actors implements ActorHandleResolver, ActorHandle<Serializable> {
+public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
 
     private class NestedActorContext<M extends Serializable> implements ActorContext {
 
@@ -52,7 +52,7 @@ public class Actors implements ActorHandleResolver, ActorHandle<Serializable> {
 
     private final Map<ActorPath, ActorWrapper<?>> actors = new HashMap<>();
 
-    private Actors(final String name) {
+    private Slact(final String name) {
         super();
         this.name = name;
         this.executor = Executors.newScheduledThreadPool(12);
@@ -92,12 +92,12 @@ public class Actors implements ActorHandleResolver, ActorHandle<Serializable> {
         return Optional.ofNullable((ActorHandle<M>) this.actors.get(path));
     }
 
-    public static Actors createRuntime() {
+    public static Slact createRuntime() {
         return createRuntime(UUID.randomUUID().toString());
     }
 
-    public static Actors createRuntime(final String name) {
-        return new Actors(name);
+    public static Slact createRuntime(final String name) {
+        return new Slact(name);
     }
 
     boolean stopped() {

@@ -1,4 +1,4 @@
-package de.dangoe.slacktors.lib;
+package de.dangoe.concurrent.slact;
 
 import java.util.Objects;
 import java.util.Optional;

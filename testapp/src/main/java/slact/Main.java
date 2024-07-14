@@ -1,8 +1,8 @@
-package de.dangoe.slacktors;
+package slact;
 
-import de.dangoe.slacktors.lib.AbstractActor;
-import de.dangoe.slacktors.lib.ActorPath;
-import de.dangoe.slacktors.lib.Actors;
+import de.dangoe.concurrent.slact.AbstractActor;
+import de.dangoe.concurrent.slact.ActorPath;
+import de.dangoe.concurrent.slact.Slact;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -45,7 +45,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        final var actorsRuntime = Actors.createRuntime("container");
+        final var actorsRuntime = Slact.createRuntime("container");
 
         actorsRuntime.register("counter", CounterActor::new);
 

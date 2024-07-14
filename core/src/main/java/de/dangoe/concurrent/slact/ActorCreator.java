@@ -1,4 +1,4 @@
-package de.dangoe.slacktors.lib;
+package de.dangoe.concurrent.slact;
 
 @FunctionalInterface
 public interface ActorCreator<A> {
