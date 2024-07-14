@@ -46,7 +46,7 @@ public class Director implements Context, ActorHandle<Object> {
     }
 
     @Override
-    public <A extends AbstractActor<M>, M> ActorHandle<M> actorOf(
+    public <A extends AbstractActor<M>, M> ActorHandle<M> newActor(
         final String name,
         final Supplier<A> factory
     ) {

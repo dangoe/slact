@@ -3,12 +3,16 @@ package de.dangoe.slacktors.lib;
 public abstract class AbstractActor<M> {
 
     private Context context;
-
     private ActorHandle<M> self;
 
     private ActorHandle<?> sender;
 
-    void onMessage(final M message, final ActorHandle<?> sender, final ActorHandle<M> self, final Context context) {
+    final void onMessage(
+        final M message,
+        final ActorHandle<?> sender,
+        final ActorHandle<M> self,
+        final Context context
+    ) {
         this.context = context;
         this.self = self;
         this.sender = sender;

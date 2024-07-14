@@ -51,13 +51,13 @@ public class Main {
         UUID.randomUUID().toString()
     );
 
-    private static final ActorHandle<Object> counter = director.actorOf(
+    private static final ActorHandle<Object> counter = director.newActor(
         CounterActor::new
     );
 
     public static void main(String[] args) throws Exception {
-        final var firstActor = director.actorOf(MyActor::new);
-        final var nestedActor = firstActor.actorOf(MyActor::new);
+        final var firstActor = director.newActor(MyActor::new);
+        final var nestedActor = firstActor.newActor(MyActor::new);
 
         for (int i = 0; i < 1000; i++) {
             firstActor.send("Hello world %s!".formatted(i), director);

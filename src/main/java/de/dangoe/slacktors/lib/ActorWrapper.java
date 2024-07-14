@@ -8,6 +8,24 @@ import java.util.function.Supplier;
 
 final class ActorWrapper<M> implements ActorHandle<M>, Context {
 
+    private final class ActorScopedContext implements Context {
+
+        @Override
+        public <A extends AbstractActor<M>, M> ActorHandle<M> newActor(
+            String name,
+            Supplier<A> initializer
+        ) {
+            return ActorWrapper.this.newActor(name, initializer);
+        }
+
+        @Override
+        public <A extends AbstractActor<M>, M> Optional<ActorHandle<M>> select(
+            ActorPath path
+        ) {
+            return ActorWrapper.this.select(path);
+        }
+    }
+
     private final Queue<RoutedMessage<M>> messages =
         new LinkedBlockingQueue<>();
 
@@ -46,7 +64,7 @@ final class ActorWrapper<M> implements ActorHandle<M>, Context {
                                         message,
                                         senderHandle,
                                         recipientHandle,
-                                        this
+                                        new ActorScopedContext()
                                     );
                             }
                         }
@@ -65,7 +83,7 @@ final class ActorWrapper<M> implements ActorHandle<M>, Context {
     }
 
     @Override
-    public <A extends AbstractActor<M>, M> ActorHandle<M> actorOf(
+    public <A extends AbstractActor<M>, M> ActorHandle<M> newActor(
         final String name,
         final Supplier<A> factory
     ) {
