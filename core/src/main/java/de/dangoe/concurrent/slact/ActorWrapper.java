@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
 
-    private final Queue<TrackedMessage<M>> messages = new LinkedBlockingQueue<>();
+    private final Queue<TraceableMessage<M>> messages = new LinkedBlockingQueue<>();
 
     private final AbstractActor<M> delegate;
     private final ActorContext context;
@@ -60,7 +60,7 @@ final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
     @Override
     public void send(final M message, final ActorHandle<?> sender) {
         if (this.messages.size() < 10) {
-            this.messages.add(new TrackedMessage<>(sender.path(), message));
+            this.messages.add(new TraceableMessage<>(sender.path(), message));
         } else {
             // TODO Use overflow strategy
         }

@@ -1,5 +1,4 @@
 plugins {
-    id("java")
     application
 }
 
@@ -11,10 +10,6 @@ java {
 
 group = "de.dangoe.concurrent.slact.testapp"
 version = "1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     implementation(project(":core"))
