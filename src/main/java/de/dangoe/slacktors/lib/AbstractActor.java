@@ -5,13 +5,11 @@ import java.io.Serializable;
 public abstract class AbstractActor<M extends Serializable> {
 
     private ActorContext context;
-    private ActorHandle<M> self;
 
     private ActorHandle<?> sender;
 
-    final void onMessage(final M message, final ActorHandle<?> sender, final ActorHandle<M> self, final ActorContext context) {
+    final void onMessage(final M message, final ActorHandle<?> sender, final ActorContext context) {
         this.context = context;
-        this.self = self;
         this.sender = sender;
         onMessage(message);
     }
@@ -22,8 +20,12 @@ public abstract class AbstractActor<M extends Serializable> {
         return this.context;
     }
 
-    protected final ActorHandle<M> self() {
-        return this.self;
+    protected final ActorHandle<?> parent() {
+        return this.context.parent();
+    }
+
+    protected final ActorHandle<?> self() {
+        return this.context.self();
     }
 
     protected final ActorHandle<?> sender() {

@@ -1,12 +1,11 @@
 package de.dangoe.slacktors;
 
 import de.dangoe.slacktors.lib.AbstractActor;
-import de.dangoe.slacktors.lib.ActorHandle;
-import de.dangoe.slacktors.lib.Director;
+import de.dangoe.slacktors.lib.ActorPath;
+import de.dangoe.slacktors.lib.Actors;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.UUID;
 
 public class Main {
 
@@ -37,32 +36,25 @@ public class Main {
             final var maybeParent = self().path().parent();
 
             if (maybeParent.isPresent()) {
-                maybeParent
-                        .flatMap(context()::select)
-                        .ifPresent(actor -> actor.send(msg, MyActor.this.self()));
+                maybeParent.flatMap(context()::resolve).ifPresent(actor -> actor.send(msg, MyActor.this.self()));
             } else {
-                context()
-                        .select(counter.path())
-                        .ifPresent(actor -> actor.send(msg, MyActor.this.self()));
+                context().resolve(ActorPath.root().append("counter")).ifPresent(actor -> actor.send(msg, MyActor.this.self()));
             }
         }
     }
 
-    private static final Director director = Director.forName(
-            UUID.randomUUID().toString()
-    );
-
-    private static final ActorHandle<String> counter = director.actorOf(
-            CounterActor::new
-    );
-
     public static void main(String[] args) throws Exception {
-        final var firstActor = director.actorOf(MyActor::new);
-        final var nestedActor = firstActor.actorOf(MyActor::new);
+
+        final var actorsRuntime = Actors.createRuntime("container");
+
+        actorsRuntime.register("counter", CounterActor::new);
+
+        final var firstActor = actorsRuntime.register(MyActor::new);
+        final var nestedActor = firstActor.register(MyActor::new);
 
         for (int i = 0; i < 10_000_000; i++) {
-            firstActor.send("Hello world %s!".formatted(i), director);
-            nestedActor.send("Hello world %s!".formatted(i), director);
+            firstActor.send("Hello world %s!".formatted(i), actorsRuntime);
+            nestedActor.send("Hello world %s!".formatted(i), actorsRuntime);
         }
 
         System.out.println("Waiting for shutdown ...");
@@ -71,6 +63,6 @@ public class Main {
 
         System.out.println("Shutting down ...");
 
-        director.shutdown();
+        actorsRuntime.shutdown();
     }
 }

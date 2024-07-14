@@ -1,6 +1,18 @@
 package de.dangoe.slacktors.lib;
 
-public interface ActorContext extends ActorFactory, ActorSelector {
+public interface ActorContext extends ActorFactory, ActorHandleResolver {
 
-    ActorPath path();
+    ActorPath parentPath();
+
+    ActorPath selfPath();
+
+    default ActorHandle<?> parent() {
+        final var parentPath = this.parentPath();
+        return this.resolve(parentPath).orElseThrow(() -> new IllegalStateException("Failed to resolve actor handle for '%s'.".formatted(parentPath)));
+    }
+
+    default ActorHandle<?> self() {
+        final var selfPath = this.selfPath();
+        return this.resolve(selfPath).orElseThrow(() -> new IllegalStateException("Failed to resolve actor handle for '%s'.".formatted(selfPath)));
+    }
 }

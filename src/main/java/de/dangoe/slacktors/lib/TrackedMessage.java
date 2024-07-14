@@ -1,7 +1,6 @@
 package de.dangoe.slacktors.lib;
 
-public record RoutedMessage<M>(
+public record TrackedMessage<M>(
     ActorPath sender,
-    ActorPath recipient,
     M message
 ) {}

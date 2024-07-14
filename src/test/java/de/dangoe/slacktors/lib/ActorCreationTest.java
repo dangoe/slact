@@ -10,52 +10,37 @@ class ActorCreationTest {
 
         @Override
         protected void onMessage(String message) {
-            throw new UnsupportedOperationException(
-                "Unimplemented method 'onMessage'"
-            );
+            throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
         }
     }
 
     private static final class TestChildActor extends AbstractActor<String> {
 
-        private final ActorHandle<String> parent;
-
-        public TestChildActor(final ActorHandle<String> parent) {
-            super();
-            this.parent = parent;
-        }
-
         @Override
         protected void onMessage(String message) {
-            throw new UnsupportedOperationException(
-                "Unimplemented method 'onMessage'"
-            );
+            throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
         }
     }
 
-    private final Director director = Director.forName("");
+    private final Actors container = Actors.createRuntime();
 
     @Test
     void directorPathShouldBeRootPath() {
-        assertThat(director.path()).isSameAs(ActorPath.root());
+        assertThat(container.path()).isSameAs(ActorPath.root());
     }
 
     @Test
     void actorPathShouldBeChildOfRoot() {
-        final var actor = director.actorOf("actor", TestActor::new);
+        final var actor = container.register("actor", TestActor::new);
 
         assertThat(actor.path()).isEqualTo(ActorPath.root().append("actor"));
     }
 
     @Test
     void childActorPathShouldBeSubNodeOfParentActorPath() {
-        final var actor = director.actorOf("actor", TestActor::new);
-        final var childActor = actor.actorOf("child-actor", () ->
-            new TestChildActor(actor)
-        );
+        final var actor = container.register("actor", TestActor::new);
+        final var childActor = actor.register("child-actor", TestChildActor::new);
 
-        assertThat(childActor.path()).isEqualTo(
-            ActorPath.root().append("actor").append("child-actor")
-        );
+        assertThat(childActor.path()).isEqualTo(ActorPath.root().append("actor").append("child-actor"));
     }
 }
