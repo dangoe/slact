@@ -1,5 +1,7 @@
 package de.dangoe.concurrent.slact;
 
+import java.io.Serializable;
+
 public interface ActorContext extends ActorFactory, ActorHandleResolver {
 
     ActorPath parentPath();

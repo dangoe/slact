@@ -59,7 +59,7 @@ final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
 
     @Override
     public void send(final M message, final ActorHandle<?> sender) {
-        if (this.messages.size() < 10) {
+        if (this.messages.size() < 1000) {
             this.messages.add(new TraceableMessage<>(sender.path(), message));
         } else {
             // TODO Use overflow strategy
