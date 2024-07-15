@@ -9,7 +9,11 @@ import de.dangoe.concurrent.slact.api.ActorPath;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -45,6 +49,50 @@ class ActorMessagePropagationTest {
   }
 
   @Test
+  void eventualMessagesCanBePiped() {
+
+    try (final var executor = Executors.newFixedThreadPool(12)) {
+
+      final var result = new CopyOnWriteArrayList<String>();
+
+      final var terminalActor = slact.spawn(() -> new Actor<String>() {
+        @Override
+        protected void onMessageInternal(final String message) {
+          result.add(message);
+        }
+      });
+
+      final var actor = slact.spawn(() -> new Actor<String>() {
+        @Override
+        protected void onMessageInternal(final String message) {
+
+          final var future = new CompletableFuture<String>();
+
+          pipe(future).to(terminalActor);
+
+          executor.execute(() -> {
+            try {
+              Thread.sleep(new Random().nextInt(0, 250));
+              future.complete(message);
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
+          });
+        }
+      });
+
+      final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
+
+      for (final var message : messages) {
+        slact.send(message).to(actor);
+      }
+
+      await().atMost(Duration.ofSeconds(5))
+          .untilAsserted(() -> assertThat(result).containsExactlyInAnyOrderElementsOf(messages));
+    }
+  }
+
+  @Test
   void messageCorrelationShouldWork() {
 
     final var messageIds = Collections.synchronizedSet(new HashSet<>());
@@ -71,8 +119,8 @@ class ActorMessagePropagationTest {
       slact.send(message).to(actor);
     }
 
-    await().atMost(Duration.ofSeconds(5))
-        .untilAsserted(() -> assertThat(correlationMessageIds).hasSize(messages.size())
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(
+        () -> assertThat(correlationMessageIds).hasSize(messages.size())
             .containsExactlyElementsOf(messageIds));
   }
 
@@ -130,10 +178,9 @@ class ActorMessagePropagationTest {
       slact.send(message).to(childActor);
     }
 
-    await().atMost(Duration.ofSeconds(5))
-        .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(
-            messages.stream().map(msg -> new Pair<>(childActor.path(), msg))
-                .toList()));
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(
+        () -> assertThat(result).containsExactlyElementsOf(
+            messages.stream().map(msg -> new Pair<>(childActor.path(), msg)).toList()));
   }
 
   @Test

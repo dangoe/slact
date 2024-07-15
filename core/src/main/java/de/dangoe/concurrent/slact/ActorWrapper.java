@@ -9,13 +9,17 @@ import de.dangoe.concurrent.slact.api.ActorCreator;
 import de.dangoe.concurrent.slact.api.ActorHandle;
 import de.dangoe.concurrent.slact.api.ActorHandleResolver;
 import de.dangoe.concurrent.slact.api.ActorPath;
-import de.dangoe.concurrent.slact.api.ActorSpawner;
+import de.dangoe.concurrent.slact.api.PipeOp;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 final class ActorWrapper<M> implements ActorHandle<M> {
 
@@ -69,11 +73,24 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <A extends Actor<M1>, M1> ActorHandle<M1> spawn(
-        final String name,
+    public <M1> PipeOp<M1> pipe(final Future<M1> eventualMessage) {
+      return target -> {
+        ActorWrapper.this.scheduledExecutor.scheduleOnce(() -> {
+          // TODO Configure timeout
+          try {
+            final var message = eventualMessage.get(10, TimeUnit.SECONDS);
+            send(message).to(target);
+          } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+          }
+        }, Duration.of(0, ChronoUnit.NANOS));
+      };
+    }
+
+    @Override
+    public <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final String name,
         ActorCreator<A> actorCreator) {
-      return ActorWrapper.this.actorSpawner.spawnInternal(self().path().append(name),
-          actorCreator);
+      return ActorWrapper.this.actorSpawner.spawnInternal(self().path().append(name), actorCreator);
     }
 
     @Override
@@ -83,14 +100,14 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     public <M1> PreparedSendMessageOp<M1> send(M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message,
-          messageId, self());
+      return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message, messageId,
+          self());
     }
 
     @Override
     public <M1> PreparedForwardMessageOp<M1> forward(M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
-          messageId, sender());
+      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, messageId,
+          sender());
     }
   }
 
@@ -100,6 +117,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final ActorPath path;
   private final ActorSpawnerImpl actorSpawner;
   private final ActorHandleResolver actorHandleResolver;
+  private final ScheduledExecutor scheduledExecutor;
 
   public ActorWrapper(final Actor<M> delegate, final ActorPath path,
       final ActorSpawnerImpl actorSpawner, final ActorHandleResolver actorHandleResolver,
@@ -111,8 +129,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.path = path;
     this.actorSpawner = actorSpawner;
     this.actorHandleResolver = actorHandleResolver;
+    this.scheduledExecutor = scheduledExecutor;
 
-    scheduledExecutor.scheduleAtFixedRate(this::processMessages, 0, 150, TimeUnit.NANOSECONDS);
+    scheduledExecutor.scheduleAtFixedRate(this::processMessages, Duration.of(0, ChronoUnit.MILLIS),
+        Duration.of(1, ChronoUnit.MILLIS));
   }
 
   private void processMessages() {
@@ -158,11 +178,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         sender);
   }
 
-  public <R> Future<R> requestResponseToInternal(final M message,
-      final ActorHandle<?> sender) {
+  public <R> Future<R> requestResponseToInternal(final M message, final ActorHandle<?> sender) {
 
-    final var wrapper = new MessageWithResponseRequest<M, R>(message, null,
-        sender.path());
+    final var wrapper = new MessageWithResponseRequest<M, R>(message, null, sender.path());
 
     processMessage(wrapper, sender);
 

@@ -36,4 +36,6 @@ public interface ActorContext extends ActorSpawner, ActorHandleResolver {
   ActorHandle<?> parent();
 
   ActorHandle<?> self();
+
+  <M1> PipeOp<M1> pipe(Future<M1> eventualMessage);
 }

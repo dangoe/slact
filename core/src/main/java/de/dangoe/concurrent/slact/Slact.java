@@ -8,12 +8,15 @@ import de.dangoe.concurrent.slact.api.ActorHandle;
 import de.dangoe.concurrent.slact.api.ActorHandleResolver;
 import de.dangoe.concurrent.slact.api.ActorPath;
 import de.dangoe.concurrent.slact.api.ActorSpawner;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Slact implements ActorHandleResolver, ActorSpawner {
@@ -29,8 +32,23 @@ public class Slact implements ActorHandleResolver, ActorSpawner {
     <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
         final ActorCreator<A> creator) {
       final var actor = creator.create();
-      final var actorWrapper = new ActorWrapper<>(actor, path,
-          this, Slact.this, Slact.this.executor::scheduleAtFixedRate);
+      final var actorWrapper = new ActorWrapper<>(actor, path, this, Slact.this,
+          new ScheduledExecutor() {
+
+            @Override
+            public ScheduledFuture<?> scheduleOnce(final Runnable command,
+                final Duration initialDelay) {
+              return Slact.this.executor.schedule(command, initialDelay.toMillis(),
+                  TimeUnit.MILLISECONDS);
+            }
+
+            @Override
+            public ScheduledFuture<?> scheduleAtFixedRate(final Runnable command,
+                final Duration initialDelay, final Duration period) {
+              return Slact.this.executor.scheduleAtFixedRate(command, initialDelay.toMillis(),
+                  period.toMillis(), TimeUnit.MILLISECONDS);
+            }
+          });
       Slact.this.actors.put(path, actorWrapper);
       return actorWrapper;
     }

@@ -1,12 +1,11 @@
 package de.dangoe.concurrent.slact;
 
+import java.time.Duration;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 interface ScheduledExecutor {
 
-  ScheduledFuture<?> scheduleAtFixedRate(Runnable command,
-      long initialDelay,
-      long period,
-      TimeUnit unit);
+  ScheduledFuture<?> scheduleOnce(Runnable command, Duration initialDelay);
+
+  ScheduledFuture<?> scheduleAtFixedRate(Runnable command, Duration initialDelay, Duration period);
 }
