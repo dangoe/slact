@@ -82,9 +82,4 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
   public <M> SendableMessage<M> send(final M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, Slact.this);
   }
-
-  @Override
-  public void forward(Serializable message, ActorContext context) {
-    System.out.println(message);
-  }
 }

@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.ActorContext.ForwardableMessage;
 import de.dangoe.concurrent.slact.ActorContext.SendableMessage;
 import java.io.Serializable;
 
@@ -34,5 +35,9 @@ public abstract class Actor<M> {
 
     protected final <M1> SendableMessage<M1> send(M1 message) {
         return context().send(message);
+    }
+
+    protected final <M1> ForwardableMessage<M1> forward(M1 message) {
+        return context().forward(message);
     }
 }

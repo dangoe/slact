@@ -1,6 +1,5 @@
 package de.dangoe.concurrent.slact;
 
-import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
@@ -47,7 +46,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     public <A extends Actor<M1>, M1> ActorHandle<M1> register(
         final String name,
         ActorCreator<A> actorCreator) {
-      return ((Slact)ActorWrapper.this.actorRegistry).newActor(self().path().append(name), actorCreator);
+      return ((Slact) ActorWrapper.this.actorRegistry).newActor(self().path().append(name),
+          actorCreator);
     }
 
     @Override
@@ -58,6 +58,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     @Override
     public <M1> SendableMessage<M1> send(M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message, self());
+    }
+
+    @Override
+    public <M1> ForwardableMessage<M1> forward(M1 message) {
+      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, sender());
     }
   }
 
@@ -113,16 +118,15 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   @Override
   public <A extends Actor<M2>, M2> ActorHandle<M2> register(final String name,
       final ActorCreator<A> creator) {
-    return ((Slact)ActorWrapper.this.actorRegistry).newActor(this.path.append(name), creator);
+    return ((Slact) ActorWrapper.this.actorRegistry).newActor(this.path.append(name), creator);
   }
 
   void sendInternal(final M message, final ActorHandle<?> sender) {
     processMessage(message, sender);
   }
 
-  @Override
-  public void forward(final M message, final ActorContext context) {
-    processMessage(message, context.sender());
+  void forwardInternal(final M message, ActorHandle<?> sender) {
+    processMessage(message, sender);
   }
 
   private void processMessage(final M message, final ActorHandle<?> sender) {

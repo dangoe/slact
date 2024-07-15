@@ -95,7 +95,7 @@ class ActorMessagePropagationTest {
     final var mediatorActor = slact.register("mediator-actor", () -> new Actor<String>() {
       @Override
       protected void onMessage(final String message) {
-        targetActor.forward(message, context());
+        forward(message).to(targetActor);
       }
     });
 
