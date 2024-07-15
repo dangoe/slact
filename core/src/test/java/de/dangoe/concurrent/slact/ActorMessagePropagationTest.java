@@ -1,14 +1,14 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.ActorContext.SendableMessage;
-import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.IntStream;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.IntStream;
+import org.junit.jupiter.api.Test;
 
 
 class ActorMessagePropagationTest {
@@ -18,6 +18,38 @@ class ActorMessagePropagationTest {
   }
 
   private final Slact slact = Slact.createRuntime();
+
+  @Test
+  void messageCorrelationShouldWork() {
+
+    final var messageIds = Collections.synchronizedSet(new HashSet<>());
+    final var correlationMessageIds = Collections.synchronizedSet(new HashSet<>());
+
+    final var otherActor = slact.register("other-actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessage(final String message) {
+        context().correlationMessageId().ifPresent(correlationMessageIds::add);
+      }
+    });
+
+    final var actor = slact.register("actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessage(final String message) {
+        messageIds.add(context().messageId());
+        send(message).to(otherActor);
+      }
+    });
+
+    final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
+
+    for (final var message : messages) {
+      slact.send(message).to(actor);
+    }
+
+    await().atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertThat(correlationMessageIds).hasSize(messages.size())
+            .containsExactlyElementsOf(messageIds));
+  }
 
   @Test
   void messagesCanBeResend() {
@@ -63,8 +95,7 @@ class ActorMessagePropagationTest {
     final var childActor = parentActor.register("child-actor", () -> new Actor<String>() {
       @Override
       protected void onMessage(final String message) {
-        SendableMessage<String> send = send(message);
-        send.to((ActorHandle<? extends String>) parent());
+        send(message).to((ActorHandle<? extends String>) parent());
       }
     });
 
@@ -116,5 +147,20 @@ class ActorMessagePropagationTest {
         () -> assertThat(result).containsExactlyElementsOf(
             messages.stream().map(msg -> new Pair<>(ActorPath.root().append("origin-actor"), msg))
                 .toList()));
+  }
+
+  @Test
+  void actorResponseCanBeAwaited() {
+
+    final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
+
+    final var actor = slact.register("actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessage(final String message) {
+        result.add(new Pair<>(context().sender().path(), message));
+      }
+    });
+
+    // slact.ask("Hello world!").to("Hello world!");
   }
 }

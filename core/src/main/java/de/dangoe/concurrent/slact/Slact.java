@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.ActorContext.SendableAskMessage;
 import de.dangoe.concurrent.slact.ActorContext.SendableMessage;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -80,6 +81,6 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
   }
 
   public <M> SendableMessage<M> send(final M message) {
-    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, Slact.this);
+    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, null, Slact.this);
   }
 }

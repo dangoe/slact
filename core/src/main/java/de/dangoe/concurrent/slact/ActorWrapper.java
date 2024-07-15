@@ -10,16 +10,31 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private class ActorContextImpl implements ActorContext {
 
+    private final String messageId;
+    private final String correlationMessageId;
     private final ActorHandle<?> senderHandle;
 
-    public ActorContextImpl(final ActorHandle<?> senderHandle) {
+    public ActorContextImpl(final String messageId, final String correlationMessageId,
+        final ActorHandle<?> senderHandle) {
       super();
+      this.messageId = messageId;
+      this.correlationMessageId = correlationMessageId;
       this.senderHandle = senderHandle;
     }
 
     @Override
+    public String messageId() {
+      return this.messageId;
+    }
+
+    @Override
+    public Optional<String> correlationMessageId() {
+      return Optional.ofNullable(this.correlationMessageId);
+    }
+
+    @Override
     public ActorHandle<?> sender() {
-      return senderHandle;
+      return this.senderHandle;
     }
 
     @Override
@@ -57,16 +72,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     public <M1> SendableMessage<M1> send(M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message, self());
+      return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message,
+          messageId, self());
     }
 
     @Override
     public <M1> ForwardableMessage<M1> forward(M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, sender());
+      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
+          messageId, sender());
     }
   }
 
-  private final Queue<TraceableMessage<M>> messages = new LinkedBlockingQueue<>();
+  private final Queue<WrappedMessage<M>> messages = new LinkedBlockingQueue<>();
 
   private final Actor<M> delegate;
   private final ActorPath path;
@@ -101,7 +118,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         final M message = msg.message();
 
-        this.delegate.onMessage(message, new ActorContextImpl(senderHandle));
+        this.delegate.onMessage(message,
+            new ActorContextImpl(msg.messageId(), msg.correlationMessageId().orElse(null),
+                senderHandle));
       } else {
         // TODO Error handling
       }
@@ -121,17 +140,21 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     return ((Slact) ActorWrapper.this.actorRegistry).newActor(this.path.append(name), creator);
   }
 
-  void sendInternal(final M message, final ActorHandle<?> sender) {
-    processMessage(message, sender);
+  void sendInternal(final M message, final String correlationMessageId,
+      final ActorHandle<?> sender) {
+    processMessage(
+        new WrappedMessage.FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
+        sender);
   }
 
-  void forwardInternal(final M message, ActorHandle<?> sender) {
-    processMessage(message, sender);
+  void forwardInternal(final M message, final String correlationMessageId, ActorHandle<?> sender) {
+    processMessage(new WrappedMessage.AskMessage<>(message, correlationMessageId, sender.path()),
+        sender);
   }
 
-  private void processMessage(final M message, final ActorHandle<?> sender) {
+  private void processMessage(final WrappedMessage<M> message, final ActorHandle<?> sender) {
     if (this.messages.size() < 1000) {
-      this.messages.add(new TraceableMessage<>(sender.path(), message));
+      this.messages.add(message);
     } else {
       // TODO Use overflow strategy
     }
