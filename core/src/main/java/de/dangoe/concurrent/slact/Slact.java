@@ -1,16 +1,40 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.ActorContext.SendableAskMessage;
-import de.dangoe.concurrent.slact.ActorContext.SendableMessage;
-import java.io.Serializable;
+import de.dangoe.concurrent.slact.api.Actor;
+import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageOp;
+import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageWithResponseRequestOp;
+import de.dangoe.concurrent.slact.api.ActorCreator;
+import de.dangoe.concurrent.slact.api.ActorHandle;
+import de.dangoe.concurrent.slact.api.ActorHandleResolver;
+import de.dangoe.concurrent.slact.api.ActorPath;
+import de.dangoe.concurrent.slact.api.ActorSpawner;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
+public class Slact implements ActorHandleResolver, ActorSpawner {
+
+  class ActorSpawnerImpl implements ActorSpawner {
+
+    @Override
+    public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
+        final ActorCreator<A> creator) {
+      return spawnInternal(ActorPath.root().append(name), creator);
+    }
+
+    <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
+        final ActorCreator<A> creator) {
+      final var actor = creator.create();
+      final var actorWrapper = new ActorWrapper<>(actor, path,
+          this, Slact.this, Slact.this.executor::scheduleAtFixedRate);
+      Slact.this.actors.put(path, actorWrapper);
+      return actorWrapper;
+    }
+  }
 
   private final String name;
 
@@ -20,10 +44,24 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
 
   private final Map<ActorPath, ActorWrapper<?>> actors = new HashMap<>();
 
+  private final ActorSpawnerImpl actorSpawner;
+  private final ActorHandle<Object> rootActor;
+
   private Slact(final String name) {
+
     super();
+
     this.name = name;
+
+    this.actorSpawner = new ActorSpawnerImpl();
     this.executor = Executors.newScheduledThreadPool(12);
+
+    this.rootActor = this.actorSpawner.spawnInternal(ActorPath.root(), () -> new Actor<Object>() {
+      @Override
+      protected void onMessageInternal(Object message) {
+        System.out.println(message);
+      }
+    });
   }
 
   public void shutdown() {
@@ -38,18 +76,9 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
   }
 
   @Override
-  public <A extends Actor<M>, M> ActorHandle<M> register(final String name,
+  public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
       final ActorCreator<A> creator) {
-    return newActor(ActorPath.root().append(name), creator);
-  }
-
-  <A extends Actor<M>, M> ActorHandle<M> newActor(final ActorPath path,
-      final ActorCreator<A> creator) {
-    final var actor = creator.create();
-    final var actorWrapper = new ActorWrapper<>(actor, path,
-        this, this, Slact.this.executor::scheduleAtFixedRate);
-    this.actors.put(path, actorWrapper);
-    return actorWrapper;
+    return this.actorSpawner.spawn(name, creator);
   }
 
   @Override
@@ -57,7 +86,7 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
   public <M> Optional<ActorHandle<M>> resolve(final ActorPath path) {
 
     if (path == ActorPath.root()) {
-      return Optional.of((ActorHandle<M>) this);
+      return Optional.of((ActorHandle<M>) this.rootActor);
     }
 
     return Optional.ofNullable((ActorHandle<M>) this.actors.get(path));
@@ -75,12 +104,13 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
     return stopped.get();
   }
 
-  @Override
-  public ActorPath path() {
-    return ActorPath.root();
+  public <M> PreparedSendMessageOp<M> send(final M message) {
+    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, null,
+        this.rootActor);
   }
 
-  public <M> SendableMessage<M> send(final M message) {
-    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, null, Slact.this);
+  public <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(final M message) {
+    return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
+        this.rootActor);
   }
 }

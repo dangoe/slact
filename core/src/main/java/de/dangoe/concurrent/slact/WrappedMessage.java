@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.api.ActorPath;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -15,11 +16,11 @@ public abstract class WrappedMessage<M> {
     }
   }
 
-  public static final class AskMessage<M, R> extends WrappedMessage<M> {
+  public static final class MessageWithResponseRequest<M, R> extends WrappedMessage<M> {
 
     private final CompletableFuture<R> future;
 
-    public AskMessage(final M message, final String correlationMessageId, final ActorPath sender) {
+    public MessageWithResponseRequest(final M message, final String correlationMessageId, final ActorPath sender) {
       super(message, correlationMessageId, sender);
       this.future = new CompletableFuture<>();
     }

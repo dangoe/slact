@@ -1,8 +1,19 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.Slact.ActorSpawnerImpl;
+import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
+import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.api.Actor;
+import de.dangoe.concurrent.slact.api.ActorContext;
+import de.dangoe.concurrent.slact.api.ActorCreator;
+import de.dangoe.concurrent.slact.api.ActorHandle;
+import de.dangoe.concurrent.slact.api.ActorHandleResolver;
+import de.dangoe.concurrent.slact.api.ActorPath;
+import de.dangoe.concurrent.slact.api.ActorSpawner;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -58,10 +69,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <A extends Actor<M1>, M1> ActorHandle<M1> register(
+    public <A extends Actor<M1>, M1> ActorHandle<M1> spawn(
         final String name,
         ActorCreator<A> actorCreator) {
-      return ((Slact) ActorWrapper.this.actorRegistry).newActor(self().path().append(name),
+      return ActorWrapper.this.actorSpawner.spawnInternal(self().path().append(name),
           actorCreator);
     }
 
@@ -71,13 +82,13 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <M1> SendableMessage<M1> send(M1 message) {
+    public <M1> PreparedSendMessageOp<M1> send(M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message,
           messageId, self());
     }
 
     @Override
-    public <M1> ForwardableMessage<M1> forward(M1 message) {
+    public <M1> PreparedForwardMessageOp<M1> forward(M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
           messageId, sender());
     }
@@ -87,18 +98,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final Actor<M> delegate;
   private final ActorPath path;
-  private final ActorRegistry actorRegistry;
+  private final ActorSpawnerImpl actorSpawner;
   private final ActorHandleResolver actorHandleResolver;
 
   public ActorWrapper(final Actor<M> delegate, final ActorPath path,
-      final ActorRegistry actorRegistry, final ActorHandleResolver actorHandleResolver,
+      final ActorSpawnerImpl actorSpawner, final ActorHandleResolver actorHandleResolver,
       final ScheduledExecutor scheduledExecutor) {
 
     super();
 
     this.delegate = delegate;
     this.path = path;
-    this.actorRegistry = actorRegistry;
+    this.actorSpawner = actorSpawner;
     this.actorHandleResolver = actorHandleResolver;
 
     scheduledExecutor.scheduleAtFixedRate(this::processMessages, 0, 150, TimeUnit.NANOSECONDS);
@@ -135,9 +146,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   @Override
-  public <A extends Actor<M2>, M2> ActorHandle<M2> register(final String name,
+  public <A extends Actor<M2>, M2> ActorHandle<M2> spawn(final String name,
       final ActorCreator<A> creator) {
-    return ((Slact) ActorWrapper.this.actorRegistry).newActor(this.path.append(name), creator);
+    return this.actorSpawner.spawnInternal(this.path.append(name), creator);
   }
 
   void sendInternal(final M message, final String correlationMessageId,
@@ -147,8 +158,19 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         sender);
   }
 
+  public <R> Future<R> requestResponseToInternal(final M message,
+      final ActorHandle<?> sender) {
+
+    final var wrapper = new MessageWithResponseRequest<M, R>(message, null,
+        sender.path());
+
+    processMessage(wrapper, sender);
+
+    return wrapper.future();
+  }
+
   void forwardInternal(final M message, final String correlationMessageId, ActorHandle<?> sender) {
-    processMessage(new WrappedMessage.AskMessage<>(message, correlationMessageId, sender.path()),
+    processMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
         sender);
   }
 
