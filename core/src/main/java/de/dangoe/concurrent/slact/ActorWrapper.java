@@ -5,10 +5,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
+final class ActorWrapper<M> implements ActorHandle<M> {
 
   private class ActorContextImpl implements ActorContext {
 
@@ -45,15 +44,20 @@ final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
     }
 
     @Override
-    public <A extends Actor<M1>, M1 extends Serializable> ActorHandle<M1> register(
+    public <A extends Actor<M1>, M1> ActorHandle<M1> register(
         final String name,
         ActorCreator<A> actorCreator) {
-      return ActorWrapper.this.actorRegistry.register(name, actorCreator);
+      return ((Slact)ActorWrapper.this.actorRegistry).newActor(self().path().append(name), actorCreator);
     }
 
     @Override
-    public <M1 extends Serializable> Optional<ActorHandle<M1>> resolve(final ActorPath path) {
+    public <M1> Optional<ActorHandle<M1>> resolve(final ActorPath path) {
       return ActorWrapper.this.actorHandleResolver.resolve(path);
+    }
+
+    @Override
+    public <M1> SendableMessage<M1> send(M1 message) {
+      return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message, self());
     }
   }
 
@@ -107,13 +111,12 @@ final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
   }
 
   @Override
-  public <A extends Actor<M2>, M2 extends Serializable> ActorHandle<M2> register(final String name,
+  public <A extends Actor<M2>, M2> ActorHandle<M2> register(final String name,
       final ActorCreator<A> creator) {
-    return this.actorRegistry.register(name, creator);
+    return ((Slact)ActorWrapper.this.actorRegistry).newActor(this.path.append(name), creator);
   }
 
-  @Override
-  public void send(final M message, final ActorHandle<?> sender) {
+  void sendInternal(final M message, final ActorHandle<?> sender) {
     processMessage(message, sender);
   }
 

@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.ActorContext.SendableMessage;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -10,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 
-class ActorChainTest {
+class ActorMessagePropagationTest {
 
   private record Pair<A, B>(A a, B b) {
 
@@ -33,18 +34,50 @@ class ActorChainTest {
     final var actor = slact.register(() -> new Actor<String>() {
       @Override
       protected void onMessage(final String message) {
-        terminalActor.send(message, self());
+        send(message).to(terminalActor);
       }
     });
 
     final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      actor.send(message, slact);
+      slact.send(message).to(actor);
     }
 
     await().atMost(Duration.ofSeconds(5))
         .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(messages));
+  }
+
+  @Test
+  void messageCanBeSendToParentActor() {
+
+    final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
+
+    final var parentActor = slact.register("parent-actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessage(final String message) {
+        result.add(new Pair<>(context().sender().path(), message));
+      }
+    });
+
+    final var childActor = parentActor.register("child-actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessage(final String message) {
+        SendableMessage<String> send = send(message);
+        send.to((ActorHandle<? extends String>) parent());
+      }
+    });
+
+    final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
+
+    for (final var message : messages) {
+      slact.send(message).to(childActor);
+    }
+
+    await().atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(
+            messages.stream().map(msg -> new Pair<>(childActor.path(), msg))
+                .toList()));
   }
 
   @Test
@@ -69,14 +102,14 @@ class ActorChainTest {
     final var originActor = slact.register("origin-actor", () -> new Actor<String>() {
       @Override
       protected void onMessage(final String message) {
-        mediatorActor.send(message, self());
+        send(message).to(mediatorActor);
       }
     });
 
     final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      originActor.send(message, slact);
+      slact.send(message).to(originActor);
     }
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(

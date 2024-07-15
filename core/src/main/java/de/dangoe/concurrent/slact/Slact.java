@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.ActorContext.SendableMessage;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,12 +37,12 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
   }
 
   @Override
-  public <A extends Actor<M>, M extends Serializable> ActorHandle<M> register(final String name,
+  public <A extends Actor<M>, M> ActorHandle<M> register(final String name,
       final ActorCreator<A> creator) {
     return newActor(ActorPath.root().append(name), creator);
   }
 
-  private <A extends Actor<M>, M extends Serializable> ActorHandle<M> newActor(final ActorPath path,
+  <A extends Actor<M>, M> ActorHandle<M> newActor(final ActorPath path,
       final ActorCreator<A> creator) {
     final var actor = creator.create();
     final var actorWrapper = new ActorWrapper<>(actor, path,
@@ -52,7 +53,7 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <M extends Serializable> Optional<ActorHandle<M>> resolve(final ActorPath path) {
+  public <M> Optional<ActorHandle<M>> resolve(final ActorPath path) {
 
     if (path == ActorPath.root()) {
       return Optional.of((ActorHandle<M>) this);
@@ -78,9 +79,8 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
     return ActorPath.root();
   }
 
-  @Override
-  public void send(Serializable message, ActorHandle<?> sender) {
-    System.out.println(message);
+  public <M> SendableMessage<M> send(final M message) {
+    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, Slact.this);
   }
 
   @Override

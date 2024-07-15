@@ -51,9 +51,6 @@ public abstract class ActorPath {
 
         @Override
         public Optional<ActorPath> parent() {
-            if (parent instanceof Root) {
-                return Optional.empty();
-            }
             return Optional.of(parent);
         }
 
