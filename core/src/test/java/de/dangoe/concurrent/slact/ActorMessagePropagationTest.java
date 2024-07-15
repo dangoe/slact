@@ -24,14 +24,39 @@ class ActorMessagePropagationTest {
 
   }
 
-  private final Slact slact = Slact.createRuntime();
+  private final SlactContainer container = SlactContainer.create();
+
+  @Test
+  @SuppressWarnings("OptionalGetWithoutIsPresent")
+  void messageCanBeSendToActorsWhenAnActorPathIsUsed() {
+
+    final var result = new CopyOnWriteArrayList<String>();
+
+    final var actor = container.spawn(() -> new Actor<String>() {
+      @Override
+      protected void onMessageInternal(final String message) {
+        result.add(message);
+      }
+    });
+
+    final var actorHandle = container.<String>resolve(actor.path()).get();
+
+    final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
+
+    for (final var message : messages) {
+      container.send(message).to(actorHandle);
+    }
+
+    await().atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(messages));
+  }
 
   @Test
   void messagesCanBeSent() {
 
     final var result = new CopyOnWriteArrayList<String>();
 
-    final var actor = slact.spawn(() -> new Actor<String>() {
+    final var actor = container.spawn(() -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         result.add(message);
@@ -41,7 +66,7 @@ class ActorMessagePropagationTest {
     final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      slact.send(message).to(actor);
+      container.send(message).to(actor);
     }
 
     await().atMost(Duration.ofSeconds(5))
@@ -53,14 +78,14 @@ class ActorMessagePropagationTest {
 
     final var result = new CopyOnWriteArrayList<String>();
 
-    final var otherActor = slact.spawn("other-actor", () -> new Actor<String>() {
+    final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         reply("_%s_".formatted(message));
       }
     });
 
-    final var actor = slact.spawn("actor", () -> new Actor<String>() {
+    final var actor = container.spawn("actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         if (!message.startsWith("_")) {
@@ -74,7 +99,7 @@ class ActorMessagePropagationTest {
     final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      slact.send(message).to(actor);
+      container.send(message).to(actor);
     }
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
@@ -90,14 +115,14 @@ class ActorMessagePropagationTest {
 
       final var result = new CopyOnWriteArrayList<String>();
 
-      final var terminalActor = slact.spawn(() -> new Actor<String>() {
+      final var terminalActor = container.spawn(() -> new Actor<String>() {
         @Override
         protected void onMessageInternal(final String message) {
           result.add(message);
         }
       });
 
-      final var actor = slact.spawn(() -> new Actor<String>() {
+      final var actor = container.spawn(() -> new Actor<String>() {
         @Override
         protected void onMessageInternal(final String message) {
 
@@ -119,7 +144,7 @@ class ActorMessagePropagationTest {
       final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
 
       for (final var message : messages) {
-        slact.send(message).to(actor);
+        container.send(message).to(actor);
       }
 
       await().atMost(Duration.ofSeconds(1000))
@@ -133,14 +158,14 @@ class ActorMessagePropagationTest {
     final var messageIds = Collections.synchronizedSet(new HashSet<>());
     final var correlationMessageIds = Collections.synchronizedSet(new HashSet<>());
 
-    final var otherActor = slact.spawn("other-actor", () -> new Actor<String>() {
+    final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         context().correlationMessageId().ifPresent(correlationMessageIds::add);
       }
     });
 
-    final var actor = slact.spawn("actor", () -> new Actor<String>() {
+    final var actor = container.spawn("actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         messageIds.add(context().messageId());
@@ -151,7 +176,7 @@ class ActorMessagePropagationTest {
     final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      slact.send(message).to(actor);
+      container.send(message).to(actor);
     }
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
@@ -164,14 +189,14 @@ class ActorMessagePropagationTest {
 
     final var result = new CopyOnWriteArrayList<String>();
 
-    final var terminalActor = slact.spawn(() -> new Actor<String>() {
+    final var terminalActor = container.spawn(() -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         result.add(message);
       }
     });
 
-    final var actor = slact.spawn(() -> new Actor<String>() {
+    final var actor = container.spawn(() -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         send(message).to(terminalActor);
@@ -181,7 +206,7 @@ class ActorMessagePropagationTest {
     final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      slact.send(message).to(actor);
+      container.send(message).to(actor);
     }
 
     await().atMost(Duration.ofSeconds(5))
@@ -193,7 +218,7 @@ class ActorMessagePropagationTest {
 
     final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
-    final var parentActor = slact.spawn("parent-actor", () -> new Actor<String>() {
+    final var parentActor = container.spawn("parent-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         result.add(new Pair<>(context().sender().path(), message));
@@ -210,7 +235,7 @@ class ActorMessagePropagationTest {
     final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      slact.send(message).to(childActor);
+      container.send(message).to(childActor);
     }
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
@@ -223,21 +248,21 @@ class ActorMessagePropagationTest {
 
     final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
-    final var targetActor = slact.spawn("target-actor", () -> new Actor<String>() {
+    final var targetActor = container.spawn("target-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         result.add(new Pair<>(context().sender().path(), message));
       }
     });
 
-    final var mediatorActor = slact.spawn("mediator-actor", () -> new Actor<String>() {
+    final var mediatorActor = container.spawn("mediator-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         forward(message).to(targetActor);
       }
     });
 
-    final var originActor = slact.spawn("origin-actor", () -> new Actor<String>() {
+    final var originActor = container.spawn("origin-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         send(message).to(mediatorActor);
@@ -247,7 +272,7 @@ class ActorMessagePropagationTest {
     final var messages = IntStream.range(0, 100).boxed().map("m_%d"::formatted).toList();
 
     for (final var message : messages) {
-      slact.send(message).to(originActor);
+      container.send(message).to(originActor);
     }
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
@@ -262,14 +287,14 @@ class ActorMessagePropagationTest {
 
     final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
-    final var actor = slact.spawn("actor", () -> new Actor<String>() {
+    final var actor = container.spawn("actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
         reply("Hi there!");
       }
     });
 
-    final Future<String> eventualResponse = slact.<String, String>requestResponseTo("Hello world!")
+    final Future<String> eventualResponse = container.<String, String>requestResponseTo("Hello world!")
         .from(actor);
 
     await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);

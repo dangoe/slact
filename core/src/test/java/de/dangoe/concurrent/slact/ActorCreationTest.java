@@ -24,18 +24,18 @@ class ActorCreationTest {
         }
     }
 
-    private final Slact slact = Slact.createRuntime();
+    private final SlactContainer container = SlactContainer.create();
 
     @Test
     void actorPathShouldBeChildOfRoot() {
-        final var actor = slact.spawn("actor", TestActor::new);
+        final var actor = container.spawn("actor", TestActor::new);
 
         assertThat(actor.path()).isEqualTo(ActorPath.root().append("actor"));
     }
 
     @Test
     void childActorPathShouldBeSubNodeOfParentActorPath() {
-        final var actor = slact.spawn("actor", TestActor::new);
+        final var actor = container.spawn("actor", TestActor::new);
         final var childActor = actor.spawn("child-actor", TestChildActor::new);
 
         assertThat(childActor.path()).isEqualTo(ActorPath.root().append("actor").append("child-actor"));

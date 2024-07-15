@@ -1,6 +1,6 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.Slact.ActorSpawnerImpl;
+import de.dangoe.concurrent.slact.SlactContainer.ActorSpawnerImpl;
 import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
 import de.dangoe.concurrent.slact.api.Actor;

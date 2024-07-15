@@ -19,7 +19,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Slact implements ActorHandleResolver, ActorSpawner {
+public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
   class ActorSpawnerImpl implements ActorSpawner {
 
@@ -32,24 +32,24 @@ public class Slact implements ActorHandleResolver, ActorSpawner {
     <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
         final ActorCreator<A> creator) {
       final var actor = creator.create();
-      final var actorWrapper = new ActorWrapper<>(actor, path, this, Slact.this,
+      final var actorWrapper = new ActorWrapper<>(actor, path, this, SlactContainer.this,
           new ScheduledExecutor() {
 
             @Override
             public ScheduledFuture<?> scheduleOnce(final Runnable command,
                 final Duration initialDelay) {
-              return Slact.this.executor.schedule(command, initialDelay.toMillis(),
+              return SlactContainer.this.executor.schedule(command, initialDelay.toMillis(),
                   TimeUnit.MILLISECONDS);
             }
 
             @Override
             public ScheduledFuture<?> scheduleAtFixedRate(final Runnable command,
                 final Duration initialDelay, final Duration period) {
-              return Slact.this.executor.scheduleAtFixedRate(command, initialDelay.toMillis(),
+              return SlactContainer.this.executor.scheduleAtFixedRate(command, initialDelay.toMillis(),
                   period.toMillis(), TimeUnit.MILLISECONDS);
             }
           });
-      Slact.this.actors.put(path, actorWrapper);
+      SlactContainer.this.actors.put(path, actorWrapper);
       return actorWrapper;
     }
   }
@@ -65,7 +65,7 @@ public class Slact implements ActorHandleResolver, ActorSpawner {
   private final ActorSpawnerImpl actorSpawner;
   private final ActorHandle<Object> rootActor;
 
-  private Slact(final String name) {
+  private SlactContainer(final String name) {
 
     super();
 
@@ -110,12 +110,12 @@ public class Slact implements ActorHandleResolver, ActorSpawner {
     return Optional.ofNullable((ActorHandle<M>) this.actors.get(path));
   }
 
-  public static Slact createRuntime() {
-    return createRuntime(UUID.randomUUID().toString());
+  public static SlactContainer create() {
+    return create(UUID.randomUUID().toString());
   }
 
-  public static Slact createRuntime(final String name) {
-    return new Slact(name);
+  public static SlactContainer create(final String name) {
+    return new SlactContainer(name);
   }
 
   boolean stopped() {
