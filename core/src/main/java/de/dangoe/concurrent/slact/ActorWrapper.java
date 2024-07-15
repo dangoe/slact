@@ -9,7 +9,7 @@ import de.dangoe.concurrent.slact.api.ActorCreator;
 import de.dangoe.concurrent.slact.api.ActorHandle;
 import de.dangoe.concurrent.slact.api.ActorHandleResolver;
 import de.dangoe.concurrent.slact.api.ActorPath;
-import de.dangoe.concurrent.slact.api.PipeOp;
+import de.dangoe.concurrent.slact.api.EventualPipeOp;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -73,7 +73,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <M1> PipeOp<M1> pipe(final Future<M1> eventualMessage) {
+    public <M1> EventualPipeOp<M1> pipeEventually(final Future<M1> eventualMessage) {
       return target -> {
         ActorWrapper.this.scheduledExecutor.scheduleOnce(() -> {
           // TODO Configure timeout
@@ -173,7 +173,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   void sendInternal(final M message, final String correlationMessageId,
       final ActorHandle<?> sender) {
-    processMessage(
+    appendMessage(
         new WrappedMessage.FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
         sender);
   }
@@ -182,17 +182,17 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     final var wrapper = new MessageWithResponseRequest<M, R>(message, null, sender.path());
 
-    processMessage(wrapper, sender);
+    appendMessage(wrapper, sender);
 
     return wrapper.future();
   }
 
   void forwardInternal(final M message, final String correlationMessageId, ActorHandle<?> sender) {
-    processMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
+    appendMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
         sender);
   }
 
-  private void processMessage(final WrappedMessage<M> message, final ActorHandle<?> sender) {
+  private void appendMessage(final WrappedMessage<M> message, final ActorHandle<?> sender) {
     if (this.messages.size() < 1000) {
       this.messages.add(message);
     } else {

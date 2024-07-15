@@ -3,7 +3,6 @@ package de.dangoe.concurrent.slact.api;
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.api.exception.IncompatibleMessageReceiverException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 public abstract class Actor<M> {
@@ -35,13 +34,13 @@ public abstract class Actor<M> {
     return this.context.sender();
   }
 
-  @SuppressWarnings("unchecked")
-  protected final <M1> void respond(final M1 message) {
-    try {
-      context().send(message).to((ActorHandle<? extends M1>) sender());
-    } catch (final ClassCastException e) {
-      throw new IncompatibleMessageReceiverException(e);
-    }
+  /**
+   * Sends a reply to the sender of the received message.
+   *
+   * @param message The message to be replied with.
+   */
+  protected final void reply(final Object message) {
+    context().send(message).to(sender());
   }
 
   protected final <M1> PreparedSendMessageOp<M1> send(final M1 message) {
@@ -52,7 +51,7 @@ public abstract class Actor<M> {
     return context().forward(message);
   }
 
-  protected final PipeOp<M> pipe(final Future<M> eventualMessage){
-      return context().pipe(eventualMessage);
+  protected final EventualPipeOp<M> pipeEventually(final Future<M> eventualMessage) {
+    return context().pipeEventually(eventualMessage);
   }
 }

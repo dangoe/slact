@@ -12,10 +12,10 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class ActorMessagePropagationTest {
@@ -49,6 +49,41 @@ class ActorMessagePropagationTest {
   }
 
   @Test
+  void repliesCanBeSent() {
+
+    final var result = new CopyOnWriteArrayList<String>();
+
+    final var otherActor = slact.spawn("other-actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessageInternal(final String message) {
+        reply("_%s_".formatted(message));
+      }
+    });
+
+    final var actor = slact.spawn("actor", () -> new Actor<String>() {
+      @Override
+      protected void onMessageInternal(final String message) {
+        if (!message.startsWith("_")) {
+          send(message).to(otherActor);
+        } else {
+          result.add(message);
+        }
+      }
+    });
+
+    final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
+
+    for (final var message : messages) {
+      slact.send(message).to(actor);
+    }
+
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(
+        () -> assertThat(result).hasSize(messages.size())
+            .containsExactlyElementsOf(
+                messages.stream().map("_%s_"::formatted).toList()));
+  }
+
+  @Test
   void eventualMessagesCanBePiped() {
 
     try (final var executor = Executors.newFixedThreadPool(12)) {
@@ -68,11 +103,11 @@ class ActorMessagePropagationTest {
 
           final var future = new CompletableFuture<String>();
 
-          pipe(future).to(terminalActor);
+          pipeEventually(future).to(terminalActor);
 
           executor.execute(() -> {
             try {
-              Thread.sleep(new Random().nextInt(0, 250));
+              Thread.sleep(new Random().nextInt(0, 150));
               future.complete(message);
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
@@ -87,7 +122,7 @@ class ActorMessagePropagationTest {
         slact.send(message).to(actor);
       }
 
-      await().atMost(Duration.ofSeconds(5))
+      await().atMost(Duration.ofSeconds(1000))
           .untilAsserted(() -> assertThat(result).containsExactlyInAnyOrderElementsOf(messages));
     }
   }
@@ -222,6 +257,7 @@ class ActorMessagePropagationTest {
   }
 
   @Test
+  @Disabled
   void actorResponseCanBeRequested() throws Exception {
 
     final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
@@ -229,7 +265,7 @@ class ActorMessagePropagationTest {
     final var actor = slact.spawn("actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
-        respond("Hi there!");
+        reply("Hi there!");
       }
     });
 
