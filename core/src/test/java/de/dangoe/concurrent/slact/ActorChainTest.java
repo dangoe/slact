@@ -15,7 +15,7 @@ class ActorChainTest {
     private final Slact slact = Slact.createRuntime();
 
     @Test
-    void messagesCanBeResend() throws Exception {
+    void messagesCanBeResend() {
 
         final var result = new CopyOnWriteArrayList<>();
 
