@@ -1,19 +1,26 @@
 package de.dangoe.concurrent.slact;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
 import de.dangoe.concurrent.slact.api.Actor;
 import de.dangoe.concurrent.slact.api.ActorHandle;
 import de.dangoe.concurrent.slact.api.ActorPath;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -25,6 +32,33 @@ class ActorMessagePropagationTest {
   }
 
   private final SlactContainer container = SlactContainer.create();
+
+  @Test
+  void anWordCountActorCanBeBuilt() {
+
+    final var wordCount = new AtomicInteger(0);
+
+    final var actor = container.spawn(() -> new Actor<String>() {
+      @Override
+      protected void onMessageInternal(final String message) {
+        wordCount.addAndGet(message.split(" ").length);
+      }
+    });
+
+    try {
+      final var lines =  Files.readAllLines(Paths.get(
+          Objects.requireNonNull(getClass().getResource("lorem-ipsum.txt")).toURI()));
+
+      for (String line : lines) {
+        container.send(line).to(actor);
+      }
+    } catch (IOException | URISyntaxException e) {
+      fail(e);
+    }
+
+    await().atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertThat(wordCount.get()).isEqualTo(9895));
+  }
 
   @Test
   @SuppressWarnings("OptionalGetWithoutIsPresent")
@@ -294,7 +328,8 @@ class ActorMessagePropagationTest {
       }
     });
 
-    final Future<String> eventualResponse = container.<String, String>requestResponseTo("Hello world!")
+    final Future<String> eventualResponse = container.<String, String>requestResponseTo(
+            "Hello world!")
         .from(actor);
 
     await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
