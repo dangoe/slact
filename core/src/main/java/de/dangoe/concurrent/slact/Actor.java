@@ -8,9 +8,8 @@ public abstract class Actor<M extends Serializable> {
 
     private ActorHandle<?> sender;
 
-    final void onMessage(final M message, final ActorHandle<?> sender, final ActorContext context) {
+    final void onMessage(final M message, final ActorContext context) {
         this.context = context;
-        this.sender = sender;
         onMessage(message);
     }
 
@@ -29,6 +28,6 @@ public abstract class Actor<M extends Serializable> {
     }
 
     protected final ActorHandle<?> sender() {
-        return this.sender;
+        return this.context.sender();
     }
 }
