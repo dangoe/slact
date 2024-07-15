@@ -2,7 +2,7 @@ package de.dangoe.concurrent.slact;
 
 import java.io.Serializable;
 
-public abstract class AbstractActor<M extends Serializable> {
+public abstract class Actor<M extends Serializable> {
 
     private ActorContext context;
 

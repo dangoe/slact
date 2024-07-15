@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ActorCreationTest {
 
-    private static final class TestActor extends AbstractActor<String> {
+    private static final class TestActor extends Actor<String> {
 
         @Override
         protected void onMessage(String message) {
@@ -14,7 +14,7 @@ class ActorCreationTest {
         }
     }
 
-    private static final class TestChildActor extends AbstractActor<String> {
+    private static final class TestChildActor extends Actor<String> {
 
         @Override
         protected void onMessage(String message) {

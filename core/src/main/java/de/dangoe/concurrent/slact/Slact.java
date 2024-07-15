@@ -39,7 +39,7 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
         }
 
         @Override
-        public <A1 extends AbstractActor<M1>, M1 extends Serializable> ActorHandle<M1> register(final String name, final ActorCreator<A1> creator) {
+        public <A1 extends Actor<M1>, M1 extends Serializable> ActorHandle<M1> register(final String name, final ActorCreator<A1> creator) {
             return newActor(this.self.append(name), creator);
         }
     }
@@ -70,11 +70,11 @@ public class Slact implements ActorHandleResolver, ActorHandle<Serializable> {
     }
 
     @Override
-    public <A extends AbstractActor<M>, M extends Serializable> ActorHandle<M> register(final String name, final ActorCreator<A> creator) {
+    public <A extends Actor<M>, M extends Serializable> ActorHandle<M> register(final String name, final ActorCreator<A> creator) {
         return newActor(ActorPath.root().append(name), creator);
     }
 
-    private <A extends AbstractActor<M>, M extends Serializable> ActorHandle<M> newActor(final ActorPath path, final ActorCreator<A> creator) {
+    private <A extends Actor<M>, M extends Serializable> ActorHandle<M> newActor(final ActorPath path, final ActorCreator<A> creator) {
         final var actor = creator.create();
         final var actorWrapper = new ActorWrapper<>(actor, new NestedActorContext<>(path.parent().orElse(ActorPath.root()), path, this), executor);
         this.actors.put(path, actorWrapper);

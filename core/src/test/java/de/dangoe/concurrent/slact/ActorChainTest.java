@@ -2,10 +2,8 @@ package de.dangoe.concurrent.slact;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.Serializable;
 import java.time.Duration;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,14 +19,14 @@ class ActorChainTest {
 
         final var result = new CopyOnWriteArrayList<>();
 
-        final var terminalActor = slact.register(() -> new AbstractActor<String>() {
+        final var terminalActor = slact.register(() -> new Actor<String>() {
             @Override
             protected void onMessage(final String message) {
                 result.add(message);
             }
         });
 
-        final var actor = slact.register(() -> new AbstractActor<String>() {
+        final var actor = slact.register(() -> new Actor<String>() {
             @Override
             protected void onMessage(final String message) {
                 terminalActor.send(message, context().self());

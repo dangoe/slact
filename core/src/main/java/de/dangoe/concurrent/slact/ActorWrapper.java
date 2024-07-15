@@ -11,10 +11,10 @@ final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
 
     private final Queue<TraceableMessage<M>> messages = new LinkedBlockingQueue<>();
 
-    private final AbstractActor<M> delegate;
+    private final Actor<M> delegate;
     private final ActorContext context;
 
-    public ActorWrapper(final AbstractActor<M> delegate, final ActorContext context, final ScheduledExecutorService executorService) {
+    public ActorWrapper(final Actor<M> delegate, final ActorContext context, final ScheduledExecutorService executorService) {
 
         super();
 
@@ -53,7 +53,7 @@ final class ActorWrapper<M extends Serializable> implements ActorHandle<M> {
     }
 
     @Override
-    public <A extends AbstractActor<M2>, M2 extends Serializable> ActorHandle<M2> register(final String name, final ActorCreator<A> creator) {
+    public <A extends Actor<M2>, M2 extends Serializable> ActorHandle<M2> register(final String name, final ActorCreator<A> creator) {
         return this.context.register(name, creator);
     }
 

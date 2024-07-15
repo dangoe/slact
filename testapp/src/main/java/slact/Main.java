@@ -1,6 +1,6 @@
 package slact;
 
-import de.dangoe.concurrent.slact.AbstractActor;
+import de.dangoe.concurrent.slact.Actor;
 import de.dangoe.concurrent.slact.ActorPath;
 import de.dangoe.concurrent.slact.Slact;
 
@@ -9,7 +9,7 @@ import java.time.Instant;
 
 public class Main {
 
-    public static class CounterActor extends AbstractActor<String> {
+    public static class CounterActor extends Actor<String> {
 
         private int counter = 0;
         private Instant lastTick = Instant.now();
@@ -29,7 +29,7 @@ public class Main {
         }
     }
 
-    public static class MyActor extends AbstractActor<String> {
+    public static class MyActor extends Actor<String> {
 
         @Override
         protected void onMessage(String msg) {
