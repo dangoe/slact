@@ -25,6 +25,8 @@ public interface ActorContext extends ActorSpawner, ActorHandleResolver {
 
   <M> PreparedSendMessageOp<M> send(M message);
 
+  <M> void reply(M message);
+
   <M> PreparedForwardMessageOp<M> forward(M message);
 
   String messageId();

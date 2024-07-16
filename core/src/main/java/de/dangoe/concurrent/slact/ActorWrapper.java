@@ -25,26 +25,23 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private class ActorContextImpl implements ActorContext {
 
-    private final String messageId;
-    private final String correlationMessageId;
+    private final WrappedMessage<M> message;
     private final ActorHandle<?> senderHandle;
 
-    public ActorContextImpl(final String messageId, final String correlationMessageId,
-        final ActorHandle<?> senderHandle) {
+    public ActorContextImpl(final WrappedMessage<M> message, final ActorHandle<?> senderHandle) {
       super();
-      this.messageId = messageId;
-      this.correlationMessageId = correlationMessageId;
+      this.message = message;
       this.senderHandle = senderHandle;
     }
 
     @Override
     public String messageId() {
-      return this.messageId;
+      return this.message.messageId();
     }
 
     @Override
     public Optional<String> correlationMessageId() {
-      return Optional.ofNullable(this.correlationMessageId);
+      return this.message.correlationMessageId();
     }
 
     @Override
@@ -99,15 +96,32 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <M1> PreparedSendMessageOp<M1> send(M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).sendInternal(message, messageId,
-          self());
+    public <M1> PreparedSendMessageOp<M1> send(final M1 message) {
+      return targetActor -> {
+        if (this.message instanceof WrappedMessage.MessageWithResponseRequest
+            && sender().path() == ActorPath.root()) {
+          completeResponseRequest(message);
+        } else {
+          ((ActorWrapper<M1>) targetActor).sendInternal(message,
+              this.message.messageId(), self());
+        }
+      };
+    }
+
+    @Override
+    public <M1> void reply(final M1 message) {
+      send(message).to((ActorWrapper<M1>) sender());
+    }
+
+    private <M1> void completeResponseRequest(final M1 message) {
+      ((WrappedMessage.MessageWithResponseRequest<?, M1>) this.message).futureInternal()
+          .complete(message);
     }
 
     @Override
     public <M1> PreparedForwardMessageOp<M1> forward(M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, messageId,
-          sender());
+      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
+          this.message.messageId(), sender());
     }
   }
 
@@ -149,9 +163,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         final M message = msg.message();
 
-        this.delegate.onMessage(message,
-            new ActorContextImpl(msg.messageId(), msg.correlationMessageId().orElse(null),
-                senderHandle));
+        this.delegate.onMessage(message, new ActorContextImpl(msg, senderHandle));
       } else {
         // TODO Error handling
       }
@@ -188,8 +200,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   void forwardInternal(final M message, final String correlationMessageId, ActorHandle<?> sender) {
-    appendMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
-        sender);
+    appendMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()), sender);
   }
 
   private void appendMessage(final WrappedMessage<M> message, final ActorHandle<?> sender) {

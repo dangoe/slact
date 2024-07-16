@@ -22,7 +22,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class ActorMessagePropagationTest {
@@ -316,7 +315,6 @@ class ActorMessagePropagationTest {
   }
 
   @Test
-  @Disabled
   void actorResponseCanBeRequested() throws Exception {
 
     final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();

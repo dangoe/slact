@@ -40,7 +40,7 @@ public abstract class Actor<M> {
    * @param message The message to be replied with.
    */
   protected final void reply(final Object message) {
-    context().send(message).to(sender());
+    context().reply(message);
   }
 
   protected final <M1> PreparedSendMessageOp<M1> send(final M1 message) {
