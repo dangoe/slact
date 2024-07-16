@@ -96,6 +96,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <M1> PreparedSendMessageOp<M1> send(final M1 message) {
       return targetActor -> {
         if (this.message instanceof WrappedMessage.MessageWithResponseRequest
@@ -109,6 +110,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <M1> void reply(final M1 message) {
       send(message).to((ActorWrapper<M1>) sender());
     }
@@ -119,6 +121,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <M1> PreparedForwardMessageOp<M1> forward(M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
           this.message.messageId(), sender());

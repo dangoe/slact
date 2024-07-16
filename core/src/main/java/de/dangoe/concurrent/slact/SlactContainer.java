@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -36,16 +35,15 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
           new ScheduledExecutor() {
 
             @Override
-            public ScheduledFuture<?> scheduleOnce(final Runnable command,
-                final Duration initialDelay) {
-              return SlactContainer.this.executor.schedule(command, initialDelay.toMillis(),
+            public void scheduleOnce(final Runnable command, final Duration initialDelay) {
+              SlactContainer.this.executor.schedule(command, initialDelay.toMillis(),
                   TimeUnit.MILLISECONDS);
             }
 
             @Override
-            public ScheduledFuture<?> scheduleAtFixedRate(final Runnable command,
-                final Duration initialDelay, final Duration period) {
-              return SlactContainer.this.executor.scheduleAtFixedRate(command, initialDelay.toMillis(),
+            public void scheduleAtFixedRate(final Runnable command, final Duration initialDelay,
+                final Duration period) {
+              SlactContainer.this.executor.scheduleAtFixedRate(command, initialDelay.toMillis(),
                   period.toMillis(), TimeUnit.MILLISECONDS);
             }
           });
@@ -122,11 +120,13 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
     return stopped.get();
   }
 
+  @SuppressWarnings("unchecked")
   public <M> PreparedSendMessageOp<M> send(final M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, null,
         this.rootActor);
   }
 
+  @SuppressWarnings("unchecked")
   public <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(final M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
         this.rootActor);

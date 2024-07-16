@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
 import de.dangoe.concurrent.slact.api.Actor;
-import de.dangoe.concurrent.slact.api.ActorHandle;
 import de.dangoe.concurrent.slact.api.ActorPath;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -14,7 +13,6 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -263,7 +261,7 @@ class ActorMessagePropagationTest {
     final var childActor = parentActor.spawn("child-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
-        send(message).to((ActorHandle<? extends String>) parent());
+        send(message).to(parent());
       }
     });
 
@@ -350,7 +348,7 @@ class ActorMessagePropagationTest {
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
             protected void onMessageInternal(final String message) {
-              send("Hi there!").to((ActorHandle<String>) sender());
+              send("Hi there!").to(sender());
             }
           });
 

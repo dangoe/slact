@@ -2,7 +2,6 @@ package de.dangoe.concurrent.slact.api;
 
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageOp;
-import de.dangoe.concurrent.slact.api.exception.IncompatibleMessageReceiverException;
 import java.util.concurrent.Future;
 
 public abstract class Actor<M> {
@@ -11,9 +10,16 @@ public abstract class Actor<M> {
 
   private ActorHandle<?> sender;
 
-  public final void onMessage(final M message, final ActorContext context) {
+  @SuppressWarnings("unchecked")
+  public final void onMessage(final Object message, final ActorContext context) {
     this.context = context;
-    onMessageInternal(message);
+
+    try {
+      onMessageInternal((M) message);
+    } catch (final ClassCastException e) {
+      // TODO Add proper handling
+      System.err.printf("Failed to process %s%n", message);
+    }
   }
 
   protected abstract void onMessageInternal(M message);
@@ -22,16 +28,19 @@ public abstract class Actor<M> {
     return this.context;
   }
 
-  protected final ActorHandle<?> parent() {
-    return this.context.parent();
+  @SuppressWarnings("unchecked")
+  protected final <M1> ActorHandle<M1> parent() {
+    return (ActorHandle<M1>) this.context.parent();
   }
 
-  protected final ActorHandle<?> self() {
-    return this.context.self();
+  @SuppressWarnings("unchecked")
+  protected final ActorHandle<M> self() {
+    return (ActorHandle<M>) this.context.self();
   }
 
-  protected final ActorHandle<?> sender() {
-    return this.context.sender();
+  @SuppressWarnings("unchecked")
+  protected final <M1> ActorHandle<M1> sender() {
+    return (ActorHandle<M1>) this.context.sender();
   }
 
   /**
