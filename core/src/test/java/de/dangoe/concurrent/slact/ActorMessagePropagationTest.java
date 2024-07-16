@@ -14,6 +14,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -22,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class ActorMessagePropagationTest {
@@ -45,7 +47,7 @@ class ActorMessagePropagationTest {
     });
 
     try {
-      final var lines =  Files.readAllLines(Paths.get(
+      final var lines = Files.readAllLines(Paths.get(
           Objects.requireNonNull(getClass().getResource("lorem-ipsum.txt")).toURI()));
 
       for (String line : lines) {
@@ -314,24 +316,53 @@ class ActorMessagePropagationTest {
                 .toList()));
   }
 
-  @Test
-  void actorResponseCanBeRequested() throws Exception {
+  @Nested
+  class RequestResponseTo {
 
-    final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
+    @Nested
+    class CanBeUsedToAskAnActorForAnAsynchronousResponse {
 
-    final var actor = container.spawn("actor", () -> new Actor<String>() {
-      @Override
-      protected void onMessageInternal(final String message) {
-        reply("Hi there!");
+      @Nested
+      class WhenRootIsOrigin {
+
+        @Test
+        void whenReplyIsUsed() throws Exception {
+
+          final var actor = container.spawn("actor", () -> new Actor<String>() {
+            @Override
+            protected void onMessageInternal(final String message) {
+              reply("Hi there!");
+            }
+          });
+
+          final Future<String> eventualResponse = container.<String, String>requestResponseTo(
+                  "Hello world!")
+              .from(actor);
+
+          await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+
+          assertThat(eventualResponse.get()).isEqualTo("Hi there!");
+        }
+
+        @Test
+        void whenSendToSenderIsUsed() throws Exception {
+
+          final var actor = container.spawn("actor", () -> new Actor<String>() {
+            @Override
+            protected void onMessageInternal(final String message) {
+              send("Hi there!").to((ActorHandle<String>) sender());
+            }
+          });
+
+          final Future<String> eventualResponse = container.<String, String>requestResponseTo(
+                  "Hello world!")
+              .from(actor);
+
+          await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+
+          assertThat(eventualResponse.get()).isEqualTo("Hi there!");
+        }
       }
-    });
-
-    final Future<String> eventualResponse = container.<String, String>requestResponseTo(
-            "Hello world!")
-        .from(actor);
-
-    await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
-
-    assertThat(eventualResponse.get()).isEqualTo("Hi there!");
+    }
   }
 }
