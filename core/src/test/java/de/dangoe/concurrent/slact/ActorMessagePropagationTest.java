@@ -115,7 +115,7 @@ class ActorMessagePropagationTest {
     final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
       @Override
       protected void onMessageInternal(final String message) {
-        reply("_%s_".formatted(message));
+        respondWith("_%s_".formatted(message));
       }
     });
 
@@ -162,7 +162,7 @@ class ActorMessagePropagationTest {
 
           final var future = new CompletableFuture<String>();
 
-          pipeEventually(future).to(terminalActor);
+          pipe(future).to(terminalActor);
 
           executor.execute(() -> {
             try {
@@ -330,7 +330,7 @@ class ActorMessagePropagationTest {
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
             protected void onMessageInternal(final String message) {
-              reply("Hi there!");
+              respondWith("Hi there!");
             }
           });
 
@@ -367,14 +367,14 @@ class ActorMessagePropagationTest {
       class WhenAnotherActorIsOrigin {
 
         @Test
-        void whenReplyIsUsed() {
+        void whenRespondWithIsUsed() {
 
           final AtomicReference<String> result = new AtomicReference<>();
 
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
             protected void onMessageInternal(final String message) {
-              reply("_%s_".formatted(message));
+              respondWith("_%s_".formatted(message));
             }
           });
 
@@ -382,7 +382,7 @@ class ActorMessagePropagationTest {
             @Override
             protected void onMessageInternal(final String message) {
               if (!message.startsWith("_")) {
-                pipeEventually(this.<String, String>requestResponseTo(message).from(actor)).to(
+                pipe(this.<String, String>requestResponseTo(message).from(actor)).to(
                     self());
               } else {
                 result.set(message);
@@ -413,7 +413,7 @@ class ActorMessagePropagationTest {
             @Override
             protected void onMessageInternal(final String message) {
               if (!message.startsWith("_")) {
-                pipeEventually(this.<String, String>requestResponseTo(message).from(actor)).to(
+                pipe(this.<String, String>requestResponseTo(message).from(actor)).to(
                     self());
               } else {
                 result.set(message);

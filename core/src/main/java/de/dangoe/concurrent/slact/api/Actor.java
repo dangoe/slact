@@ -1,7 +1,6 @@
 package de.dangoe.concurrent.slact.api;
 
 import de.dangoe.concurrent.slact.ActorWrapper;
-import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageWithResponseRequestOp;
@@ -51,7 +50,7 @@ public abstract class Actor<M> {
    *
    * @param message The message to be replied with.
    */
-  protected final void reply(final Object message) {
+  protected final void respondWith(final Object message) {
     context().reply(message);
   }
 
@@ -63,7 +62,7 @@ public abstract class Actor<M> {
     return context().forward(message);
   }
 
-  protected final EventualPipeOp<M> pipeEventually(final Future<M> eventualMessage) {
+  protected final EventualPipeOp<M> pipe(final Future<M> eventualMessage) {
     return context().pipeEventually(eventualMessage);
   }
 
