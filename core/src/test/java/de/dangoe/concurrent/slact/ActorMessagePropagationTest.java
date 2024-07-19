@@ -20,6 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -359,6 +360,72 @@ class ActorMessagePropagationTest {
           await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
           assertThat(eventualResponse.get()).isEqualTo("Hi there!");
+        }
+      }
+
+      @Nested
+      class WhenAnotherActorIsOrigin {
+
+        @Test
+        void whenReplyIsUsed() {
+
+          final AtomicReference<String> result = new AtomicReference<>();
+
+          final var actor = container.spawn("actor", () -> new Actor<String>() {
+            @Override
+            protected void onMessageInternal(final String message) {
+              reply("_%s_".formatted(message));
+            }
+          });
+
+          final var otherActor = container.spawn("actor", () -> new Actor<String>() {
+            @Override
+            protected void onMessageInternal(final String message) {
+              if (!message.startsWith("_")) {
+                pipeEventually(this.<String, String>requestResponseTo(message).from(actor)).to(
+                    self());
+              } else {
+                result.set(message);
+              }
+            }
+          });
+
+          container.send("test").to(otherActor);
+
+          await().atMost(Duration.ofSeconds(5)).until(() -> result.get() != null);
+
+          assertThat(result.get()).isEqualTo("_test_");
+        }
+
+        @Test
+        void whenSendToSenderIsUsed() throws Exception {
+
+          final AtomicReference<String> result = new AtomicReference<>();
+
+          final var actor = container.spawn("actor", () -> new Actor<String>() {
+            @Override
+            protected void onMessageInternal(final String message) {
+              send("_%s_".formatted(message)).to(sender());
+            }
+          });
+
+          final var otherActor = container.spawn("actor", () -> new Actor<String>() {
+            @Override
+            protected void onMessageInternal(final String message) {
+              if (!message.startsWith("_")) {
+                pipeEventually(this.<String, String>requestResponseTo(message).from(actor)).to(
+                    self());
+              } else {
+                result.set(message);
+              }
+            }
+          });
+
+          container.send("test").to(otherActor);
+
+          await().atMost(Duration.ofSeconds(5)).until(() -> result.get() != null);
+
+          assertThat(result.get()).isEqualTo("_test_");
         }
       }
     }

@@ -21,7 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-final class ActorWrapper<M> implements ActorHandle<M> {
+public final class ActorWrapper<M> implements ActorHandle<M> {
 
   private class ActorContextImpl implements ActorContext {
 
