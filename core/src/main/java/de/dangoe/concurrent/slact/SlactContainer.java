@@ -39,7 +39,7 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
     this.rootActor = this.actorSpawner.spawnInternal(ActorPath.root(), () -> new Actor<Object>() {
       @Override
-      protected void onMessageInternal(Object message) {
+      public void onMessage(Object message) {
         System.out.println(message);
       }
     });

@@ -9,7 +9,7 @@ class ActorCreationTest {
     private static final class TestActor extends Actor<String> {
 
         @Override
-        protected void onMessageInternal(String message) {
+        public void onMessage(String message) {
             throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
         }
     }
@@ -17,7 +17,7 @@ class ActorCreationTest {
     private static final class TestChildActor extends Actor<String> {
 
         @Override
-        protected void onMessageInternal(String message) {
+        public void onMessage(String message) {
             throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
         }
     }

@@ -38,7 +38,7 @@ class ActorMessagePropagationTest {
 
     final var actor = container.spawn(() -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         wordCount.addAndGet(message.split(" ").length);
       }
     });
@@ -66,7 +66,7 @@ class ActorMessagePropagationTest {
 
     final var actor = container.spawn(() -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         result.add(message);
       }
     });
@@ -90,7 +90,7 @@ class ActorMessagePropagationTest {
 
     final var actor = container.spawn(() -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         result.add(message);
       }
     });
@@ -112,14 +112,14 @@ class ActorMessagePropagationTest {
 
     final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         respondWith("_%s_".formatted(message));
       }
     });
 
     final var actor = container.spawn("actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         if (!message.startsWith("_")) {
           send(message).to(otherActor);
         } else {
@@ -149,14 +149,14 @@ class ActorMessagePropagationTest {
 
       final var terminalActor = container.spawn(() -> new Actor<String>() {
         @Override
-        protected void onMessageInternal(final String message) {
+        public void onMessage(final String message) {
           result.add(message);
         }
       });
 
       final var actor = container.spawn(() -> new Actor<String>() {
         @Override
-        protected void onMessageInternal(final String message) {
+        public void onMessage(final String message) {
 
           final var future = new CompletableFuture<String>();
 
@@ -192,14 +192,14 @@ class ActorMessagePropagationTest {
 
     final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         context().correlationMessageId().ifPresent(correlationMessageIds::add);
       }
     });
 
     final var actor = container.spawn("actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         messageIds.add(context().messageId());
         send(message).to(otherActor);
       }
@@ -223,14 +223,14 @@ class ActorMessagePropagationTest {
 
     final var terminalActor = container.spawn(() -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         result.add(message);
       }
     });
 
     final var actor = container.spawn(() -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         send(message).to(terminalActor);
       }
     });
@@ -252,14 +252,14 @@ class ActorMessagePropagationTest {
 
     final var parentActor = container.spawn("parent-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         result.add(new Pair<>(context().sender().path(), message));
       }
     });
 
     final var childActor = parentActor.spawn("child-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         send(message).to(parent());
       }
     });
@@ -282,21 +282,21 @@ class ActorMessagePropagationTest {
 
     final var targetActor = container.spawn("target-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         result.add(new Pair<>(context().sender().path(), message));
       }
     });
 
     final var mediatorActor = container.spawn("mediator-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         forward(message).to(targetActor);
       }
     });
 
     final var originActor = container.spawn("origin-actor", () -> new Actor<String>() {
       @Override
-      protected void onMessageInternal(final String message) {
+      public void onMessage(final String message) {
         send(message).to(mediatorActor);
       }
     });
@@ -314,6 +314,35 @@ class ActorMessagePropagationTest {
   }
 
   @Nested
+  class BehaviourChanging {
+
+    @Test
+    void shouldChangeTheBehaviour() {
+
+      final var result = new AtomicReference<String>();
+
+      final var actor = container.spawn("actor", () -> new Actor<String>() {
+        @Override
+        public void onMessage(final String message) {
+          if ("initialize".equals(message)) {
+            behaveAs(this::secondBahaviour);
+          }
+        }
+
+        private void secondBahaviour(final String message) {
+          result.set(message);
+        }
+      });
+
+      container.send("initialize").to(actor);
+      container.send("Hello world!").to(actor);
+
+      await().atMost(Duration.ofSeconds(5)).untilAsserted(
+          () -> assertThat(result.get()).isEqualTo("Hello world!"));
+    }
+  }
+
+  @Nested
   class RequestResponseTo {
 
     @Nested
@@ -327,7 +356,7 @@ class ActorMessagePropagationTest {
 
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
-            protected void onMessageInternal(final String message) {
+            public void onMessage(final String message) {
               respondWith("Hi there!");
             }
           });
@@ -346,7 +375,7 @@ class ActorMessagePropagationTest {
 
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
-            protected void onMessageInternal(final String message) {
+            public void onMessage(final String message) {
               send("Hi there!").to(sender());
             }
           });
@@ -371,14 +400,14 @@ class ActorMessagePropagationTest {
 
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
-            protected void onMessageInternal(final String message) {
+            public void onMessage(final String message) {
               respondWith("_%s_".formatted(message));
             }
           });
 
           final var otherActor = container.spawn("actor", () -> new Actor<String>() {
             @Override
-            protected void onMessageInternal(final String message) {
+            public void onMessage(final String message) {
               if (!message.startsWith("_")) {
                 pipe(this.<String, String>requestResponseTo(message).from(actor)).to(
                     self());
@@ -402,14 +431,14 @@ class ActorMessagePropagationTest {
 
           final var actor = container.spawn("actor", () -> new Actor<String>() {
             @Override
-            protected void onMessageInternal(final String message) {
+            public void onMessage(final String message) {
               send("_%s_".formatted(message)).to(sender());
             }
           });
 
           final var otherActor = container.spawn("actor", () -> new Actor<String>() {
             @Override
-            protected void onMessageInternal(final String message) {
+            public void onMessage(final String message) {
               if (!message.startsWith("_")) {
                 pipe(this.<String, String>requestResponseTo(message).from(actor)).to(
                     self());

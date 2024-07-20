@@ -5,25 +5,36 @@ import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
 import java.util.concurrent.Future;
 
-public abstract class Actor<M> {
+public abstract class Actor<M> implements MessageReceiver<M> {
+
+  protected final MessageReceiver<M> defaultBehaviour = new MessageReceiver<M>() {
+    @Override
+    public void onMessage(M message) {
+      Actor.this.onMessage(message);
+    }
+  };
+
+  private MessageReceiver<M> behaviour = defaultBehaviour;
 
   private ActorContext context;
 
   private ActorHandle<?> sender;
 
   @SuppressWarnings("unchecked")
-  public final void onMessage(final Object message, final ActorContext context) {
+  final void onMessage(final Object message, final ActorContext context) {
     this.context = context;
 
     try {
-      onMessageInternal((M) message);
+      behaviour.onMessage((M) message);
     } catch (final ClassCastException e) {
       // TODO Add proper handling
       System.err.printf("Failed to process %s%n", message);
     }
   }
 
-  protected abstract void onMessageInternal(M message);
+  protected final void behaveAs(final MessageReceiver<M> behaviour) {
+    this.behaviour = behaviour;
+  }
 
   protected final ActorContext context() {
     return this.context;
@@ -66,7 +77,9 @@ public abstract class Actor<M> {
   }
 
   @SuppressWarnings("unchecked")
-  public <M1, R> PreparedSendMessageWithResponseRequestOp<M1, R> requestResponseTo(final M1 message) {
-    return targetActor ->  ((ActorWrapper<M1>) targetActor).requestResponseToInternal(message, self());
+  public <M1, R> PreparedSendMessageWithResponseRequestOp<M1, R> requestResponseTo(
+      final M1 message) {
+    return targetActor -> ((ActorWrapper<M1>) targetActor).requestResponseToInternal(message,
+        self());
   }
 }
