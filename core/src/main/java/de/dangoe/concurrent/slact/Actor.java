@@ -1,6 +1,5 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.internal.ActorWrapper;
 import de.dangoe.concurrent.slact.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
@@ -62,8 +61,8 @@ public abstract class Actor<M> {
     return context().forward(message);
   }
 
-  protected final EventualPipeOp<M> pipe(final Future<M> eventualMessage) {
-    return context().pipeEventually(eventualMessage);
+  protected final FuturePipeOp<M> pipe(final Future<M> eventualMessage) {
+    return context().pipeFuture(eventualMessage);
   }
 
   @SuppressWarnings("unchecked")

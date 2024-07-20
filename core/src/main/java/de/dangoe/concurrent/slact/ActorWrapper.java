@@ -1,15 +1,7 @@
-package de.dangoe.concurrent.slact.internal;
+package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.SlactContainer.ActorSpawnerImpl;
-import de.dangoe.concurrent.slact.internal.WrappedMessage.FireAndForgetMessage;
-import de.dangoe.concurrent.slact.internal.WrappedMessage.MessageWithResponseRequest;
-import de.dangoe.concurrent.slact.Actor;
-import de.dangoe.concurrent.slact.ActorContext;
-import de.dangoe.concurrent.slact.ActorCreator;
-import de.dangoe.concurrent.slact.ActorHandle;
-import de.dangoe.concurrent.slact.ActorHandleResolver;
-import de.dangoe.concurrent.slact.ActorPath;
-import de.dangoe.concurrent.slact.EventualPipeOp;
+import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
+import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -21,7 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public final class ActorWrapper<M> implements ActorHandle<M> {
+final class ActorWrapper<M> implements ActorHandle<M> {
 
   private class ActorContextImpl implements ActorContext {
 
@@ -70,7 +62,7 @@ public final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <M1> EventualPipeOp<M1> pipeEventually(final Future<M1> eventualMessage) {
+    public <M1> FuturePipeOp<M1> pipeFuture(final Future<M1> eventualMessage) {
       return target -> {
         ActorWrapper.this.scheduledExecutor.scheduleOnce(() -> {
           // TODO Configure timeout

@@ -1,12 +1,11 @@
-package de.dangoe.concurrent.slact.internal;
+package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.ActorPath;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-public abstract class WrappedMessage<M> {
+abstract class WrappedMessage<M> {
 
   public static final class FireAndForgetMessage<M> extends WrappedMessage<M> {
 

@@ -2,51 +2,15 @@ package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
-import de.dangoe.concurrent.slact.internal.ActorWrapper;
-import de.dangoe.concurrent.slact.internal.ScheduledExecutor;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SlactContainer implements ActorHandleResolver, ActorSpawner {
-
-  public class ActorSpawnerImpl implements ActorSpawner {
-
-    @Override
-    public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
-        final ActorCreator<A> creator) {
-      return spawnInternal(ActorPath.root().append(name), creator);
-    }
-
-    public <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
-        final ActorCreator<A> creator) {
-      final var actor = creator.create();
-      final var actorWrapper = new ActorWrapper<>(actor, path, this, SlactContainer.this,
-          new ScheduledExecutor() {
-
-            @Override
-            public void scheduleOnce(final Runnable command, final Duration initialDelay) {
-              SlactContainer.this.executor.schedule(command, initialDelay.toMillis(),
-                  TimeUnit.MILLISECONDS);
-            }
-
-            @Override
-            public void scheduleAtFixedRate(final Runnable command, final Duration initialDelay,
-                final Duration period) {
-              SlactContainer.this.executor.scheduleAtFixedRate(command, initialDelay.toMillis(),
-                  period.toMillis(), TimeUnit.MILLISECONDS);
-            }
-          });
-      SlactContainer.this.actors.put(path, actorWrapper);
-      return actorWrapper;
-    }
-  }
 
   private final String name;
 
@@ -65,8 +29,13 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
     this.name = name;
 
-    this.actorSpawner = new ActorSpawnerImpl();
     this.executor = Executors.newScheduledThreadPool(12);
+    this.actorSpawner = new ActorSpawnerImpl(new ActorRegistry() {
+      @Override
+      public void add(ActorWrapper<?> actor) {
+        SlactContainer.this.actors.put(actor.path(), actor);
+      }
+    }, this, executor);
 
     this.rootActor = this.actorSpawner.spawnInternal(ActorPath.root(), () -> new Actor<Object>() {
       @Override
