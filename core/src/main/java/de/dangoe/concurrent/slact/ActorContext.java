@@ -1,4 +1,4 @@
-package de.dangoe.concurrent.slact.api;
+package de.dangoe.concurrent.slact;
 
 import java.util.Optional;
 import java.util.concurrent.Future;

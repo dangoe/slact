@@ -1,6 +1,4 @@
-package de.dangoe.concurrent.slact.api;
-
-import java.util.concurrent.Future;
+package de.dangoe.concurrent.slact;
 
 public interface ActorHandle<M> extends ActorSpawner {
 

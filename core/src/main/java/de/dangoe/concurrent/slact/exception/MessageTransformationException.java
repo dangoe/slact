@@ -1,4 +1,4 @@
-package de.dangoe.concurrent.slact.api.exception;
+package de.dangoe.concurrent.slact.exception;
 
 public class MessageTransformationException {
 

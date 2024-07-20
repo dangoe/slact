@@ -1,7 +1,5 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.api.Actor;
-import de.dangoe.concurrent.slact.api.ActorPath;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

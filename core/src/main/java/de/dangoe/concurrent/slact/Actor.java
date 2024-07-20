@@ -1,9 +1,9 @@
-package de.dangoe.concurrent.slact.api;
+package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.ActorWrapper;
-import de.dangoe.concurrent.slact.api.ActorContext.PreparedForwardMessageOp;
-import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageOp;
-import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageWithResponseRequestOp;
+import de.dangoe.concurrent.slact.internal.ActorWrapper;
+import de.dangoe.concurrent.slact.ActorContext.PreparedForwardMessageOp;
+import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
+import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
 import java.util.concurrent.Future;
 
 public abstract class Actor<M> {

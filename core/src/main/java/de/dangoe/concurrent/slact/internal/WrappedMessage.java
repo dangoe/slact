@@ -1,6 +1,6 @@
-package de.dangoe.concurrent.slact;
+package de.dangoe.concurrent.slact.internal;
 
-import de.dangoe.concurrent.slact.api.ActorPath;
+import de.dangoe.concurrent.slact.ActorPath;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;

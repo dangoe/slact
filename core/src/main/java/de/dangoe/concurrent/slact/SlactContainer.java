@@ -1,13 +1,9 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.api.Actor;
-import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageOp;
-import de.dangoe.concurrent.slact.api.ActorContext.PreparedSendMessageWithResponseRequestOp;
-import de.dangoe.concurrent.slact.api.ActorCreator;
-import de.dangoe.concurrent.slact.api.ActorHandle;
-import de.dangoe.concurrent.slact.api.ActorHandleResolver;
-import de.dangoe.concurrent.slact.api.ActorPath;
-import de.dangoe.concurrent.slact.api.ActorSpawner;
+import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
+import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
+import de.dangoe.concurrent.slact.internal.ActorWrapper;
+import de.dangoe.concurrent.slact.internal.ScheduledExecutor;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
-  class ActorSpawnerImpl implements ActorSpawner {
+  public class ActorSpawnerImpl implements ActorSpawner {
 
     @Override
     public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
@@ -28,7 +24,7 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
       return spawnInternal(ActorPath.root().append(name), creator);
     }
 
-    <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
+    public <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
         final ActorCreator<A> creator) {
       final var actor = creator.create();
       final var actorWrapper = new ActorWrapper<>(actor, path, this, SlactContainer.this,

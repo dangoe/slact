@@ -1,8 +1,8 @@
-package de.dangoe.concurrent.slact;
+package de.dangoe.concurrent.slact.internal;
 
 import java.time.Duration;
 
-interface ScheduledExecutor {
+public interface ScheduledExecutor {
 
   void scheduleOnce(Runnable command, Duration initialDelay);
 

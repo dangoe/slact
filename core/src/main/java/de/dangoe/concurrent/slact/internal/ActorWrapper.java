@@ -1,15 +1,15 @@
-package de.dangoe.concurrent.slact;
+package de.dangoe.concurrent.slact.internal;
 
 import de.dangoe.concurrent.slact.SlactContainer.ActorSpawnerImpl;
-import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
-import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
-import de.dangoe.concurrent.slact.api.Actor;
-import de.dangoe.concurrent.slact.api.ActorContext;
-import de.dangoe.concurrent.slact.api.ActorCreator;
-import de.dangoe.concurrent.slact.api.ActorHandle;
-import de.dangoe.concurrent.slact.api.ActorHandleResolver;
-import de.dangoe.concurrent.slact.api.ActorPath;
-import de.dangoe.concurrent.slact.api.EventualPipeOp;
+import de.dangoe.concurrent.slact.internal.WrappedMessage.FireAndForgetMessage;
+import de.dangoe.concurrent.slact.internal.WrappedMessage.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.Actor;
+import de.dangoe.concurrent.slact.ActorContext;
+import de.dangoe.concurrent.slact.ActorCreator;
+import de.dangoe.concurrent.slact.ActorHandle;
+import de.dangoe.concurrent.slact.ActorHandleResolver;
+import de.dangoe.concurrent.slact.ActorPath;
+import de.dangoe.concurrent.slact.EventualPipeOp;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -186,7 +186,7 @@ public final class ActorWrapper<M> implements ActorHandle<M> {
     return this.actorSpawner.spawnInternal(this.path.append(name), creator);
   }
 
-  void sendInternal(final M message, final String correlationMessageId,
+  public void sendInternal(final M message, final String correlationMessageId,
       final ActorHandle<?> sender) {
     appendMessage(
         new WrappedMessage.FireAndForgetMessage<>(message, correlationMessageId, sender.path()),

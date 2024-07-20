@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.api.Actor;
-import de.dangoe.concurrent.slact.api.ActorPath;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
