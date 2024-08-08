@@ -29,7 +29,7 @@ class ActorMessagePropagationTest {
 
   }
 
-  private final SlactContainer container = SlactContainer.create();
+  private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Test
   void anWordCountActorCanBeBuilt() {
@@ -406,7 +406,7 @@ class ActorMessagePropagationTest {
             }
           });
 
-          final var otherActor = container.spawn("actor", () -> new Actor<String>() {
+          final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
             @Override
             public void onMessage(final String message) {
               if (!message.startsWith("_")) {
@@ -437,7 +437,7 @@ class ActorMessagePropagationTest {
             }
           });
 
-          final var otherActor = container.spawn("actor", () -> new Actor<String>() {
+          final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
             @Override
             public void onMessage(final String message) {
               if (!message.startsWith("_")) {

@@ -5,7 +5,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-interface ScheduledExecutor extends AutoCloseable {
+public interface ScheduledExecutor extends AutoCloseable {
 
   void scheduleOnce(Runnable command, Duration initialDelay);
 

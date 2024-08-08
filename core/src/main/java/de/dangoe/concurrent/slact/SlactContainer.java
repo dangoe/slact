@@ -3,10 +3,12 @@ package de.dangoe.concurrent.slact;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +16,7 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
   private static class ActorRegistryImpl implements ActorRegistry {
 
-    private final ConcurrentHashMap<ActorPath, ActorWrapper<?>> actors = new ConcurrentHashMap<>();
+    private final Map<ActorPath, ActorWrapper<?>> actors = new ConcurrentHashMap<>();
 
     @Override
     public void add(final ActorWrapper<?> actor) {
@@ -28,11 +30,11 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
     }
   }
 
-  private final Logger logger;
+  private static final Logger logger = LoggerFactory.getLogger(SlactContainer.class);
 
   private final String name;
 
-  private final ScheduledExecutor executor;
+  private final ScheduledExecutor scheduledExecutor;
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
 
@@ -42,18 +44,20 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
   private final ActorHandle<Object> rootActor;
 
   // TODO Add configuration
-  private SlactContainer(final String name) {
+  SlactContainer(final String name,
+      final Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 
     super();
 
-    this.logger = LoggerFactory.getLogger(getClass());
-
     this.name = name;
 
-    this.executor = ScheduledExecutor.withFixedThreadPool(12);
+    this.scheduledExecutor = scheduledExecutorFactory.get();
+
+    Objects.requireNonNull(this.scheduledExecutor, "Scheduled executor must not be null!");
 
     this.actorRegistry = new ActorRegistryImpl();
-    this.rootActorSpawner = new RootActorSpawner(logger, actorRegistry, this, this.executor);
+    this.rootActorSpawner = new RootActorSpawner(logger, actorRegistry, this,
+        this.scheduledExecutor);
 
     this.rootActor = this.rootActorSpawner.spawnRootActor(() -> new Actor<Object>() {
       @Override
@@ -70,7 +74,7 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
     } catch (final InterruptedException e) {
       logger.error("Shutdown has been interrupted.", e);
     } finally {
-      executor.close();
+      scheduledExecutor.close();
     }
   }
 
@@ -109,13 +113,5 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
   public <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(final M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
         this.rootActor);
-  }
-
-  public static SlactContainer create() {
-    return create(UUID.randomUUID().toString());
-  }
-
-  public static SlactContainer create(final String name) {
-    return new SlactContainer(name);
   }
 }

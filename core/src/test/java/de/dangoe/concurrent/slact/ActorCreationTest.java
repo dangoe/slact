@@ -22,7 +22,7 @@ class ActorCreationTest {
     }
   }
 
-  private final SlactContainer container = SlactContainer.create();
+  private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Test
   void actorPathShouldBeChildOfRoot() {
