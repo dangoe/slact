@@ -2,29 +2,43 @@ package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
-import java.util.HashMap;
-import java.util.Map;
+import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
+  private static class ActorRegistryImpl implements ActorRegistry {
+
+    private final ConcurrentHashMap<ActorPath, ActorWrapper<?>> actors = new ConcurrentHashMap<>();
+
+    @Override
+    public void add(final ActorWrapper<?> actor) {
+      actors.merge(actor.path(), actor, (oldValue, newValue) -> {
+        throw new ActorRegistrationException(actor.path());
+      });
+    }
+
+    public Optional<ActorHandle<?>> get(ActorPath path) {
+      return Optional.ofNullable(actors.get(path));
+    }
+  }
+
   private final Logger logger;
 
   private final String name;
 
-  private final ScheduledExecutorService executor;
+  private final ScheduledExecutor executor;
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
 
-  private final Map<ActorPath, ActorWrapper<?>> actors = new HashMap<>();
+  private final ActorRegistryImpl actorRegistry;
+  private final RootActorSpawner rootActorSpawner;
 
-  private final ActorSpawnerImpl actorSpawner;
   private final ActorHandle<Object> rootActor;
 
   // TODO Add configuration
@@ -36,33 +50,34 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
     this.name = name;
 
-    this.executor = Executors.newScheduledThreadPool(12);
-    this.actorSpawner = new ActorSpawnerImpl(logger,
-        actor -> SlactContainer.this.actors.put(actor.path(), actor), this, executor);
+    this.executor = ScheduledExecutor.withFixedThreadPool(12);
 
-    this.rootActor = this.actorSpawner.spawnInternal(ActorPath.root(),
-        () -> new Actor<Object>() {
-          @Override
-          public void onMessage(Object message) {
-            logger.warn("Received message as root: '{}'.", message);
-          }
-        });
+    this.actorRegistry = new ActorRegistryImpl();
+    this.rootActorSpawner = new RootActorSpawner(logger, actorRegistry, this, this.executor);
+
+    this.rootActor = this.rootActorSpawner.spawnRootActor(() -> new Actor<Object>() {
+      @Override
+      public void onMessage(Object message) {
+        logger.warn("Received message as root: '{}'.", message);
+      }
+    });
   }
 
-  public void shutdown() {
+  public void shutdown() throws Exception {
     this.stopped.compareAndExchange(false, true);
     try {
       Thread.sleep(1000);
     } catch (final InterruptedException e) {
       logger.error("Shutdown has been interrupted.", e);
+    } finally {
+      executor.close();
     }
-    executor.close();
   }
 
   @Override
   public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
       final ActorCreator<A> creator) {
-    return this.actorSpawner.spawn(name, creator);
+    return this.rootActorSpawner.spawn(name, creator);
   }
 
   @Override
@@ -73,22 +88,14 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
       return Optional.of((ActorHandle<M>) this.rootActor);
     }
 
-    return Optional.ofNullable((ActorHandle<M>) this.actors.get(path));
+    return this.actorRegistry.get(path).map(actor -> (ActorWrapper<M>) actor);
   }
 
   public String name() {
     return name;
   }
 
-  public static SlactContainer create() {
-    return create(UUID.randomUUID().toString());
-  }
-
-  public static SlactContainer create(final String name) {
-    return new SlactContainer(name);
-  }
-
-  boolean stopped() {
+  public boolean isStopped() {
     return stopped.get();
   }
 
@@ -102,5 +109,13 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
   public <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(final M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
         this.rootActor);
+  }
+
+  public static SlactContainer create() {
+    return create(UUID.randomUUID().toString());
+  }
+
+  public static SlactContainer create(final String name) {
+    return new SlactContainer(name);
   }
 }
