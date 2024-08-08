@@ -309,7 +309,8 @@ class ActorMessagePropagationTest {
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
         () -> assertThat(result).containsExactlyElementsOf(
-            messages.stream().map(msg -> new Pair<>(ActorPath.root().append("origin-actor"), msg))
+            messages.stream().map(
+                    msg -> new Pair<>(ActorPath.root().append("origin-actor"), msg))
                 .toList()));
   }
 

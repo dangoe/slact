@@ -9,8 +9,12 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SlactContainer implements ActorHandleResolver, ActorSpawner {
+
+  private final Logger logger;
 
   private final String name;
 
@@ -23,35 +27,34 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
   private final ActorSpawnerImpl actorSpawner;
   private final ActorHandle<Object> rootActor;
 
+  // TODO Add configuration
   private SlactContainer(final String name) {
 
     super();
 
+    this.logger = LoggerFactory.getLogger(getClass());
+
     this.name = name;
 
     this.executor = Executors.newScheduledThreadPool(12);
-    this.actorSpawner = new ActorSpawnerImpl(new ActorRegistry() {
-      @Override
-      public void add(ActorWrapper<?> actor) {
-        SlactContainer.this.actors.put(actor.path(), actor);
-      }
-    }, this, executor);
+    this.actorSpawner = new ActorSpawnerImpl(logger,
+        actor -> SlactContainer.this.actors.put(actor.path(), actor), this, executor);
 
-    this.rootActor = this.actorSpawner.spawnInternal(ActorPath.root(), () -> new Actor<Object>() {
-      @Override
-      public void onMessage(Object message) {
-        System.out.println(message);
-      }
-    });
+    this.rootActor = this.actorSpawner.spawnInternal(ActorPath.root(),
+        () -> new Actor<Object>() {
+          @Override
+          public void onMessage(Object message) {
+            logger.warn("Received message as root: '{}'.", message);
+          }
+        });
   }
 
   public void shutdown() {
     this.stopped.compareAndExchange(false, true);
     try {
       Thread.sleep(1000);
-    } catch (InterruptedException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+    } catch (final InterruptedException e) {
+      logger.error("Shutdown has been interrupted.", e);
     }
     executor.close();
   }
@@ -66,11 +69,15 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
   @SuppressWarnings("unchecked")
   public <M> Optional<ActorHandle<M>> resolve(final ActorPath path) {
 
-    if (path == ActorPath.root()) {
+    if (path.isRoot()) {
       return Optional.of((ActorHandle<M>) this.rootActor);
     }
 
     return Optional.ofNullable((ActorHandle<M>) this.actors.get(path));
+  }
+
+  public String name() {
+    return name;
   }
 
   public static SlactContainer create() {

@@ -91,4 +91,8 @@ public abstract class ActorPath {
     public abstract ActorPath append(final String name);
 
     public abstract Optional<ActorPath> parent();
+
+    public boolean isRoot() {
+      return parent().isEmpty();
+    }
 }

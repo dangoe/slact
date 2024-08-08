@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -12,6 +13,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.slf4j.Logger;
 
 final class ActorWrapper<M> implements ActorHandle<M> {
 
@@ -63,23 +65,21 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     public <M1> FuturePipeOp<M1> pipeFuture(final Future<M1> eventualMessage) {
-      return target -> {
-        ActorWrapper.this.scheduledExecutor.scheduleOnce(() -> {
-          // TODO Configure timeout
-          try {
-            final var message = eventualMessage.get(10, TimeUnit.SECONDS);
-            send(message).to(target);
-          } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-          }
-        }, Duration.of(0, ChronoUnit.NANOS));
-      };
+      return target -> ActorWrapper.this.scheduledExecutor.scheduleOnce(() -> {
+        // TODO Configure timeout
+        try {
+          final var message = eventualMessage.get(10, TimeUnit.SECONDS);
+          send(message).to(target);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+          throw new RuntimeException(e);
+        }
+      }, Duration.of(0, ChronoUnit.NANOS));
     }
 
     @Override
     public <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final String name,
         ActorCreator<A> actorCreator) {
-      return ActorWrapper.this.actorSpawner.spawnInternal(self().path().append(name), actorCreator);
+      return ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
     }
 
     @Override
@@ -92,7 +92,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     public <M1> PreparedSendMessageOp<M1> send(final M1 message) {
       return targetActor -> {
         if (this.message instanceof WrappedMessage.MessageWithResponseRequest
-            && sender().path() == ActorPath.root()) {
+            && sender().path().isRoot()) {
           completeResponseRequest(message);
         } else {
           ((ActorWrapper<M1>) targetActor).sendInternal(message,
@@ -103,7 +103,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <M1> void reply(final M1 message) {
+    public <M1> void respondWith(final M1 message) {
       send(message).to((ActorWrapper<M1>) sender());
     }
 
@@ -122,18 +122,20 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final Queue<WrappedMessage<M>> messages = new LinkedBlockingQueue<>();
 
+  private final Logger logger;
   private final Actor<M> delegate;
   private final ActorPath path;
-  private final ActorSpawnerImpl actorSpawner;
+  private final ActorSpawner actorSpawner;
   private final ActorHandleResolver actorHandleResolver;
   private final ScheduledExecutor scheduledExecutor;
 
-  public ActorWrapper(final Actor<M> delegate, final ActorPath path,
-      final ActorSpawnerImpl actorSpawner, final ActorHandleResolver actorHandleResolver,
+  public ActorWrapper(final Logger logger, final Actor<M> delegate, final ActorPath path,
+      final ActorSpawner actorSpawner, final ActorHandleResolver actorHandleResolver,
       final ScheduledExecutor scheduledExecutor) {
 
     super();
 
+    this.logger = logger;
     this.delegate = delegate;
     this.path = path;
     this.actorSpawner = actorSpawner;
@@ -158,9 +160,13 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         final M message = msg.message();
 
-        this.delegate.onMessage(message, new ActorContextImpl(msg, senderHandle));
+        try {
+          this.delegate.onMessage(message, new ActorContextImpl(msg, senderHandle));
+        } catch (final MessageRejectedException e) {
+          this.logger.warn("Message has been rejected.", e);
+        }
       } else {
-        // TODO Error handling
+        this.logger.warn("Failed to resolve sender for message '{}'.", msg.message());
       }
 
       msg = messages.poll();
@@ -175,7 +181,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   @Override
   public <A extends Actor<M2>, M2> ActorHandle<M2> spawn(final String name,
       final ActorCreator<A> creator) {
-    return this.actorSpawner.spawnInternal(this.path.append(name), creator);
+    return this.actorSpawner.spawn(name, creator);
   }
 
   public void sendInternal(final M message, final String correlationMessageId,

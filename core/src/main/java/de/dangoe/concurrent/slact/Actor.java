@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact;
 import de.dangoe.concurrent.slact.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
+import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.util.concurrent.Future;
 
 public abstract class Actor<M> implements MessageReceiver<M> {
@@ -18,8 +19,6 @@ public abstract class Actor<M> implements MessageReceiver<M> {
 
   private ActorContext context;
 
-  private ActorHandle<?> sender;
-
   @SuppressWarnings("unchecked")
   final void onMessage(final Object message, final ActorContext context) {
     this.context = context;
@@ -27,13 +26,16 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     try {
       behaviour.onMessage((M) message);
     } catch (final ClassCastException e) {
-      // TODO Add proper handling
-      System.err.printf("Failed to process %s%n", message);
+      throw new MessageRejectedException(self(), message);
     }
   }
 
   protected final void behaveAs(final MessageReceiver<M> behaviour) {
     this.behaviour = behaviour;
+  }
+
+  protected final void reject(final M message) {
+    throw new MessageRejectedException(self(), message);
   }
 
   protected final ActorContext context() {
@@ -61,7 +63,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
    * @param message The message to be replied with.
    */
   protected final void respondWith(final Object message) {
-    context().reply(message);
+    context().respondWith(message);
   }
 
   protected final <M1> PreparedSendMessageOp<M1> send(final M1 message) {
