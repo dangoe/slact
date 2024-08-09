@@ -1,6 +1,5 @@
 package de.dangoe.concurrent.slact;
 
-import java.util.Optional;
 import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
 
