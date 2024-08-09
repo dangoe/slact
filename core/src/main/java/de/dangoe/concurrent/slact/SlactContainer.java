@@ -32,8 +32,6 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
 
   private static final Logger logger = LoggerFactory.getLogger(SlactContainer.class);
 
-  private final String name;
-
   private final ScheduledExecutor scheduledExecutor;
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
@@ -48,8 +46,6 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
       final Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 
     super();
-
-    this.name = name;
 
     this.scheduledExecutor = scheduledExecutorFactory.get();
 
@@ -93,10 +89,6 @@ public class SlactContainer implements ActorHandleResolver, ActorSpawner {
     }
 
     return this.actorRegistry.get(path).map(actor -> (ActorWrapper<M>) actor);
-  }
-
-  public String name() {
-    return name;
   }
 
   public boolean isStopped() {
