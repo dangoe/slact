@@ -12,4 +12,6 @@ public interface SlactContainer extends ActorHandleResolver, ActorSpawner {
   <M> PreparedSendMessageOp<M> send(M message);
 
   <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(M message);
+
+  void exterminate(final ActorHandle<?> actor);
 }

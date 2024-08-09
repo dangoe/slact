@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ActorCreationTest {
+class ActorSpawningTest {
 
   private static final class TestActor extends Actor<String> {
 

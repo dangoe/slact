@@ -44,8 +44,25 @@ class RootActorSpawner implements ActorSpawner {
     };
 
     final var actorWrapper = new ActorWrapper<>(logger, actor, path, localSpawner,
+        new ActorExterminator() {
+          @Override
+          public void exterminate(final ActorPath path) {
+
+            final var maybeActor = actorHandleResolver.resolve(path);
+
+            if (maybeActor.isEmpty()) {
+              return;
+            }
+
+            final var actor = ((ActorWrapper<?>) maybeActor.get());
+
+            actor.shutdown();
+
+            actorRegistry.unregister(actor);
+          }
+        },
         this.actorHandleResolver, this.scheduledExecutor);
-    actorRegistry.add(actorWrapper);
+    actorRegistry.register(actorWrapper);
     return actorWrapper;
   }
 }

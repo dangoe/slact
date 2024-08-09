@@ -2,5 +2,7 @@ package de.dangoe.concurrent.slact;
 
 interface ActorRegistry {
 
-  void add(final ActorWrapper<?> actor);
+  void register(final ActorWrapper<?> actor);
+
+  void unregister(final ActorWrapper<?> actor);
 }

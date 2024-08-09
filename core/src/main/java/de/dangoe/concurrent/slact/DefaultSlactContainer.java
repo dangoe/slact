@@ -2,6 +2,8 @@ package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
+import de.dangoe.concurrent.slact.WrappedMessage.ExterminationMessage;
+import de.dangoe.concurrent.slact.WrappedMessage.LifecycleControlMessage;
 import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
 import java.util.Map;
 import java.util.Objects;
@@ -19,10 +21,15 @@ class DefaultSlactContainer implements SlactContainer {
     private final Map<ActorPath, ActorWrapper<?>> actors = new ConcurrentHashMap<>();
 
     @Override
-    public void add(final ActorWrapper<?> actor) {
+    public void register(final ActorWrapper<?> actor) {
       actors.merge(actor.path(), actor, (oldValue, newValue) -> {
         throw new ActorRegistrationException(actor.path());
       });
+    }
+
+    @Override
+    public void unregister(final ActorWrapper<?> actor) {
+      actors.remove(actor.path());
     }
 
     public Optional<ActorHandle<?>> get(ActorPath path) {
@@ -109,5 +116,11 @@ class DefaultSlactContainer implements SlactContainer {
   public <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(final M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
         this.rootActor);
+  }
+
+  @Override
+  public void exterminate(final ActorHandle<?> actor) {
+    ((ActorWrapper<?>) actor).sendLifecycleControlMessage(
+        new ExterminationMessage<>(this.rootActor.path()));
   }
 }

@@ -7,27 +7,33 @@ import java.util.concurrent.TimeUnit;
 
 public interface ScheduledExecutor extends AutoCloseable {
 
-  void scheduleOnce(Runnable command, Duration initialDelay);
+  Cancellable scheduleOnce(Runnable command, Duration initialDelay);
 
-  void scheduleAtFixedRate(Runnable command, Duration initialDelay, Duration period);
+  Cancellable scheduleAtFixedRate(Runnable command, Duration initialDelay, Duration period);
 
   static ScheduledExecutor withFixedThreadPool(final int poolSize) {
 
     return new ScheduledExecutor() {
 
-      private final ScheduledExecutorService delegate = Executors.newScheduledThreadPool(
-          poolSize);
+      private final ScheduledExecutorService delegate = Executors.newScheduledThreadPool(poolSize);
 
       @Override
-      public void scheduleOnce(final Runnable command, final Duration initialDelay) {
-        this.delegate.schedule(command, initialDelay.toMillis(), TimeUnit.MILLISECONDS);
+      public Cancellable scheduleOnce(final Runnable command, final Duration initialDelay) {
+
+        final var scheduledFuture = this.delegate.schedule(command, initialDelay.toMillis(),
+            TimeUnit.MILLISECONDS);
+
+        return () -> scheduledFuture.cancel(true);
       }
 
       @Override
-      public void scheduleAtFixedRate(final Runnable command, final Duration initialDelay,
+      public Cancellable scheduleAtFixedRate(final Runnable command, final Duration initialDelay,
           final Duration period) {
-        this.delegate.scheduleAtFixedRate(command, initialDelay.toMillis(), period.toMillis(),
-            TimeUnit.MILLISECONDS);
+
+        final var scheduledFuture = this.delegate.scheduleAtFixedRate(command,
+            initialDelay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
+
+        return () -> scheduledFuture.cancel(true);
       }
 
       @Override

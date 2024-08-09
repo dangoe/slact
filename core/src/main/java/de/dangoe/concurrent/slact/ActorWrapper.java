@@ -1,8 +1,9 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.exception.MessageRejectedException;
+import de.dangoe.concurrent.slact.WrappedMessage.ExterminationMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -113,9 +114,15 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <M1> PreparedForwardMessageOp<M1> forward(M1 message) {
+    public <M1> PreparedForwardMessageOp<M1> forward(final M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
           this.message.messageId(), sender());
+    }
+
+    @Override
+    public void exterminate(final ActorHandle<?> actor) {
+      ((ActorWrapper<?>) actor).appendMessage(
+          new WrappedMessage.ExterminationMessage<>(sender().path()));
     }
   }
 
@@ -125,12 +132,15 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final Actor<M> delegate;
   private final ActorPath path;
   private final ActorSpawner actorSpawner;
+  private final ActorExterminator actorExterminator;
   private final ActorHandleResolver actorHandleResolver;
   private final ScheduledExecutor scheduledExecutor;
 
+  private final Cancellable periodicPolling;
+
   public ActorWrapper(final Logger logger, final Actor<M> delegate, final ActorPath path,
-      final ActorSpawner actorSpawner, final ActorHandleResolver actorHandleResolver,
-      final ScheduledExecutor scheduledExecutor) {
+      final ActorSpawner actorSpawner, final ActorExterminator actorExterminator,
+      final ActorHandleResolver actorHandleResolver, final ScheduledExecutor scheduledExecutor) {
 
     super();
 
@@ -138,11 +148,12 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.delegate = delegate;
     this.path = path;
     this.actorSpawner = actorSpawner;
+    this.actorExterminator = actorExterminator;
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
-    scheduledExecutor.scheduleAtFixedRate(this::processMessages, Duration.of(0, ChronoUnit.MILLIS),
-        Duration.of(1, ChronoUnit.MILLIS));
+    this.periodicPolling = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
+        Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
   }
 
   private void processMessages() {
@@ -153,19 +164,24 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       final var sender = this.actorHandleResolver.resolve(msg.sender());
 
-      if (sender.isPresent()) {
-
-        final ActorHandle<?> senderHandle = sender.get();
-
-        final M message = msg.message();
-
-        try {
-          this.delegate.onMessage(message, new ActorContextImpl(msg, senderHandle));
-        } catch (final MessageRejectedException e) {
-          this.logger.warn("Message has been rejected.", e);
-        }
-      } else {
+      if (sender.isEmpty()) {
         this.logger.warn("Failed to resolve sender for message '{}'.", msg.message());
+        break;
+      }
+
+      final ActorHandle<?> senderHandle = sender.get();
+
+      if (msg instanceof WrappedMessage.ExterminationMessage) {
+        this.actorExterminator.exterminate(path());
+        break;
+      }
+
+      final M message = msg.message();
+
+      try {
+        this.delegate.onMessage(message, new ActorContextImpl(msg, senderHandle));
+      } catch (final MessageRejectedException e) {
+        this.logger.warn("Message has been rejected.", e);
       }
 
       msg = messages.poll();
@@ -186,29 +202,38 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   public void sendInternal(final M message, final String correlationMessageId,
       final ActorHandle<?> sender) {
     appendMessage(
-        new WrappedMessage.FireAndForgetMessage<>(message, correlationMessageId, sender.path()),
-        sender);
+        new WrappedMessage.FireAndForgetMessage<>(message, correlationMessageId, sender.path()));
   }
 
   public <R> Future<R> requestResponseToInternal(final M message, final ActorHandle<?> sender) {
 
     final var wrapper = new MessageWithResponseRequest<M, R>(message, null, sender.path());
 
-    appendMessage(wrapper, sender);
+    appendMessage(wrapper);
 
     return wrapper.future();
   }
 
-  void forwardInternal(final M message, final String correlationMessageId, ActorHandle<?> sender) {
-    appendMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()), sender);
+  void forwardInternal(final M message, final String correlationMessageId,
+      final ActorHandle<?> sender) {
+    appendMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()));
   }
 
-  private void appendMessage(final WrappedMessage<M> message, final ActorHandle<?> sender) {
-    if (this.messages.size() < 1000) {
+  void sendLifecycleControlMessage(final WrappedMessage.LifecycleControlMessage<M> message) {
+    appendMessage(message);
+  }
+
+  private void appendMessage(final WrappedMessage<M> message) {
+    if (this.messages.size() < 1000
+        || message instanceof WrappedMessage.LifecycleControlMessage<M>) {
       this.messages.add(message);
     } else {
       // TODO Use overflow strategy
     }
+  }
+
+  void shutdown() {
+    this.periodicPolling.cancel();
   }
 
   @Override

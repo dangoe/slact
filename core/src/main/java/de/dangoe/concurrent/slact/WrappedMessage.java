@@ -34,6 +34,20 @@ abstract class WrappedMessage<M> {
     }
   }
 
+  public static abstract class LifecycleControlMessage<M> extends WrappedMessage<M> {
+
+    public LifecycleControlMessage(final ActorPath sender) {
+      super(null, null, sender);
+    }
+  }
+
+  public static final class ExterminationMessage<M> extends LifecycleControlMessage<M> {
+
+    public ExterminationMessage(final ActorPath sender) {
+      super(sender);
+    }
+  }
+
   private final String messageId;
   private final String correlationMessageId;
 
