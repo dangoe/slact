@@ -4,7 +4,6 @@ import de.dangoe.concurrent.slact.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
-import java.util.Objects;
 import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
 
@@ -78,7 +77,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     return context().forward(message);
   }
 
-  protected final @NotNull FuturePipeOp<M> pipe(final @NotNull Future<M> eventualMessage) {
+  protected final @NotNull FuturePipeOp<M> pipeFuture(final @NotNull Future<M> eventualMessage) {
     return context().pipeFuture(eventualMessage);
   }
 

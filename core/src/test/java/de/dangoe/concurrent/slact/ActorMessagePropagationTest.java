@@ -159,7 +159,7 @@ class ActorMessagePropagationTest {
 
           final var future = new CompletableFuture<String>();
 
-          pipe(future).to(terminalActor);
+          pipeFuture(future).to(terminalActor);
 
           executor.execute(() -> {
             try {
@@ -377,7 +377,7 @@ class ActorMessagePropagationTest {
             @Override
             public void onMessage(final @NotNull String message) {
               if (!message.startsWith("_")) {
-                pipe(this.<String, String>requestResponseTo(message).from(actor)).to(
+                pipeFuture(this.<String, String>requestResponseTo(message).from(actor)).to(
                     self());
               } else {
                 result.set(message);
@@ -408,7 +408,7 @@ class ActorMessagePropagationTest {
             @Override
             public void onMessage(final @NotNull String message) {
               if (!message.startsWith("_")) {
-                pipe(this.<String, String>requestResponseTo(message).from(actor)).to(
+                pipeFuture(this.<String, String>requestResponseTo(message).from(actor)).to(
                     self());
               } else {
                 result.set(message);
