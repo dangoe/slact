@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-public class SlactContainerBuilder {
+public final class SlactContainerBuilder {
 
   private String name;
   private Supplier<ScheduledExecutor> scheduledExecutorFactory;
@@ -28,6 +28,6 @@ public class SlactContainerBuilder {
   }
 
   public SlactContainer build() {
-    return new SlactContainer(this.name, this.scheduledExecutorFactory);
+    return new DefaultSlactContainer(this.name, this.scheduledExecutorFactory);
   }
 }

@@ -1,8 +1,8 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
-import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -91,12 +91,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     @SuppressWarnings("unchecked")
     public <M1> PreparedSendMessageOp<M1> send(final M1 message) {
       return targetActor -> {
-        if (this.message instanceof WrappedMessage.MessageWithResponseRequest
-            && sender().path().isRoot()) {
+        if (this.message instanceof WrappedMessage.MessageWithResponseRequest && sender().path()
+            .isRoot()) {
           completeResponseRequest(message);
         } else {
-          ((ActorWrapper<M1>) targetActor).sendInternal(message,
-              this.message.messageId(), self());
+          ((ActorWrapper<M1>) targetActor).sendInternal(message, this.message.messageId(), self());
         }
       };
     }

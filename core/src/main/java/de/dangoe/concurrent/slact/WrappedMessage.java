@@ -19,7 +19,8 @@ abstract class WrappedMessage<M> {
 
     private final CompletableFuture<R> future;
 
-    public MessageWithResponseRequest(final M message, final String correlationMessageId, final ActorPath sender) {
+    public MessageWithResponseRequest(final M message, final String correlationMessageId,
+        final ActorPath sender) {
       super(message, correlationMessageId, sender);
       this.future = new CompletableFuture<>();
     }
