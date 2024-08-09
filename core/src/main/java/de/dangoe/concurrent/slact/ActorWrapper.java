@@ -1,7 +1,8 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
-import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.MailboxItem.FireAndForgetMessage;
+import de.dangoe.concurrent.slact.MailboxItem.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.MailboxItem.WrappedMessage;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -13,6 +14,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 final class ActorWrapper<M> implements ActorHandle<M> {
@@ -22,29 +24,20 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     private final WrappedMessage<M> message;
     private final ActorHandle<?> senderHandle;
 
-    public ActorContextImpl(final WrappedMessage<M> message, final ActorHandle<?> senderHandle) {
+    public ActorContextImpl(final @NotNull MailboxItem.WrappedMessage<M> message,
+        @NotNull final ActorHandle<?> senderHandle) {
       super();
       this.message = message;
       this.senderHandle = senderHandle;
     }
 
     @Override
-    public String messageId() {
-      return this.message.messageId();
-    }
-
-    @Override
-    public Optional<String> correlationMessageId() {
-      return this.message.correlationMessageId();
-    }
-
-    @Override
-    public ActorHandle<?> sender() {
+    public @NotNull ActorHandle<?> sender() {
       return this.senderHandle;
     }
 
     @Override
-    public ActorHandle<?> parent() {
+    public @NotNull ActorHandle<?> parent() {
       final var maybeParentPath = ActorWrapper.this.path.parent();
 
       if (maybeParentPath.isEmpty()) {
@@ -57,14 +50,14 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public ActorHandle<?> self() {
+    public @NotNull ActorHandle<?> self() {
       final var selfPath = ActorWrapper.this.path;
       return this.resolve(selfPath).orElseThrow(() -> new IllegalStateException(
           "Failed to resolve actor handle for '%s'.".formatted(selfPath)));
     }
 
     @Override
-    public <M1> FuturePipeOp<M1> pipeFuture(final Future<M1> eventualMessage) {
+    public @NotNull <M1> FuturePipeOp<M1> pipeFuture(final @NotNull Future<M1> eventualMessage) {
       return target -> ActorWrapper.this.scheduledExecutor.scheduleOnce(() -> {
         // TODO Configure timeout
         try {
@@ -77,32 +70,32 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final String name,
-        ActorCreator<A> actorCreator) {
+    public @NotNull <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final @NotNull String name,
+        @NotNull ActorCreator<A> actorCreator) {
       return ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
     }
 
     @Override
-    public <M1> Optional<ActorHandle<M1>> resolve(final ActorPath path) {
+    public @NotNull <M1> Optional<ActorHandle<M1>> resolve(final @NotNull ActorPath path) {
       return ActorWrapper.this.actorHandleResolver.resolve(path);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <M1> PreparedSendMessageOp<M1> send(final M1 message) {
+    public @NotNull <M1> PreparedSendMessageOp<M1> send(final @NotNull M1 message) {
       return targetActor -> {
         if (this.message instanceof WrappedMessage.MessageWithResponseRequest && sender().path()
             .isRoot()) {
           completeResponseRequest(message);
         } else {
-          ((ActorWrapper<M1>) targetActor).sendInternal(message, this.message.messageId(), self());
+          ((ActorWrapper<M1>) targetActor).sendInternal(message, self());
         }
       };
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <M1> void respondWith(final M1 message) {
+    public <M1> void respondWith(final @NotNull M1 message) {
       send(message).to((ActorWrapper<M1>) sender());
     }
 
@@ -113,19 +106,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <M1> PreparedForwardMessageOp<M1> forward(final M1 message) {
-      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message,
-          this.message.messageId(), sender());
+    public @NotNull <M1> PreparedForwardMessageOp<M1> forward(final @NotNull M1 message) {
+      return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, sender());
     }
 
     @Override
-    public void exterminate(final ActorHandle<?> actor) {
+    public void exterminate(final @NotNull ActorHandle<?> actor) {
       ((ActorWrapper<?>) actor).appendMessage(
-          new WrappedMessage.ExterminationMessage<>(sender().path()));
+          new WrappedMessage.ExterminationMessage(sender().path()));
     }
   }
 
-  private final Queue<WrappedMessage<M>> messages = new LinkedBlockingQueue<>();
+  private final Queue<MailboxItem> mailboxItems = new LinkedBlockingQueue<>();
 
   private final Logger logger;
   private final Actor<M> delegate;
@@ -137,9 +129,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final Cancellable messagePoller;
 
-  public ActorWrapper(final Logger logger, final Actor<M> delegate, final ActorPath path,
-      final ActorSpawner actorSpawner, final ActorExterminator actorExterminator,
-      final ActorHandleResolver actorHandleResolver, final ScheduledExecutor scheduledExecutor) {
+  public ActorWrapper(final @NotNull Logger logger, final @NotNull Actor<M> delegate,
+      final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
+      final @NotNull ActorExterminator actorExterminator,
+      final @NotNull ActorHandleResolver actorHandleResolver,
+      final @NotNull ScheduledExecutor scheduledExecutor) {
 
     super();
 
@@ -155,77 +149,77 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
   }
 
+  @SuppressWarnings("unchecked")
   private void processMessages() {
 
-    var msg = messages.poll();
+    var item = mailboxItems.poll();
 
-    while (msg != null) {
+    while (item != null) {
 
-      final var sender = this.actorHandleResolver.resolve(msg.sender());
+      final var sender = this.actorHandleResolver.resolve(item.sender());
 
       if (sender.isEmpty()) {
-        this.logger.warn("Failed to resolve sender for message '{}'.", msg.message());
+        this.logger.warn("Failed to resolve sender for message with ID '{}'.", item.id());
         break;
       }
 
       final ActorHandle<?> senderHandle = sender.get();
 
-      if (msg instanceof WrappedMessage.ExterminationMessage) {
+      if (item instanceof MailboxItem.ExterminationMessage) {
         this.actorExterminator.exterminate(path());
         break;
+      } else if (item instanceof WrappedMessage<?>) {
+        final var message = ((WrappedMessage<M>) item);
+
+        try {
+          this.delegate.onMessage(message.message(), new ActorContextImpl(message, senderHandle));
+        } catch (final MessageRejectedException e) {
+          this.logger.warn("Message has been rejected.", e);
+        }
       }
 
-      final M message = msg.message();
-
-      try {
-        this.delegate.onMessage(message, new ActorContextImpl(msg, senderHandle));
-      } catch (final MessageRejectedException e) {
-        this.logger.warn("Message has been rejected.", e);
-      }
-
-      msg = messages.poll();
+      item = mailboxItems.poll();
     }
   }
 
   @Override
-  public ActorPath path() {
+  public @NotNull ActorPath path() {
     return this.path;
   }
 
   @Override
-  public <A extends Actor<M2>, M2> ActorHandle<M2> spawn(final String name,
-      final ActorCreator<A> creator) {
+  public @NotNull <A extends Actor<M2>, M2> ActorHandle<M2> spawn(final @NotNull String name,
+      final @NotNull ActorCreator<A> creator) {
     return this.actorSpawner.spawn(name, creator);
   }
 
-  public void sendInternal(final M message, final String correlationMessageId,
-      final ActorHandle<?> sender) {
-    appendMessage(
-        new WrappedMessage.FireAndForgetMessage<>(message, correlationMessageId, sender.path()));
+  void sendInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {
+    appendMessage(new WrappedMessage.FireAndForgetMessage<>(message, sender.path()));
   }
 
-  public <R> Future<R> requestResponseToInternal(final M message, final ActorHandle<?> sender) {
+  @NotNull
+  <R> Future<R> requestResponseToInternal(final @NotNull M message,
+      final @NotNull ActorHandle<?> sender) {
 
-    final var wrapper = new MessageWithResponseRequest<M, R>(message, null, sender.path());
+    final var wrapper = new MessageWithResponseRequest<M, R>(message, sender.path());
 
     appendMessage(wrapper);
 
     return wrapper.future();
   }
 
-  void forwardInternal(final M message, final String correlationMessageId,
-      final ActorHandle<?> sender) {
-    appendMessage(new FireAndForgetMessage<>(message, correlationMessageId, sender.path()));
+  void forwardInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {
+    appendMessage(new FireAndForgetMessage<>(message, sender.path()));
   }
 
-  void sendLifecycleControlMessage(final WrappedMessage.LifecycleControlMessage<M> message) {
+  void sendLifecycleControlMessage(final @NotNull WrappedMessage.LifecycleControlMessage message) {
     appendMessage(message);
   }
 
-  private void appendMessage(final WrappedMessage<M> message) {
-    if (this.messages.size() < 1000
-        || message instanceof WrappedMessage.LifecycleControlMessage<M>) {
-      this.messages.add(message);
+  private void appendMessage(final @NotNull MailboxItem mailboxItem) {
+    if (this.mailboxItems.size() < 1000
+        || mailboxItem instanceof WrappedMessage.LifecycleControlMessage) {
+      this.mailboxItems.add(mailboxItem);
     } else {
       // TODO Use overflow strategy
     }
@@ -236,7 +230,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     if (this == o) {
       return true;
     }

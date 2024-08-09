@@ -2,44 +2,48 @@ package de.dangoe.concurrent.slact;
 
 import java.util.Optional;
 import java.util.concurrent.Future;
+import org.jetbrains.annotations.NotNull;
 
 public interface ActorContext extends ActorSpawner, ActorHandleResolver {
 
   @FunctionalInterface
   interface PreparedSendMessageOp<M> {
 
-    void to(ActorHandle<? extends M> targetActor);
+    void to(@NotNull ActorHandle<? extends M> targetActor);
   }
 
   @FunctionalInterface
   interface PreparedSendMessageWithResponseRequestOp<M, R> {
 
-    Future<R> from(ActorHandle<? extends M> targetActor);
+    @NotNull
+    Future<R> from(@NotNull ActorHandle<? extends M> targetActor);
   }
 
   @FunctionalInterface
   interface PreparedForwardMessageOp<M> {
 
-    void to(ActorHandle<? extends M> targetActor);
+    void to(@NotNull ActorHandle<? extends M> targetActor);
   }
 
-  <M> PreparedSendMessageOp<M> send(M message);
+  @NotNull
+  <M> PreparedSendMessageOp<M> send(@NotNull M message);
 
-  <M> void respondWith(M message);
+  <M> void respondWith(@NotNull M message);
 
-  <M> PreparedForwardMessageOp<M> forward(M message);
+  @NotNull
+  <M> PreparedForwardMessageOp<M> forward(@NotNull M message);
 
-  void exterminate(final ActorHandle<?> actor);
+  void exterminate(@NotNull ActorHandle<?> actor);
 
-  String messageId();
-
-  Optional<String> correlationMessageId();
-
+  @NotNull
   ActorHandle<?> sender();
 
+  @NotNull
   ActorHandle<?> parent();
 
+  @NotNull
   ActorHandle<?> self();
 
-  <M1> FuturePipeOp<M1> pipeFuture(Future<M1> eventualMessage);
+  @NotNull
+  <M1> FuturePipeOp<M1> pipeFuture(@NotNull Future<M1> eventualMessage);
 }

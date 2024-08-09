@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +13,7 @@ class ActorExterminationTest {
   private static final class TestActor extends Actor<String> {
 
     @Override
-    public void onMessage(String message) {
+    public void onMessage(@NotNull String message) {
       throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
     }
   }
@@ -37,7 +38,7 @@ class ActorExterminationTest {
 
       final var actor = container.spawn("actor", () -> new Actor<String>() {
         @Override
-        public void onMessage(final String message) {
+        public void onMessage(final @NotNull String message) {
           context().exterminate(self());
         }
       });
@@ -52,14 +53,14 @@ class ActorExterminationTest {
 
       final var actor = container.spawn("actor", () -> new Actor<String>() {
         @Override
-        public void onMessage(final String message) {
+        public void onMessage(final @NotNull String message) {
           throw new UnsupportedOperationException();
         }
       });
 
       final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
         @Override
-        public void onMessage(final String message) {
+        public void onMessage(final @NotNull String message) {
           context().exterminate(actor);
         }
       });

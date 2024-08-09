@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -9,7 +10,7 @@ class ActorSpawningTest {
   private static final class TestActor extends Actor<String> {
 
     @Override
-    public void onMessage(String message) {
+    public void onMessage(@NotNull String message) {
       throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
     }
   }
@@ -17,7 +18,7 @@ class ActorSpawningTest {
   private static final class TestChildActor extends Actor<String> {
 
     @Override
-    public void onMessage(String message) {
+    public void onMessage(@NotNull String message) {
       throw new UnsupportedOperationException("Unimplemented method 'onMessage'");
     }
   }

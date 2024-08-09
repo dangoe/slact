@@ -1,8 +1,10 @@
 package de.dangoe.concurrent.slact;
 
+import org.jetbrains.annotations.NotNull;
+
 interface ActorRegistry {
 
-  void register(final ActorWrapper<?> actor);
+  void register(@NotNull ActorWrapper<?> actor);
 
-  void unregister(final ActorWrapper<?> actor);
+  void unregister(@NotNull ActorWrapper<?> actor);
 }

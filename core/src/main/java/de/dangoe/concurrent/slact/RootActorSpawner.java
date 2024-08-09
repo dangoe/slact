@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 class RootActorSpawner implements ActorSpawner {
@@ -7,7 +8,7 @@ class RootActorSpawner implements ActorSpawner {
   private final class ActorExterminatorImpl implements ActorExterminator {
 
     @Override
-    public void exterminate(final ActorPath path) {
+    public void exterminate(final @NotNull ActorPath path) {
 
       final var maybeActor = RootActorSpawner.this.actorHandleResolver.resolve(path);
 
@@ -27,13 +28,13 @@ class RootActorSpawner implements ActorSpawner {
 
     private final ActorPath path;
 
-    private PathLocalActorSpawner(final ActorPath path) {
+    private PathLocalActorSpawner(final @NotNull ActorPath path) {
       this.path = path;
     }
 
     @Override
-    public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
-        final ActorCreator<A> actorCreator) {
+    public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
+        final @NotNull ActorCreator<A> actorCreator) {
       return spawnInternal(path.append(name), actorCreator);
     }
   }
@@ -45,8 +46,9 @@ class RootActorSpawner implements ActorSpawner {
   private final ActorExterminatorImpl actorExterminator;
   private final ScheduledExecutor scheduledExecutor;
 
-  public RootActorSpawner(final Logger logger, final ActorRegistry actorRegistry,
-      final ActorHandleResolver actorHandleResolver, final ScheduledExecutor scheduledExecutor) {
+  public RootActorSpawner(final @NotNull Logger logger, final @NotNull ActorRegistry actorRegistry,
+      final @NotNull ActorHandleResolver actorHandleResolver,
+      final @NotNull ScheduledExecutor scheduledExecutor) {
     super();
     this.logger = logger;
     this.actorRegistry = actorRegistry;
@@ -56,17 +58,18 @@ class RootActorSpawner implements ActorSpawner {
   }
 
   @Override
-  public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
-      final ActorCreator<A> creator) {
+  public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
+      final @NotNull ActorCreator<A> creator) {
     return spawnInternal(ActorPath.root().append(name), creator);
   }
 
-  <A extends Actor<M>, M> ActorHandle<M> spawnRootActor(final ActorCreator<A> creator) {
+  @NotNull
+  <A extends Actor<M>, M> ActorHandle<M> spawnRootActor(final @NotNull ActorCreator<A> creator) {
     return spawnInternal(ActorPath.root(), creator);
   }
 
-  private <A extends Actor<M>, M> ActorHandle<M> spawnInternal(final ActorPath path,
-      final ActorCreator<A> creator) {
+  private @NotNull <A extends Actor<M>, M> ActorHandle<M> spawnInternal(
+      final @NotNull ActorPath path, final @NotNull ActorCreator<A> creator) {
 
     final var actor = creator.create();
 

@@ -1,8 +1,10 @@
 package de.dangoe.concurrent.slact;
 
 import java.util.Optional;
+import org.jetbrains.annotations.NotNull;
 
 public interface ActorHandleResolver {
 
-    <M> Optional<ActorHandle<M>> resolve(ActorPath path);
+  @NotNull
+  <M> Optional<ActorHandle<M>> resolve(@NotNull ActorPath path);
 }

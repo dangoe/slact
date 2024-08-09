@@ -2,8 +2,7 @@ package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
-import de.dangoe.concurrent.slact.WrappedMessage.ExterminationMessage;
-import de.dangoe.concurrent.slact.WrappedMessage.LifecycleControlMessage;
+import de.dangoe.concurrent.slact.MailboxItem.ExterminationMessage;
 import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
 import java.util.Map;
 import java.util.Objects;
@@ -11,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,18 +21,19 @@ class DefaultSlactContainer implements SlactContainer {
     private final Map<ActorPath, ActorWrapper<?>> actors = new ConcurrentHashMap<>();
 
     @Override
-    public void register(final ActorWrapper<?> actor) {
+    public void register(final @NotNull ActorWrapper<?> actor) {
       actors.merge(actor.path(), actor, (oldValue, newValue) -> {
         throw new ActorRegistrationException(actor.path());
       });
     }
 
     @Override
-    public void unregister(final ActorWrapper<?> actor) {
+    public void unregister(final @NotNull ActorWrapper<?> actor) {
       actors.remove(actor.path());
     }
 
-    public Optional<ActorHandle<?>> get(ActorPath path) {
+    @NotNull
+    public Optional<ActorHandle<?>> get(final @NotNull ActorPath path) {
       return Optional.ofNullable(actors.get(path));
     }
   }
@@ -49,8 +50,7 @@ class DefaultSlactContainer implements SlactContainer {
   private final ActorHandle<Object> rootActor;
 
   // TODO Add configuration
-  DefaultSlactContainer(final String name,
-      final Supplier<ScheduledExecutor> scheduledExecutorFactory) {
+  DefaultSlactContainer(final @NotNull Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 
     super();
 
@@ -64,7 +64,7 @@ class DefaultSlactContainer implements SlactContainer {
 
     this.rootActor = this.rootActorSpawner.spawnRootActor(() -> new Actor<Object>() {
       @Override
-      public void onMessage(Object message) {
+      public void onMessage(@NotNull Object message) {
         logger.warn("Received message as root: '{}'.", message);
       }
     });
@@ -83,14 +83,14 @@ class DefaultSlactContainer implements SlactContainer {
   }
 
   @Override
-  public <A extends Actor<M>, M> ActorHandle<M> spawn(final String name,
-      final ActorCreator<A> creator) {
+  public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
+      final @NotNull ActorCreator<A> creator) {
     return this.rootActorSpawner.spawn(name, creator);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <M> Optional<ActorHandle<M>> resolve(final ActorPath path) {
+  public @NotNull <M> Optional<ActorHandle<M>> resolve(final @NotNull ActorPath path) {
 
     if (path.isRoot()) {
       return Optional.of((ActorHandle<M>) this.rootActor);
@@ -106,21 +106,21 @@ class DefaultSlactContainer implements SlactContainer {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <M> PreparedSendMessageOp<M> send(final M message) {
-    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, null,
-        this.rootActor);
+  public @NotNull <M> PreparedSendMessageOp<M> send(final @NotNull M message) {
+    return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, this.rootActor);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(final M message) {
+  public @NotNull <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(
+      final @NotNull M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
         this.rootActor);
   }
 
   @Override
-  public void exterminate(final ActorHandle<?> actor) {
+  public void exterminate(final @NotNull ActorHandle<?> actor) {
     ((ActorWrapper<?>) actor).sendLifecycleControlMessage(
-        new ExterminationMessage<>(this.rootActor.path()));
+        new ExterminationMessage(this.rootActor.path()));
   }
 }
