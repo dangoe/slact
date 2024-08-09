@@ -1,6 +1,5 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.WrappedMessage.ExterminationMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.WrappedMessage.MessageWithResponseRequest;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
@@ -136,7 +135,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final ActorHandleResolver actorHandleResolver;
   private final ScheduledExecutor scheduledExecutor;
 
-  private final Cancellable periodicPolling;
+  private final Cancellable messagePoller;
 
   public ActorWrapper(final Logger logger, final Actor<M> delegate, final ActorPath path,
       final ActorSpawner actorSpawner, final ActorExterminator actorExterminator,
@@ -152,7 +151,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
-    this.periodicPolling = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
+    this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
         Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
   }
 
@@ -233,7 +232,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   void shutdown() {
-    this.periodicPolling.cancel();
+    this.messagePoller.cancel();
   }
 
   @Override
