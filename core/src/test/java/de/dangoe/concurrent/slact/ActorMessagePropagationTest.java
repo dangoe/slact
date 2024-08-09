@@ -14,7 +14,6 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
@@ -43,10 +42,10 @@ class ActorMessagePropagationTest {
     });
 
     try {
-      final var lines = Files.readAllLines(Paths.get(
-          Objects.requireNonNull(getClass().getResource("lorem-ipsum.txt")).toURI()));
+      final var lines = Files.readAllLines(
+          Paths.get(Objects.requireNonNull(getClass().getResource("lorem-ipsum.txt")).toURI()));
 
-      for (String line : lines) {
+      for (final var line : lines) {
         container.send(line).to(actor);
       }
     } catch (IOException | URISyntaxException e) {
@@ -85,12 +84,12 @@ class ActorMessagePropagationTest {
   @Test
   void messagesCanBeSent() {
 
-    final var result = new CopyOnWriteArrayList<String>();
+    final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
     final var actor = container.spawn(() -> new Actor<String>() {
       @Override
       public void onMessage(final @NotNull String message) {
-        result.add(message);
+        result.add(new Pair<>(sender().path(), message));
       }
     });
 
@@ -100,14 +99,15 @@ class ActorMessagePropagationTest {
       container.send(message).to(actor);
     }
 
-    await().atMost(Duration.ofSeconds(5))
-        .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(messages));
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(
+        () -> assertThat(result).containsExactlyElementsOf(
+            messages.stream().map(message -> new Pair<>(ActorPath.root(), message)).toList()));
   }
 
   @Test
   void repliesCanBeSent() {
 
-    final var result = new CopyOnWriteArrayList<String>();
+    final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
     final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
       @Override
@@ -122,7 +122,7 @@ class ActorMessagePropagationTest {
         if (!message.startsWith("_")) {
           send(message).to(otherActor);
         } else {
-          result.add(message);
+          result.add(new Pair<>(sender().path(), message));
         }
       }
     });
@@ -134,9 +134,9 @@ class ActorMessagePropagationTest {
     }
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
-        () -> assertThat(result).hasSize(messages.size())
-            .containsExactlyElementsOf(
-                messages.stream().map("_%s_"::formatted).toList()));
+        () -> assertThat(result).hasSize(messages.size()).containsExactlyElementsOf(
+            messages.stream().map(message -> new Pair<>(ActorPath.root().append("other-actor"),
+                "_%s_".formatted(message))).toList()));
   }
 
   @Test
@@ -144,16 +144,16 @@ class ActorMessagePropagationTest {
 
     try (final var executor = Executors.newFixedThreadPool(12)) {
 
-      final var result = new CopyOnWriteArrayList<String>();
+      final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
-      final var terminalActor = container.spawn(() -> new Actor<String>() {
+      final var terminalActor = container.spawn("terminal-actor", () -> new Actor<String>() {
         @Override
         public void onMessage(final @NotNull String message) {
-          result.add(message);
+          result.add(new Pair<>(sender().path(), message));
         }
       });
 
-      final var actor = container.spawn(() -> new Actor<String>() {
+      final var actor = container.spawn("actor", () -> new Actor<String>() {
         @Override
         public void onMessage(final @NotNull String message) {
 
@@ -178,24 +178,25 @@ class ActorMessagePropagationTest {
         container.send(message).to(actor);
       }
 
-      await().atMost(Duration.ofSeconds(1000))
-          .untilAsserted(() -> assertThat(result).containsExactlyInAnyOrderElementsOf(messages));
+      await().atMost(Duration.ofSeconds(1000)).untilAsserted(
+          () -> assertThat(result).containsExactlyInAnyOrderElementsOf(messages.stream()
+              .map(message -> new Pair<>(ActorPath.root().append("actor"), message)).toList()));
     }
   }
 
   @Test
   void messagesCanBeResent() {
 
-    final var result = new CopyOnWriteArrayList<String>();
+    final var result = new CopyOnWriteArrayList<Pair<ActorPath, String>>();
 
-    final var terminalActor = container.spawn(() -> new Actor<String>() {
+    final var terminalActor = container.spawn("terminal-actor", () -> new Actor<String>() {
       @Override
       public void onMessage(final @NotNull String message) {
-        result.add(message);
+        result.add(new Pair<>(sender().path(), message));
       }
     });
 
-    final var actor = container.spawn(() -> new Actor<String>() {
+    final var actor = container.spawn("actor", () -> new Actor<String>() {
       @Override
       public void onMessage(final @NotNull String message) {
         send(message).to(terminalActor);
@@ -208,8 +209,10 @@ class ActorMessagePropagationTest {
       container.send(message).to(actor);
     }
 
-    await().atMost(Duration.ofSeconds(5))
-        .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(messages));
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(
+        () -> assertThat(result).containsExactlyElementsOf(
+            messages.stream().map(message -> new Pair<>(ActorPath.root().append("actor"), message))
+                .toList()));
   }
 
   @Test
@@ -276,8 +279,7 @@ class ActorMessagePropagationTest {
 
     await().atMost(Duration.ofSeconds(5)).untilAsserted(
         () -> assertThat(result).containsExactlyElementsOf(
-            messages.stream().map(
-                    msg -> new Pair<>(ActorPath.root().append("origin-actor"), msg))
+            messages.stream().map(msg -> new Pair<>(ActorPath.root().append("origin-actor"), msg))
                 .toList()));
   }
 
@@ -293,11 +295,11 @@ class ActorMessagePropagationTest {
         @Override
         public void onMessage(final @NotNull String message) {
           if ("initialize".equals(message)) {
-            behaveAs(this::secondBahaviour);
+            behaveAs(this::secondBehaviour);
           }
         }
 
-        private void secondBahaviour(final String message) {
+        private void secondBehaviour(final String message) {
           result.set(message);
         }
       });
@@ -305,8 +307,8 @@ class ActorMessagePropagationTest {
       container.send("initialize").to(actor);
       container.send("Hello world!").to(actor);
 
-      await().atMost(Duration.ofSeconds(5)).untilAsserted(
-          () -> assertThat(result.get()).isEqualTo("Hello world!"));
+      await().atMost(Duration.ofSeconds(5))
+          .untilAsserted(() -> assertThat(result.get()).isEqualTo("Hello world!"));
     }
   }
 
@@ -329,8 +331,7 @@ class ActorMessagePropagationTest {
             }
           });
 
-          final Future<String> eventualResponse = container.<String, String>requestResponseTo(
-                  "Hello world!")
+          final var eventualResponse = container.<String, String>requestResponseTo("Hello world!")
               .from(actor);
 
           await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
@@ -348,8 +349,7 @@ class ActorMessagePropagationTest {
             }
           });
 
-          final Future<String> eventualResponse = container.<String, String>requestResponseTo(
-                  "Hello world!")
+          final var eventualResponse = container.<String, String>requestResponseTo("Hello world!")
               .from(actor);
 
           await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
@@ -377,8 +377,9 @@ class ActorMessagePropagationTest {
             @Override
             public void onMessage(final @NotNull String message) {
               if (!message.startsWith("_")) {
-                pipeFuture(this.<String, String>requestResponseTo(message).from(actor)).to(
-                    self());
+                final var eventualResult = this.<String, String>requestResponseTo(message)
+                    .from(actor);
+                pipeFuture(eventualResult).to(self());
               } else {
                 result.set(message);
               }
@@ -408,8 +409,7 @@ class ActorMessagePropagationTest {
             @Override
             public void onMessage(final @NotNull String message) {
               if (!message.startsWith("_")) {
-                pipeFuture(this.<String, String>requestResponseTo(message).from(actor)).to(
-                    self());
+                pipeFuture(this.<String, String>requestResponseTo(message).from(actor)).to(self());
               } else {
                 result.set(message);
               }

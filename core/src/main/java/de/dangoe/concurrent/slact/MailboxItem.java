@@ -21,14 +21,14 @@ abstract class MailboxItem {
     }
   }
 
-  static final class FireAndForgetMessage<M> extends WrappedMessage<M> {
+  public static final class FireAndForgetMessage<M> extends WrappedMessage<M> {
 
     public FireAndForgetMessage(final @NotNull M message, final @NotNull ActorPath sender) {
       super(message, sender);
     }
   }
 
-  static final class MessageWithResponseRequest<M, R> extends WrappedMessage<M> {
+  public static final class MessageWithResponseRequest<M, R> extends WrappedMessage<M> {
 
     private final CompletableFuture<R> future;
 
