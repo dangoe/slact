@@ -16,7 +16,7 @@ public class ActorBehaviourTest {
   private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Nested
-  class GivenAnActorDifferentBehaviours {
+  class GivenAnActorWithDifferentBehaviours {
 
     @Nested
     class WhenTheBehaviourIsChangedForFirstSpecialMessageReceived {

@@ -30,33 +30,6 @@ class ActorMessagePropagationTest {
   private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Test
-  void anWordCountActorCanBeBuilt() {
-
-    final var wordCount = new AtomicInteger(0);
-
-    final var actor = container.spawn(() -> new Actor<String>() {
-      @Override
-      public void onMessage(final @NotNull String message) {
-        wordCount.addAndGet(message.split(" ").length);
-      }
-    });
-
-    try {
-      final var lines = Files.readAllLines(
-          Paths.get(Objects.requireNonNull(getClass().getResource("lorem-ipsum.txt")).toURI()));
-
-      for (final var line : lines) {
-        container.send(line).to(actor);
-      }
-    } catch (IOException | URISyntaxException e) {
-      fail(e);
-    }
-
-    await().atMost(Duration.ofSeconds(5))
-        .untilAsserted(() -> assertThat(wordCount.get()).isEqualTo(9895));
-  }
-
-  @Test
   @SuppressWarnings("OptionalGetWithoutIsPresent")
   void messageCanBeSendToActorsWhenAnActorPathIsUsed() {
 

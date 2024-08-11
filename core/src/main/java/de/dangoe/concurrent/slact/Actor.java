@@ -11,7 +11,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
 
   protected final MessageReceiver<M> defaultBehaviour = new MessageReceiver<M>() {
     @Override
-    public void onMessage(M message) {
+    public void onMessage(@NotNull M message) {
       Actor.this.onMessage(message);
     }
   };
@@ -67,7 +67,6 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   protected final void respondWith(final @NotNull Object message) {
     context().respondWith(message);
   }
-
 
   protected final @NotNull <M1> PreparedSendMessageOp<M1> send(final @NotNull M1 message) {
     return context().send(message);
