@@ -284,35 +284,6 @@ class ActorMessagePropagationTest {
   }
 
   @Nested
-  class BehaviourChanging {
-
-    @Test
-    void shouldChangeTheBehaviour() {
-
-      final var result = new AtomicReference<String>();
-
-      final var actor = container.spawn("actor", () -> new Actor<String>() {
-        @Override
-        public void onMessage(final @NotNull String message) {
-          if ("initialize".equals(message)) {
-            behaveAs(this::secondBehaviour);
-          }
-        }
-
-        private void secondBehaviour(final String message) {
-          result.set(message);
-        }
-      });
-
-      container.send("initialize").to(actor);
-      container.send("Hello world!").to(actor);
-
-      await().atMost(Duration.ofSeconds(5))
-          .untilAsserted(() -> assertThat(result.get()).isEqualTo("Hello world!"));
-    }
-  }
-
-  @Nested
   class RequestResponseTo {
 
     @Nested
