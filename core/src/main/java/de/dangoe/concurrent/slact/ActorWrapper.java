@@ -6,9 +6,11 @@ import de.dangoe.concurrent.slact.MailboxItem.WrappedMessage;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedList;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Stack;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -21,13 +23,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private class ActorContextImpl implements ActorContext {
 
-    private final WrappedMessage<M> message;
     private final ActorHandle<?> senderHandle;
 
-    public ActorContextImpl(final @NotNull MailboxItem.WrappedMessage<M> message,
-        @NotNull final ActorHandle<?> senderHandle) {
+    public ActorContextImpl(@NotNull final ActorHandle<?> senderHandle) {
       super();
-      this.message = message;
       this.senderHandle = senderHandle;
     }
 
@@ -84,9 +83,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     @SuppressWarnings("unchecked")
     public @NotNull <M1> PreparedSendMessageOp<M1> send(final @NotNull M1 message) {
       return targetActor -> {
-        if (this.message instanceof WrappedMessage.MessageWithResponseRequest && sender().path()
-            .isRoot()) {
-          completeResponseRequest(message);
+        if (targetActor.path().isRoot()
+            && !ActorWrapper.this.messagesWithResponseRequest.isEmpty()) {
+          completeResponseRequest(
+              (WrappedMessage.MessageWithResponseRequest<?, M1>) ActorWrapper.this.messagesWithResponseRequest.poll(),
+              message);
         } else {
           ((ActorWrapper<M1>) targetActor).sendInternal(message, self());
         }
@@ -99,9 +100,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       send(message).to((ActorWrapper<M1>) sender());
     }
 
-    private <M1> void completeResponseRequest(final M1 message) {
-      ((WrappedMessage.MessageWithResponseRequest<?, M1>) this.message).futureInternal()
-          .complete(message);
+    private <M1> void completeResponseRequest(
+        final WrappedMessage.MessageWithResponseRequest<?, M1> originalMessage,
+        final M1 responseMessage) {
+      originalMessage.futureInternal().complete(responseMessage);
     }
 
     @Override
@@ -129,6 +131,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final Cancellable messagePoller;
 
+  private final Queue<MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
+
   public ActorWrapper(final @NotNull Logger logger, final @NotNull Actor<M> delegate,
       final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
       final @NotNull ActorExterminator actorExterminator,
@@ -147,6 +151,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
         Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
+
+    this.messagesWithResponseRequest = new LinkedList<>();
   }
 
   @SuppressWarnings("unchecked")
@@ -172,7 +178,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         final var message = ((WrappedMessage<M>) item);
 
         try {
-          this.delegate.onMessage(message.message(), new ActorContextImpl(message, senderHandle));
+          if (message instanceof MessageWithResponseRequest<M, ?> messageWithResponseRequest) {
+            this.messagesWithResponseRequest.add(messageWithResponseRequest);
+          }
+
+          this.delegate.onMessage(message.message(), new ActorContextImpl(senderHandle));
         } catch (final MessageRejectedException e) {
           this.logger.warn("Message has been rejected.", e);
         }

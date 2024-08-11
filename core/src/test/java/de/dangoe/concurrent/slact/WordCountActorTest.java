@@ -25,7 +25,11 @@ public class WordCountActorTest {
 
   }
 
-  private record WordCount(int lineNumber, int words) implements WordCountActorMessage {
+  private record WordCountResult(int wordCount) implements WordCountActorMessage {
+
+  }
+
+  private record LineWordCount(int lineNumber, int words) implements WordCountActorMessage {
 
   }
 
@@ -42,7 +46,7 @@ public class WordCountActorTest {
     class WhenWordsOfGivenDocumentShouldBeCounted {
 
       @Test
-      void TheActorShouldCountTheWordsAccordingly() {
+      void TheActorShouldCountTheWordsAccordingly() throws Exception {
 
         final var wordCount = new AtomicInteger(0);
 
@@ -51,6 +55,7 @@ public class WordCountActorTest {
 
               private Integer maxLines;
 
+              private ActorHandle<WordCountResult> commandSender;
               private ActorHandle<Line> lineProcessor;
 
               @Override
@@ -58,11 +63,13 @@ public class WordCountActorTest {
 
                 if (message instanceof ProcessFileCommand processFileCommand) {
 
+                  this.commandSender = sender();
+
                   this.lineProcessor = context().spawn(() -> new Actor<Line>() {
 
                     @Override
                     public void onMessage(final @NotNull Line line) {
-                      send(new WordCount(line.number(), line.content().split(" ").length)).to(
+                      send(new LineWordCount(line.number(), line.content().split(" ").length)).to(
                           sender());
                     }
                   });
@@ -91,13 +98,15 @@ public class WordCountActorTest {
 
               private void processing(final WordCountActorMessage message) {
 
-                if (message instanceof WordCount castedMessage) {
+                if (message instanceof LineWordCount castedMessage) {
 
                   wordCount.addAndGet(castedMessage.words());
 
                   if (castedMessage.lineNumber + 1 == maxLines) {
                     context().exterminate(lineProcessor);
                     behaveAs(this);
+                    send(new WordCountResult(wordCount.get())).to(this.commandSender);
+                    this.commandSender = null;
                   }
                 } else {
                   reject(message);
@@ -105,11 +114,12 @@ public class WordCountActorTest {
               }
             });
 
-        container.send((WordCountActorMessage) new ProcessFileCommand("lorem-ipsum.txt"))
-            .to(wordCounterActor);
+        final var eventualResponse = container.<WordCountActorMessage, WordCountResult>requestResponseTo(
+            new ProcessFileCommand("lorem-ipsum.txt")).from(wordCounterActor);
 
-        await().atMost(Duration.ofSeconds(5))
-            .untilAsserted(() -> assertThat(wordCount.get()).isEqualTo(9895));
+        await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+
+        assertThat(eventualResponse.get()).isEqualTo(new WordCountResult(9895));
       }
     }
   }
