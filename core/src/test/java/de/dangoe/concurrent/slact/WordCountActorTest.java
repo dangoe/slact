@@ -104,9 +104,9 @@ public class WordCountActorTest {
 
                   if (castedMessage.lineNumber + 1 == maxLines) {
                     context().exterminate(lineProcessor);
-                    behaveAs(this);
                     send(new WordCountResult(wordCount.get())).to(this.commandSender);
                     this.commandSender = null;
+                    behaveAsDefault();
                   }
                 } else {
                   reject(message);

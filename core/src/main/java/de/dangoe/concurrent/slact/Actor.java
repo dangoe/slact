@@ -36,6 +36,10 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     this.behaviour = behaviour;
   }
 
+  protected final void behaveAsDefault() {
+    this.behaviour = defaultBehaviour;
+  }
+
   protected final void reject(final @NotNull M message) {
     throw new MessageRejectedException(self(), message);
   }
