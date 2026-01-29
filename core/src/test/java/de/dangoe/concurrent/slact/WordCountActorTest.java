@@ -56,12 +56,12 @@ public class WordCountActorTest {
               private Integer maxLines;
 
               private ActorHandle<WordCountResult> commandSender;
-              private ActorHandle<Line> lineProcessor;
+              private ActorHandle<? extends Line> lineProcessor;
 
               @Override
               public void onMessage(final @NotNull WordCountActorMessage message) {
 
-                if (message instanceof ProcessFileCommand processFileCommand) {
+                if (message instanceof ProcessFileCommand(String fileName)) {
 
                   this.commandSender = sender();
 
@@ -75,8 +75,8 @@ public class WordCountActorTest {
                   });
 
                   try {
-                    final var lines = Files.readAllLines(Paths.get(Objects.requireNonNull(
-                        getClass().getResource(processFileCommand.fileName())).toURI()));
+                    final var lines = Files.readAllLines(Paths.get(
+                        Objects.requireNonNull(getClass().getResource(fileName)).toURI()));
 
                     this.maxLines = lines.size();
 
@@ -98,11 +98,11 @@ public class WordCountActorTest {
 
               private void processing(final WordCountActorMessage message) {
 
-                if (message instanceof LineWordCount castedMessage) {
+                if (message instanceof LineWordCount(int lineNumber, int words)) {
 
-                  wordCount.addAndGet(castedMessage.words());
+                  wordCount.addAndGet(words);
 
-                  if (castedMessage.lineNumber + 1 == maxLines) {
+                  if (lineNumber + 1 == maxLines) {
                     context().exterminate(lineProcessor);
                     send(new WordCountResult(wordCount.get())).to(this.commandSender);
                     this.commandSender = null;
@@ -114,8 +114,9 @@ public class WordCountActorTest {
               }
             });
 
-        final var eventualResponse = container.<WordCountActorMessage, WordCountResult>requestResponseTo(
-            new ProcessFileCommand("lorem-ipsum.txt")).from(wordCounterActor);
+        final var eventualResponse = container.requestResponseTo(
+                (WordCountActorMessage) new ProcessFileCommand("lorem-ipsum.txt"))
+            .asResponseOfType(WordCountResult.class).from(wordCounterActor);
 
         await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 

@@ -1,20 +1,15 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.ActorContext.CompletableSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedForwardMessageOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
-import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class Actor<M> implements MessageReceiver<M> {
 
-  protected final MessageReceiver<M> defaultBehaviour = new MessageReceiver<M>() {
-    @Override
-    public void onMessage(@NotNull M message) {
-      Actor.this.onMessage(message);
-    }
-  };
+  protected final MessageReceiver<M> defaultBehaviour = Actor.this;
 
   private MessageReceiver<M> behaviour = defaultBehaviour;
 
@@ -84,8 +79,9 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     return context().pipeFuture(eventualMessage);
   }
 
+
   @SuppressWarnings("unchecked")
-  public @NotNull <M1, R> PreparedSendMessageWithResponseRequestOp<M1, R> requestResponseTo(
+  public @NotNull <M1, R> CompletableSendMessageWithResponseRequestOp<M1, R> requestResponseTo(
       final @NotNull M1 message) {
     return targetActor -> ((ActorWrapper<M1>) targetActor).requestResponseToInternal(message,
         self());

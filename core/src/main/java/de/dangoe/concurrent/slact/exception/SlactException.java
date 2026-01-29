@@ -1,21 +1,23 @@
 package de.dangoe.concurrent.slact.exception;
 
-public abstract class SlactException extends RuntimeException{
+import org.jetbrains.annotations.NotNull;
 
-  protected SlactException(String message) {
+public abstract class SlactException extends RuntimeException {
+
+  protected SlactException(final @NotNull String message) {
     super(message);
   }
 
-  protected SlactException(String message, Throwable cause) {
+  protected SlactException(final @NotNull String message, final @NotNull Throwable cause) {
     super(message, cause);
   }
 
-  protected SlactException(Throwable cause) {
+  protected SlactException(final @NotNull Throwable cause) {
     super(cause);
   }
 
-  protected SlactException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
+  protected SlactException(final @NotNull String message, final @NotNull Throwable cause,
+      boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 }

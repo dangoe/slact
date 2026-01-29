@@ -12,10 +12,16 @@ public interface ActorContext extends ActorSpawner, ActorHandleResolver {
   }
 
   @FunctionalInterface
-  interface PreparedSendMessageWithResponseRequestOp<M, R> {
+  interface IntermediateSendMessageWithResponseRequestOp<M> {
 
-    @NotNull
-    Future<R> from(@NotNull ActorHandle<? extends M> targetActor);
+    <R> @NotNull CompletableSendMessageWithResponseRequestOp<M, R> asResponseOfType(
+        @NotNull Class<R> responseType);
+  }
+
+  @FunctionalInterface
+  interface CompletableSendMessageWithResponseRequestOp<M, R> {
+
+    @NotNull Future<R> from(@NotNull ActorHandle<? extends M> targetActor);
   }
 
   @FunctionalInterface
@@ -24,25 +30,19 @@ public interface ActorContext extends ActorSpawner, ActorHandleResolver {
     void to(@NotNull ActorHandle<? extends M> targetActor);
   }
 
-  @NotNull
-  <M> PreparedSendMessageOp<M> send(@NotNull M message);
+  @NotNull <M> PreparedSendMessageOp<M> send(@NotNull M message);
 
   <M> void respondWith(@NotNull M message);
 
-  @NotNull
-  <M> PreparedForwardMessageOp<M> forward(@NotNull M message);
+  @NotNull <M> PreparedForwardMessageOp<M> forward(@NotNull M message);
 
   void exterminate(@NotNull ActorHandle<?> actor);
 
-  @NotNull
-  ActorHandle<?> sender();
+  @NotNull ActorHandle<?> sender();
 
-  @NotNull
-  ActorHandle<?> parent();
+  @NotNull ActorHandle<?> parent();
 
-  @NotNull
-  ActorHandle<?> self();
+  @NotNull ActorHandle<?> self();
 
-  @NotNull
-  <M1> FuturePipeOp<M1> pipeFuture(@NotNull Future<M1> eventualMessage);
+  @NotNull <M1> FuturePipeOp<M1> pipeFuture(@NotNull Future<M1> eventualMessage);
 }

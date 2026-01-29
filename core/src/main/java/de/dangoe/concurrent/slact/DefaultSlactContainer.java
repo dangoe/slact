@@ -1,7 +1,8 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.ActorContext.CompletableSendMessageWithResponseRequestOp;
+import de.dangoe.concurrent.slact.ActorContext.IntermediateSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
-import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.MailboxItem.ExterminationMessage;
 import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
 import java.util.Map;
@@ -111,11 +112,20 @@ class DefaultSlactContainer implements SlactContainer {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public @NotNull <M, R> PreparedSendMessageWithResponseRequestOp<M, R> requestResponseTo(
-      final @NotNull M message) {
-    return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
-        this.rootActor);
+  public @NotNull <M> IntermediateSendMessageWithResponseRequestOp<M> requestResponseTo(
+      @NotNull M message) {
+
+    return new IntermediateSendMessageWithResponseRequestOp<>() {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public @NotNull <R> CompletableSendMessageWithResponseRequestOp<M, R> asResponseOfType(
+          @NotNull Class<R> responseType) {
+
+        return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
+            DefaultSlactContainer.this.rootActor);
+      }
+    };
   }
 
   @Override

@@ -91,8 +91,8 @@ public class ActorAsyncResponseTest {
               }
             });
 
-            final var eventualResponse = container.<String, String>requestResponseTo("Hello world!")
-                .from(actor);
+            final var eventualResponse = container.requestResponseTo("Hello world!")
+                .asResponseOfType(String.class).from(actor);
 
             await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
@@ -109,8 +109,8 @@ public class ActorAsyncResponseTest {
               }
             });
 
-            final var eventualResponse = container.<String, String>requestResponseTo("Hello world!")
-                .from(actor);
+            final var eventualResponse = container.requestResponseTo("Hello world!")
+                .asResponseOfType(String.class).from(actor);
 
             await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
@@ -138,8 +138,9 @@ public class ActorAsyncResponseTest {
 
           container.send("First message for which the future should not be completed.").to(actor);
 
-          final var eventualResponse = container.<String, String>requestResponseTo(
-              "Second message for which the future should be completed.").from(actor);
+          final var eventualResponse = container.requestResponseTo(
+                  "Second message for which the future should be completed.")
+              .asResponseOfType(String.class).from(actor);
 
           await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
@@ -152,7 +153,7 @@ public class ActorAsyncResponseTest {
 
 
         @Test
-        void whenSendIsUsedToRespond() throws Exception {
+        void whenSendIsUsedToRespond() {
 
           final AtomicReference<String> result = new AtomicReference<>();
 
