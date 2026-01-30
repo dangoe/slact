@@ -85,7 +85,7 @@ class DefaultSlactContainer implements SlactContainer {
 
   @Override
   public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
-      final @NotNull ActorCreator<A> creator) {
+      final @NotNull ActorCreator<A, M> creator) {
     return this.rootActorSpawner.spawn(name, creator);
   }
 
@@ -119,7 +119,7 @@ class DefaultSlactContainer implements SlactContainer {
 
       @Override
       @SuppressWarnings("unchecked")
-      public @NotNull <R> CompletableSendMessageWithResponseRequestOp<M, R> asResponseOfType(
+      public @NotNull <R> CompletableSendMessageWithResponseRequestOp<M, R> ofType(
           @NotNull Class<R> responseType) {
 
         return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,

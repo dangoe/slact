@@ -116,7 +116,7 @@ public class WordCountActorTest {
 
         final var eventualResponse = container.requestResponseTo(
                 (WordCountActorMessage) new ProcessFileCommand("lorem-ipsum.txt"))
-            .asResponseOfType(WordCountResult.class).from(wordCounterActor);
+            .ofType(WordCountResult.class).from(wordCounterActor);
 
         await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 

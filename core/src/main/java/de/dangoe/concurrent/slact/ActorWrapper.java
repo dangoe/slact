@@ -69,8 +69,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public @NotNull <A extends Actor<M1>, M1> ActorHandle<? extends M1> spawn(final @NotNull String name,
-        @NotNull ActorCreator<A> actorCreator) {
+    public @NotNull <A extends Actor<M1>, M1> ActorHandle<? extends M1> spawn(
+        final @NotNull String name, @NotNull ActorCreator<A, M1> actorCreator) {
       return ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
     }
 
@@ -202,8 +202,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   @Override
-  public @NotNull <A extends Actor<M2>, M2> ActorHandle<? extends M2> spawn(final @NotNull String name,
-      final @NotNull ActorCreator<A> creator) {
+  public @NotNull <A extends Actor<M2>, M2> ActorHandle<? extends M2> spawn(
+      final @NotNull String name, final @NotNull ActorCreator<A, M2> creator) {
     return this.actorSpawner.spawn(name, creator);
   }
 
@@ -211,8 +211,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     appendMessage(new WrappedMessage.FireAndForgetMessage<>(message, sender.path()));
   }
 
-  @NotNull
-  <R> Future<R> requestResponseToInternal(final @NotNull M message,
+  @NotNull <R> Future<R> requestResponseToInternal(final @NotNull M message,
       final @NotNull ActorHandle<?> sender) {
 
     final var wrapper = new MessageWithResponseRequest<M, R>(message, sender.path());

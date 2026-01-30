@@ -6,11 +6,11 @@ import org.jetbrains.annotations.NotNull;
 public interface ActorSpawner {
 
   default @NotNull <A extends Actor<M>, M> ActorHandle<? extends M> spawn(
-      final @NotNull ActorCreator<A> actorCreator) {
+      final @NotNull ActorCreator<A, M> actorCreator) {
     return spawn(UUID.randomUUID().toString(), actorCreator);
   }
 
   @NotNull
   <A extends Actor<M>, M> ActorHandle<? extends M> spawn(@NotNull String name,
-      @NotNull ActorCreator<A> actorCreator);
+      @NotNull ActorCreator<A, M> actorCreator);
 }

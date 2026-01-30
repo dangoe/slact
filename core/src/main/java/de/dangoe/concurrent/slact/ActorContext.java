@@ -14,7 +14,7 @@ public interface ActorContext extends ActorSpawner, ActorHandleResolver {
   @FunctionalInterface
   interface IntermediateSendMessageWithResponseRequestOp<M> {
 
-    <R> @NotNull CompletableSendMessageWithResponseRequestOp<M, R> asResponseOfType(
+    <R> @NotNull CompletableSendMessageWithResponseRequestOp<M, R> ofType(
         @NotNull Class<R> responseType);
   }
 

@@ -34,7 +34,7 @@ class RootActorSpawner implements ActorSpawner {
 
     @Override
     public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
-        final @NotNull ActorCreator<A> actorCreator) {
+        final @NotNull ActorCreator<A, M> actorCreator) {
       return spawnInternal(path.append(name), actorCreator);
     }
   }
@@ -59,17 +59,17 @@ class RootActorSpawner implements ActorSpawner {
 
   @Override
   public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
-      final @NotNull ActorCreator<A> creator) {
+      final @NotNull ActorCreator<A, M> creator) {
     return spawnInternal(ActorPath.root().append(name), creator);
   }
 
   @NotNull
-  <A extends Actor<M>, M> ActorHandle<M> spawnRootActor(final @NotNull ActorCreator<A> creator) {
+  <A extends Actor<M>, M> ActorHandle<M> spawnRootActor(final @NotNull ActorCreator<A, M> creator) {
     return spawnInternal(ActorPath.root(), creator);
   }
 
   private @NotNull <A extends Actor<M>, M> ActorHandle<M> spawnInternal(
-      final @NotNull ActorPath path, final @NotNull ActorCreator<A> creator) {
+      final @NotNull ActorPath path, final @NotNull ActorCreator<A, M> creator) {
 
     final var actor = creator.create();
 

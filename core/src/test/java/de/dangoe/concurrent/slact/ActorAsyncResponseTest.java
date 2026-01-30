@@ -92,7 +92,7 @@ public class ActorAsyncResponseTest {
             });
 
             final var eventualResponse = container.requestResponseTo("Hello world!")
-                .asResponseOfType(String.class).from(actor);
+                .ofType(String.class).from(actor);
 
             await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
@@ -110,7 +110,7 @@ public class ActorAsyncResponseTest {
             });
 
             final var eventualResponse = container.requestResponseTo("Hello world!")
-                .asResponseOfType(String.class).from(actor);
+                .ofType(String.class).from(actor);
 
             await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
@@ -140,7 +140,7 @@ public class ActorAsyncResponseTest {
 
           final var eventualResponse = container.requestResponseTo(
                   "Second message for which the future should be completed.")
-              .asResponseOfType(String.class).from(actor);
+              .ofType(String.class).from(actor);
 
           await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
