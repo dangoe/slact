@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.MailboxItem.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.MailboxItem.MessageWithResponseRequest;
+import de.dangoe.concurrent.slact.MailboxItem.StopMessage;
 import de.dangoe.concurrent.slact.MailboxItem.WrappedMessage;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.time.Duration;
@@ -117,9 +118,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public void exterminate(final @NotNull ActorHandle<?> actor) {
+    public void stop(final @NotNull ActorHandle<?> actor) {
       ((ActorWrapper<?>) actor).appendMessage(
-          new WrappedMessage.ExterminationMessage(sender().path()));
+          new StopMessage(sender().path()));
     }
   }
 
@@ -129,7 +130,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final Actor<M> delegate;
   private final ActorPath path;
   private final ActorSpawner actorSpawner;
-  private final ActorExterminator actorExterminator;
+  private final ActorStopper actorStopper;
   private final ActorHandleResolver actorHandleResolver;
   private final ScheduledExecutor scheduledExecutor;
 
@@ -139,7 +140,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   public ActorWrapper(final @NotNull Logger logger, final @NotNull Actor<M> delegate,
       final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
-      final @NotNull ActorExterminator actorExterminator,
+      final @NotNull ActorStopper actorStopper,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
 
@@ -149,7 +150,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.delegate = delegate;
     this.path = path;
     this.actorSpawner = actorSpawner;
-    this.actorExterminator = actorExterminator;
+    this.actorStopper = actorStopper;
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
@@ -173,10 +174,15 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         break;
       }
 
-      final ActorHandle<?> senderHandle = sender.get();
+      final var senderHandle = sender.get();
+      final var actorContext = new ActorContextImpl(senderHandle);
 
-      if (item instanceof MailboxItem.ExterminationMessage) {
-        this.actorExterminator.exterminate(path());
+      if (item instanceof MailboxItem.StartMessage) {
+        this.delegate.onStart(actorContext);
+        break;
+      } else if (item instanceof StopMessage) {
+        this.delegate.onStop(actorContext);
+        this.actorStopper.stop(path());
         break;
       } else if (item instanceof WrappedMessage<?>) {
         final var message = ((WrappedMessage<M>) item);
@@ -186,7 +192,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
             this.messagesWithResponseRequest.put(senderHandle.path(), messageWithResponseRequest);
           }
 
-          this.delegate.onMessage(message.message(), new ActorContextImpl(senderHandle));
+          this.delegate.onMessage(message.message(), actorContext);
         } catch (final MessageRejectedException e) {
           this.logger.warn("Message has been rejected.", e);
         }

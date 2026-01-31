@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-class ActorExterminationTest {
+class ActorStoppingTest {
 
   private static final class TestActor extends Actor<String> {
 
@@ -21,14 +21,14 @@ class ActorExterminationTest {
   private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Nested
-  class ActorsCanBeExterminated {
+  class ActorsCanBeStopped {
 
     @Test
     void whenUsingContainer() {
 
       final var actor = container.spawn("actor", TestActor::new);
 
-      container.exterminate(actor);
+      container.stop(actor);
 
       await().atMost(Duration.ofSeconds(5)).until(() -> container.resolve(actor.path()).isEmpty());
     }
@@ -39,11 +39,11 @@ class ActorExterminationTest {
       final var actor = container.spawn("actor", () -> new Actor<String>() {
         @Override
         public void onMessage(final @NotNull String message) {
-          context().exterminate(self());
+          context().stop(self());
         }
       });
 
-      container.send("Exterminate!").to(actor);
+      container.send("Stop!").to(actor);
 
       await().atMost(Duration.ofSeconds(5)).until(() -> container.resolve(actor.path()).isEmpty());
     }
@@ -61,11 +61,11 @@ class ActorExterminationTest {
       final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
         @Override
         public void onMessage(final @NotNull String message) {
-          context().exterminate(actor);
+          context().stop(actor);
         }
       });
 
-      container.send("Exterminate!").to(otherActor);
+      container.send("Stop!").to(otherActor);
 
       await().atMost(Duration.ofSeconds(5)).until(() -> container.resolve(actor.path()).isEmpty());
       assertThat(container.resolve(otherActor.path())).isNotEmpty();

@@ -103,7 +103,7 @@ public class WordCountActorTest {
                   wordCount.addAndGet(words);
 
                   if (lineNumber + 1 == maxLines) {
-                    context().exterminate(lineProcessor);
+                    context().stop(lineProcessor);
                     send(new WordCountResult(wordCount.get())).to(this.commandSender);
                     this.commandSender = null;
                     behaveAsDefault();

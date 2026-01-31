@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public final class RoutingActor<M> extends Actor<RoutingRequest<M>> {
 
@@ -25,51 +24,51 @@ public final class RoutingActor<M> extends Actor<RoutingRequest<M>> {
 
   public sealed interface RoutingStrategy<M> permits RoundRobinRoutingStrategy {
 
-    @NotNull ActorHandle<? extends M> nextRoutingTarget(
-        @NotNull RoutingRequest<? extends M> request);
+    @NotNull ActorHandle<? extends M> selectRoutee(@NotNull RoutingRequest<? extends M> request);
   }
 
   private static final class RoundRobinRoutingStrategy<M> implements RoutingStrategy<M> {
 
-    private final @NotNull List<ActorHandle<? extends M>> targetActorHandles;
-    private int nextTargetActorIndex;
+    private final @NotNull List<ActorHandle<? extends M>> routeeHandles;
+    private int nextRouteeIndex;
 
-    private RoundRobinRoutingStrategy(
-        final @NotNull List<ActorHandle<? extends M>> targetActorHandles) {
+    private RoundRobinRoutingStrategy(final @NotNull List<ActorHandle<? extends M>> routeeHandles) {
 
-      if (targetActorHandles.isEmpty()) {
+      if (routeeHandles.isEmpty()) {
         throw new IllegalArgumentException("No routee actor handles found");
       }
 
-      this.targetActorHandles = List.copyOf(targetActorHandles);
-      this.nextTargetActorIndex = 0;
+      this.routeeHandles = List.copyOf(routeeHandles);
+      this.nextRouteeIndex = 0;
     }
 
     @Override
-    public @NotNull ActorHandle<? extends M> nextRoutingTarget(
+    public @NotNull ActorHandle<? extends M> selectRoutee(
         final @NotNull RoutingRequest<? extends M> request) {
-      final var targetActorHandle = this.targetActorHandles.get(this.nextTargetActorIndex);
-      this.nextTargetActorIndex = (this.nextTargetActorIndex + 1) % targetActorHandles.size();
-      return targetActorHandle;
+      final var routeeHandle = this.routeeHandles.get(this.nextRouteeIndex);
+      this.nextRouteeIndex = (this.nextRouteeIndex + 1) % routeeHandles.size();
+      return routeeHandle;
     }
   }
 
   private final @NotNull Function<ActorContext, RoutingStrategy<M>> strategyFactory;
 
-  private @Nullable RoutingStrategy<M> strategy;
+  // Initialized in onStart
+  @SuppressWarnings("NotNullFieldNotInitialized")
+  private @NotNull RoutingStrategy<M> strategy;
 
   public RoutingActor(final @NotNull Function<ActorContext, RoutingStrategy<M>> strategyFactory) {
     this.strategyFactory = strategyFactory;
   }
 
   @Override
+  void onStart() {
+    this.strategy = this.strategyFactory.apply(context());
+  }
+
+  @Override
   public void onMessage(final @NotNull RoutingRequest<M> request) {
-
-    if (this.strategy == null) {
-      this.strategy = this.strategyFactory.apply(context());
-    }
-
-    final var target = this.strategy.nextRoutingTarget(request);
+    final var target = this.strategy.selectRoutee(request);
     context().forward(request.message()).to(target);
   }
 

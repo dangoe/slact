@@ -3,7 +3,7 @@ package de.dangoe.concurrent.slact;
 import de.dangoe.concurrent.slact.ActorContext.CompletableSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.ActorContext.IntermediateSendMessageWithResponseRequestOp;
 import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
-import de.dangoe.concurrent.slact.MailboxItem.ExterminationMessage;
+import de.dangoe.concurrent.slact.MailboxItem.StopMessage;
 import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
 import java.util.Map;
 import java.util.Objects;
@@ -129,8 +129,7 @@ class DefaultSlactContainer implements SlactContainer {
   }
 
   @Override
-  public void exterminate(final @NotNull ActorHandle<?> actor) {
-    ((ActorWrapper<?>) actor).sendLifecycleControlMessage(
-        new ExterminationMessage(this.rootActor.path()));
+  public void stop(final @NotNull ActorHandle<?> actor) {
+    ((ActorWrapper<?>) actor).sendLifecycleControlMessage(new StopMessage(this.rootActor.path()));
   }
 }

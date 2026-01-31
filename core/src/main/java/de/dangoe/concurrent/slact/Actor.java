@@ -15,6 +15,24 @@ public abstract class Actor<M> implements MessageReceiver<M> {
 
   private ActorContext context;
 
+  final void onStart(final @NotNull ActorContext context) {
+    this.context = context;
+    onStart();
+  }
+
+  void onStart() {
+    // Empty default hook
+  }
+
+  final void onStop(final @NotNull ActorContext context) {
+    this.context = context;
+    onStop();
+  }
+
+  void onStop() {
+    // Empty default hook
+  }
+
   @SuppressWarnings("unchecked")
   final void onMessage(final @NotNull Object message, final @NotNull ActorContext context) {
 

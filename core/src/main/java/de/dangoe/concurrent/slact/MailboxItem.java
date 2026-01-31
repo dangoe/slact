@@ -41,8 +41,7 @@ abstract class MailboxItem {
       return future;
     }
 
-    @NotNull
-    CompletableFuture<R> futureInternal() {
+    @NotNull CompletableFuture<R> futureInternal() {
       return future;
     }
   }
@@ -54,9 +53,16 @@ abstract class MailboxItem {
     }
   }
 
-  public static final class ExterminationMessage extends LifecycleControlMessage {
+  public static final class StartMessage extends LifecycleControlMessage {
 
-    public ExterminationMessage(final @NotNull ActorPath sender) {
+    public StartMessage(final @NotNull ActorPath sender) {
+      super(sender);
+    }
+  }
+
+  public static final class StopMessage extends LifecycleControlMessage {
+
+    public StopMessage(final @NotNull ActorPath sender) {
       super(sender);
     }
   }

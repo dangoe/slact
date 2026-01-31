@@ -36,7 +36,7 @@ public interface ActorContext extends ActorSpawner, ActorHandleResolver {
 
   @NotNull <M> PreparedForwardMessageOp<M> forward(@NotNull M message);
 
-  void exterminate(@NotNull ActorHandle<?> actor);
+  void stop(@NotNull ActorHandle<?> actor);
 
   @NotNull ActorHandle<?> sender();
 

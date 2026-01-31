@@ -1,14 +1,15 @@
 package de.dangoe.concurrent.slact;
 
+import de.dangoe.concurrent.slact.MailboxItem.StartMessage;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 class RootActorSpawner implements ActorSpawner {
 
-  private final class ActorExterminatorImpl implements ActorExterminator {
+  private final class ActorStopperImpl implements ActorStopper {
 
     @Override
-    public void exterminate(final @NotNull ActorPath path) {
+    public void stop(final @NotNull ActorPath path) {
 
       final var maybeActor = RootActorSpawner.this.actorHandleResolver.resolve(path);
 
@@ -43,7 +44,7 @@ class RootActorSpawner implements ActorSpawner {
 
   private final ActorRegistry actorRegistry;
   private final ActorHandleResolver actorHandleResolver;
-  private final ActorExterminatorImpl actorExterminator;
+  private final ActorStopperImpl actorExterminator;
   private final ScheduledExecutor scheduledExecutor;
 
   public RootActorSpawner(final @NotNull Logger logger, final @NotNull ActorRegistry actorRegistry,
@@ -53,7 +54,7 @@ class RootActorSpawner implements ActorSpawner {
     this.logger = logger;
     this.actorRegistry = actorRegistry;
     this.actorHandleResolver = actorHandleResolver;
-    this.actorExterminator = new ActorExterminatorImpl();
+    this.actorExterminator = new ActorStopperImpl();
     this.scheduledExecutor = scheduledExecutor;
   }
 
@@ -79,6 +80,11 @@ class RootActorSpawner implements ActorSpawner {
         this.actorExterminator, this.actorHandleResolver, this.scheduledExecutor);
 
     actorRegistry.register(actorWrapper);
+
+    final var parentPath = path.isRoot() ? path
+        : path.parent().orElseThrow(() -> new IllegalStateException("Root actor path is null."));
+
+    actorWrapper.sendLifecycleControlMessage(new StartMessage(parentPath));
 
     return actorWrapper;
   }

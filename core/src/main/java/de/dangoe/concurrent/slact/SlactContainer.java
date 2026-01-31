@@ -15,5 +15,5 @@ public interface SlactContainer extends ActorHandleResolver, ActorSpawner {
   @NotNull <M> IntermediateSendMessageWithResponseRequestOp<M> requestResponseTo(
       @NotNull M message);
 
-  void exterminate(@NotNull ActorHandle<?> actor);
+  void stop(@NotNull ActorHandle<?> actor);
 }

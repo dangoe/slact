@@ -2,7 +2,7 @@ package de.dangoe.concurrent.slact;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface ActorExterminator {
+interface ActorStopper {
 
-  void exterminate(@NotNull ActorPath path);
+  void stop(@NotNull ActorPath path);
 }
