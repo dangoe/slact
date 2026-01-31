@@ -5,6 +5,5 @@ import org.jetbrains.annotations.NotNull;
 @FunctionalInterface
 public interface ActorCreator<A extends Actor<M>, M> {
 
-  @NotNull
-  A create();
+  @NotNull A create();
 }

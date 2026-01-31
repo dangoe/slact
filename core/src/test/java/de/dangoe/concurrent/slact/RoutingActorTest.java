@@ -3,8 +3,8 @@ package de.dangoe.concurrent.slact;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.DistributingActor.Protocol.DistributionMethod;
-import de.dangoe.concurrent.slact.DistributingActor.Protocol.Message;
+import de.dangoe.concurrent.slact.RoutingActor.RoutingRequest;
+import de.dangoe.concurrent.slact.RoutingActor.SimpleRoutingRequest;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import org.assertj.core.api.Fail;
@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Given an routing actor")
-public class DistributingActorTest {
+public class RoutingActorTest {
 
   private final SlactContainer container = new SlactContainerBuilder().build();
 
@@ -32,7 +32,7 @@ public class DistributingActorTest {
         final var capturedMessage = new AtomicReference<String>();
 
         final var actor = container.spawn(
-            () -> new DistributingActor<>(1, () -> new Actor<String>() {
+            RoutingActor.roundRobinWorker(1, () -> new Actor<String>() {
 
               @Override
               public void onMessage(final @NotNull String message) {
@@ -43,8 +43,8 @@ public class DistributingActorTest {
               }
             }));
 
-        container.send((Message) new Message.Initialize(DistributionMethod.ROUND_ROBIN)).to(actor);
-        container.send((Message) new Message.Distribute<>("Hello world!")).to(actor);
+        container.send((RoutingRequest<String>) new SimpleRoutingRequest<>("Hello world!"))
+            .to(actor);
 
         await().atMost(Duration.ofSeconds(5))
             .untilAsserted(() -> assertThat(capturedMessage.get()).isEqualTo("Hello world!"));
