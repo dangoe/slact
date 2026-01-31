@@ -4,13 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+// TODO Add tests for child propagation
 class ActorStoppingTest {
 
-  private static final class TestActor extends Actor<String> {
+  private static class TestActor extends Actor<String> {
 
     @Override
     public void onMessage(@NotNull String message) {
@@ -18,57 +22,102 @@ class ActorStoppingTest {
     }
   }
 
+  private static final Duration TIMEOUT = Duration.ofSeconds(5);
+
   private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Nested
   class ActorsCanBeStopped {
 
     @Test
-    void whenUsingContainer() {
+    void whenUsingContainer() throws Throwable {
 
-      final var actor = container.spawn("actor", TestActor::new);
+      final var onStopCalled = new AtomicBoolean();
 
-      container.stop(actor);
+      final var actorToBeStopped = container.spawn("actor-to-be-stopped", () -> new TestActor() {
 
-      await().atMost(Duration.ofSeconds(5)).until(() -> container.resolve(actor.path()).isEmpty());
+        @Override
+        void onStop() {
+          super.onStop();
+          onStopCalled.set(true);
+        }
+      });
+
+      final var eventualStopResult = container.stop(actorToBeStopped);
+
+      await().atMost(TIMEOUT).until(eventualStopResult::isDone);
+
+      assertThat(eventualStopResult.get()).isSameAs(Done.instance());
+      assertThat(onStopCalled).isTrue();
+      assertThat(container.resolve(actorToBeStopped.path())).isEmpty();
     }
 
     @Test
-    void whenFromInsideActor() {
+    void whenFromInsideActor() throws Throwable {
 
-      final var actor = container.spawn("actor", () -> new Actor<String>() {
+      final var onStopCalled = new AtomicBoolean();
+      final var eventualStopResult = new AtomicReference<Future<Done>>();
+
+      final var actorToBeStopped = container.spawn("actor-to-be-stopped", () -> new TestActor() {
+
         @Override
-        public void onMessage(final @NotNull String message) {
-          context().stop(self());
+        void onStart() {
+          super.onStart();
+          eventualStopResult.set(context().stop(self()));
+        }
+
+        @Override
+        void onStop() {
+          super.onStop();
+          onStopCalled.set(true);
         }
       });
 
-      container.send("Stop!").to(actor);
+      await().atMost(TIMEOUT)
+          .until(() -> eventualStopResult.get() != null && eventualStopResult.get().isDone());
 
-      await().atMost(Duration.ofSeconds(5)).until(() -> container.resolve(actor.path()).isEmpty());
+      assertThat(eventualStopResult.get().get()).isSameAs(Done.instance());
+      assertThat(onStopCalled).isTrue();
+      assertThat(container.resolve(actorToBeStopped.path())).isEmpty();
     }
 
     @Test
-    void whenFromInsideAnotherActor() {
+    void whenFromInsideAnotherActor() throws Throwable {
 
-      final var actor = container.spawn("actor", () -> new Actor<String>() {
+      final var onStopCalled = new AtomicBoolean();
+
+      final var actorToBeStopped = container.spawn("actor-to-be-stopped",
+          () -> new Actor<String>() {
+
+            @Override
+            public void onMessage(final @NotNull String message) {
+              throw new UnsupportedOperationException();
+            }
+
+            @Override
+            void onStop() {
+              super.onStop();
+              onStopCalled.set(true);
+            }
+          });
+
+      final var eventualStopResult = new AtomicReference<Future<Done>>();
+
+      container.spawn("actor", () -> new TestActor() {
+
         @Override
-        public void onMessage(final @NotNull String message) {
-          throw new UnsupportedOperationException();
+        void onStart() {
+          super.onStart();
+          eventualStopResult.set(context().stop(actorToBeStopped));
         }
       });
 
-      final var otherActor = container.spawn("other-actor", () -> new Actor<String>() {
-        @Override
-        public void onMessage(final @NotNull String message) {
-          context().stop(actor);
-        }
-      });
+      await().atMost(TIMEOUT)
+          .until(() -> eventualStopResult.get() != null && eventualStopResult.get().isDone());
 
-      container.send("Stop!").to(otherActor);
-
-      await().atMost(Duration.ofSeconds(5)).until(() -> container.resolve(actor.path()).isEmpty());
-      assertThat(container.resolve(otherActor.path())).isNotEmpty();
+      assertThat(eventualStopResult.get().get()).isSameAs(Done.instance());
+      assertThat(onStopCalled).isTrue();
+      assertThat(container.resolve(actorToBeStopped.path())).isEmpty();
     }
   }
 }

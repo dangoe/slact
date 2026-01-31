@@ -139,8 +139,8 @@ public class ActorAsyncResponseTest {
           container.send("First message for which the future should not be completed.").to(actor);
 
           final var eventualResponse = container.requestResponseTo(
-                  "Second message for which the future should be completed.")
-              .ofType(String.class).from(actor);
+                  "Second message for which the future should be completed.").ofType(String.class)
+              .from(actor);
 
           await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
 
@@ -168,7 +168,9 @@ public class ActorAsyncResponseTest {
             @Override
             public void onMessage(final @NotNull String message) {
               if (!message.startsWith("_")) {
-                pipeFuture(this.<String, String>requestResponseTo(message).from(actor)).to(self());
+                pipeFuture(
+                    container.requestResponseTo(message).ofType(String.class).from(actor)).to(
+                    self());
               } else {
                 result.set(message);
               }
@@ -198,7 +200,7 @@ public class ActorAsyncResponseTest {
             @Override
             public void onMessage(final @NotNull String message) {
               if (!message.startsWith("_")) {
-                final var eventualResult = this.<String, String>requestResponseTo(message)
+                final var eventualResult = container.requestResponseTo(message).ofType(String.class)
                     .from(actor);
                 pipeFuture(eventualResult).to(self());
               } else {

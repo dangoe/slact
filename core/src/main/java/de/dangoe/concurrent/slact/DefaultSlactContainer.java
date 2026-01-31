@@ -1,14 +1,17 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.ActorContext.CompletableSendMessageWithResponseRequestOp;
-import de.dangoe.concurrent.slact.ActorContext.IntermediateSendMessageWithResponseRequestOp;
-import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
 import de.dangoe.concurrent.slact.MailboxItem.StopMessage;
 import de.dangoe.concurrent.slact.exception.ActorRegistrationException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.jetbrains.annotations.NotNull;
@@ -107,20 +110,24 @@ class DefaultSlactContainer implements SlactContainer {
 
   @Override
   @SuppressWarnings("unchecked")
-  public @NotNull <M> PreparedSendMessageOp<M> send(final @NotNull M message) {
+  public @NotNull <M> ActorContext.SendMessageOp<M> send(final @NotNull M message) {
     return targetActor -> ((ActorWrapper<M>) targetActor).sendInternal(message, this.rootActor);
   }
 
   @Override
-  public @NotNull <M> IntermediateSendMessageWithResponseRequestOp<M> requestResponseTo(
-      @NotNull M message) {
+  @SuppressWarnings("unchecked")
+  public @NotNull <M> SendMessageOp<M> forward(final @NotNull M message) {
+    return targetActor -> ((ActorWrapper<M>) targetActor).forwardInternal(message, this.rootActor);
+  }
 
-    return new IntermediateSendMessageWithResponseRequestOp<>() {
+  @Override
+  public @NotNull <M> ResponseRequestOp<M> requestResponseTo(final @NotNull M message) {
+
+    return new ResponseRequestOp<>() {
 
       @Override
       @SuppressWarnings("unchecked")
-      public @NotNull <R> CompletableSendMessageWithResponseRequestOp<M, R> ofType(
-          @NotNull Class<R> responseType) {
+      public @NotNull <R> ResponseRequestFromOp<M, R> ofType(final @NotNull Class<R> responseType) {
 
         return targetActor -> ((ActorWrapper<M>) targetActor).requestResponseToInternal(message,
             DefaultSlactContainer.this.rootActor);
@@ -129,7 +136,21 @@ class DefaultSlactContainer implements SlactContainer {
   }
 
   @Override
-  public void stop(final @NotNull ActorHandle<?> actor) {
-    ((ActorWrapper<?>) actor).sendLifecycleControlMessage(new StopMessage(this.rootActor.path()));
+  public @NotNull <M1> FuturePipeOp<M1> pipeFuture(final @NotNull Future<M1> eventualMessage) {
+    return target -> this.scheduledExecutor.scheduleOnce(() -> {
+      // TODO Configure timeout
+      try {
+        final var message = eventualMessage.get(10, TimeUnit.SECONDS);
+        send(message).to(target);
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        throw new RuntimeException(e);
+      }
+    }, Duration.of(0, ChronoUnit.NANOS));
+  }
+
+  @Override
+  public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
+    return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
+        new StopMessage(ActorPath.root()), this.rootActor);
   }
 }

@@ -1,8 +1,6 @@
 package de.dangoe.concurrent.slact;
 
-import de.dangoe.concurrent.slact.ActorContext.CompletableSendMessageWithResponseRequestOp;
-import de.dangoe.concurrent.slact.ActorContext.PreparedForwardMessageOp;
-import de.dangoe.concurrent.slact.ActorContext.PreparedSendMessageOp;
+import de.dangoe.concurrent.slact.ActorRuntime.SendMessageOp;
 import de.dangoe.concurrent.slact.exception.MessageRejectedException;
 import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
@@ -85,23 +83,15 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     context().respondWith(message);
   }
 
-  protected final @NotNull <M1> PreparedSendMessageOp<M1> send(final @NotNull M1 message) {
+  protected final @NotNull <M1> SendMessageOp<M1> send(final @NotNull M1 message) {
     return context().send(message);
   }
 
-  protected final @NotNull <M1> PreparedForwardMessageOp<M1> forward(final @NotNull M1 message) {
+  protected final @NotNull <M1> SendMessageOp<M1> forward(final @NotNull M1 message) {
     return context().forward(message);
   }
 
   protected final @NotNull FuturePipeOp<M> pipeFuture(final @NotNull Future<M> eventualMessage) {
     return context().pipeFuture(eventualMessage);
-  }
-
-
-  @SuppressWarnings("unchecked")
-  public @NotNull <M1, R> CompletableSendMessageWithResponseRequestOp<M1, R> requestResponseTo(
-      final @NotNull M1 message) {
-    return targetActor -> ((ActorWrapper<M1>) targetActor).requestResponseToInternal(message,
-        self());
   }
 }

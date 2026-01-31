@@ -1,6 +1,7 @@
 package de.dangoe.concurrent.slact;
 
 import de.dangoe.concurrent.slact.MailboxItem.FireAndForgetMessage;
+import de.dangoe.concurrent.slact.MailboxItem.LifecycleControlMessage;
 import de.dangoe.concurrent.slact.MailboxItem.MessageWithResponseRequest;
 import de.dangoe.concurrent.slact.MailboxItem.StopMessage;
 import de.dangoe.concurrent.slact.MailboxItem.WrappedMessage;
@@ -82,7 +83,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public @NotNull <M1> PreparedSendMessageOp<M1> send(final @NotNull M1 message) {
+    public @NotNull <M1> SendMessageOp<M1> send(final @NotNull M1 message) {
       return targetActor -> {
 
         final var messageWithResponseRequest = ActorWrapper.this.messagesWithResponseRequest.get(
@@ -90,8 +91,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         if (messageWithResponseRequest != null) {
           ActorWrapper.this.messagesWithResponseRequest.remove(targetActor.path());
-          completeResponseRequest(
-              (WrappedMessage.MessageWithResponseRequest<?, M1>) messageWithResponseRequest,
+          completeResponseRequest((MessageWithResponseRequest<?, M1>) messageWithResponseRequest,
               message);
         } else {
           ((ActorWrapper<M1>) targetActor).sendInternal(message, self());
@@ -105,22 +105,37 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       send(message).to((ActorWrapper<M1>) sender());
     }
 
+    @Override
+    public @NotNull <M1> ResponseRequestOp<M1> requestResponseTo(@NotNull M1 message) {
+
+      return new ResponseRequestOp<>() {
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public @NotNull <R> ResponseRequestFromOp<M1, R> ofType(
+            final @NotNull Class<R> responseType) {
+
+          return targetActor -> ((ActorWrapper<M1>) targetActor).requestResponseToInternal(message,
+              sender());
+        }
+      };
+    }
+
     private <M1> void completeResponseRequest(
-        final WrappedMessage.MessageWithResponseRequest<?, M1> originalMessage,
-        final M1 responseMessage) {
+        final MessageWithResponseRequest<?, M1> originalMessage, final M1 responseMessage) {
       originalMessage.futureInternal().complete(responseMessage);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public @NotNull <M1> PreparedForwardMessageOp<M1> forward(final @NotNull M1 message) {
+    public @NotNull <M1> SendMessageOp<M1> forward(final @NotNull M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, sender());
     }
 
     @Override
-    public void stop(final @NotNull ActorHandle<?> actor) {
-      ((ActorWrapper<?>) actor).appendMessage(
-          new StopMessage(sender().path()));
+    public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
+      return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
+          new StopMessage(sender().path()), sender());
     }
   }
 
@@ -192,7 +207,15 @@ final class ActorWrapper<M> implements ActorHandle<M> {
             this.messagesWithResponseRequest.put(senderHandle.path(), messageWithResponseRequest);
           }
 
-          this.delegate.onMessage(message.message(), actorContext);
+          final var wrappedMessage = message.message();
+
+          if (wrappedMessage instanceof StopMessage) {
+            this.delegate.onStop(actorContext);
+            this.actorStopper.stop(path());
+            actorContext.respondWith(Done.instance());
+          } else {
+            this.delegate.onMessage(wrappedMessage, actorContext);
+          }
         } catch (final MessageRejectedException e) {
           this.logger.warn("Message has been rejected.", e);
         }
@@ -227,17 +250,27 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     return wrapper.future();
   }
 
+  @NotNull <R> Future<R> requestResponseToLifecycleControlInternal(
+      final @NotNull LifecycleControlMessage message, final @NotNull ActorHandle<?> sender) {
+
+    final var wrapper = new MessageWithResponseRequest<LifecycleControlMessage, R>(message,
+        sender.path());
+
+    appendMessage(wrapper);
+
+    return wrapper.future();
+  }
+
   void forwardInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {
     appendMessage(new FireAndForgetMessage<>(message, sender.path()));
   }
 
-  void sendLifecycleControlMessage(final @NotNull WrappedMessage.LifecycleControlMessage message) {
+  void sendLifecycleControlMessage(final @NotNull LifecycleControlMessage message) {
     appendMessage(message);
   }
 
   private void appendMessage(final @NotNull MailboxItem mailboxItem) {
-    if (this.mailboxItems.size() < 1000
-        || mailboxItem instanceof WrappedMessage.LifecycleControlMessage) {
+    if (this.mailboxItems.size() < 1000 || mailboxItem instanceof LifecycleControlMessage) {
       this.mailboxItems.add(mailboxItem);
     } else {
       // TODO Use overflow strategy
