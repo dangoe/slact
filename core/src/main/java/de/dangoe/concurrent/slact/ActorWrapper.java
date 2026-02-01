@@ -71,7 +71,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public @NotNull <A extends Actor<M1>, M1> ActorHandle<? extends M1> spawn(
+    public @NotNull <A extends Actor<M1>, M1> ActorHandle<M1> spawn(
         final @NotNull String name, @NotNull ActorCreator<A, M1> actorCreator) {
       return ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
     }
@@ -150,6 +150,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final ScheduledExecutor scheduledExecutor;
 
   private final Cancellable messagePoller;
+  private final ActiveActorContextHolder activeActorContextHolder;
 
   private final Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
 
@@ -171,6 +172,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
         Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
+    this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
   }
@@ -192,33 +194,39 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       final var senderHandle = sender.get();
       final var actorContext = new ActorContextImpl(senderHandle);
 
-      if (item instanceof MailboxItem.StartMessage) {
-        this.delegate.onStart(actorContext);
-        break;
-      } else if (item instanceof StopMessage) {
-        this.delegate.onStop(actorContext);
-        this.actorStopper.stop(path());
-        break;
-      } else if (item instanceof WrappedMessage<?>) {
-        final var message = ((WrappedMessage<M>) item);
+      this.activeActorContextHolder.activateContext(actorContext);
 
-        try {
-          if (message instanceof MessageWithResponseRequest<M, ?> messageWithResponseRequest) {
-            this.messagesWithResponseRequest.put(senderHandle.path(), messageWithResponseRequest);
+      try {
+        if (item instanceof MailboxItem.StartMessage) {
+          this.delegate.onStart(actorContext);
+          break;
+        } else if (item instanceof StopMessage) {
+          this.delegate.onStop(actorContext);
+          this.actorStopper.stop(path());
+          break;
+        } else if (item instanceof WrappedMessage<?>) {
+          final var message = ((WrappedMessage<M>) item);
+
+          try {
+            if (message instanceof MessageWithResponseRequest<M, ?> messageWithResponseRequest) {
+              this.messagesWithResponseRequest.put(senderHandle.path(), messageWithResponseRequest);
+            }
+
+            final var wrappedMessage = message.message();
+
+            if (wrappedMessage instanceof StopMessage) {
+              this.delegate.onStop(actorContext);
+              this.actorStopper.stop(path());
+              actorContext.respondWith(Done.instance());
+            } else {
+              this.delegate.onMessage(wrappedMessage, actorContext);
+            }
+          } catch (final MessageRejectedException e) {
+            this.logger.warn("Message has been rejected.", e);
           }
-
-          final var wrappedMessage = message.message();
-
-          if (wrappedMessage instanceof StopMessage) {
-            this.delegate.onStop(actorContext);
-            this.actorStopper.stop(path());
-            actorContext.respondWith(Done.instance());
-          } else {
-            this.delegate.onMessage(wrappedMessage, actorContext);
-          }
-        } catch (final MessageRejectedException e) {
-          this.logger.warn("Message has been rejected.", e);
         }
+      } finally {
+        this.activeActorContextHolder.deactivateContext();
       }
 
       item = mailboxItems.poll();
@@ -231,9 +239,23 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   @Override
-  public @NotNull <A extends Actor<M2>, M2> ActorHandle<? extends M2> spawn(
+  public @NotNull <A extends Actor<M2>, M2> ActorHandle<M2> spawn(
       final @NotNull String name, final @NotNull ActorCreator<A, M2> creator) {
     return this.actorSpawner.spawn(name, creator);
+  }
+
+  @Override
+  public void send(final @NotNull M message) {
+
+    final var sender = activeActorContext().orElseThrow(
+            () -> new IllegalStateException("Send must only be called within an active context."))
+        .self();
+
+    sendInternal(message, sender);
+  }
+
+  private @NotNull Optional<ActorContext> activeActorContext() {
+    return this.activeActorContextHolder.activeContext();
   }
 
   void sendInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {

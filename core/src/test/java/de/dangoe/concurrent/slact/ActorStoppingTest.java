@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact;
 
+import static de.dangoe.concurrent.slact.testhelper.Constants.DEFAULT_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -22,8 +23,6 @@ class ActorStoppingTest {
     }
   }
 
-  private static final Duration TIMEOUT = Duration.ofSeconds(5);
-
   private final SlactContainer container = new SlactContainerBuilder().build();
 
   @Nested
@@ -45,7 +44,7 @@ class ActorStoppingTest {
 
       final var eventualStopResult = container.stop(actorToBeStopped);
 
-      await().atMost(TIMEOUT).until(eventualStopResult::isDone);
+      await().atMost(DEFAULT_TIMEOUT).until(eventualStopResult::isDone);
 
       assertThat(eventualStopResult.get()).isSameAs(Done.instance());
       assertThat(onStopCalled).isTrue();
@@ -73,7 +72,7 @@ class ActorStoppingTest {
         }
       });
 
-      await().atMost(TIMEOUT)
+      await().atMost(DEFAULT_TIMEOUT)
           .until(() -> eventualStopResult.get() != null && eventualStopResult.get().isDone());
 
       assertThat(eventualStopResult.get().get()).isSameAs(Done.instance());
@@ -112,7 +111,7 @@ class ActorStoppingTest {
         }
       });
 
-      await().atMost(TIMEOUT)
+      await().atMost(DEFAULT_TIMEOUT)
           .until(() -> eventualStopResult.get() != null && eventualStopResult.get().isDone());
 
       assertThat(eventualStopResult.get().get()).isSameAs(Done.instance());
