@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 
 final class ActorWrapper<M> implements ActorHandle<M> {
 
-  private class ActorContextImpl implements ActorContext {
+  private class ActorContextImpl implements ActorContext<M> {
 
     private final ActorHandle<?> senderHandle;
 
@@ -51,9 +51,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public @NotNull ActorHandle<?> self() {
+    @SuppressWarnings("unchecked")
+    public @NotNull ActorHandle<M> self() {
       final var selfPath = ActorWrapper.this.path;
-      return this.resolve(selfPath).orElseThrow(() -> new IllegalStateException(
+      return (ActorHandle<M>) this.resolve(selfPath).orElseThrow(() -> new IllegalStateException(
           "Failed to resolve actor handle for '%s'.".formatted(selfPath)));
     }
 
@@ -101,7 +102,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <M1> void respondWith(final @NotNull M1 message) {
+    public <M1> void respondWith(@NotNull M1 message) {
       send(message).to((ActorWrapper<M1>) sender());
     }
 
@@ -254,7 +255,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     sendInternal(message, sender);
   }
 
-  private @NotNull Optional<ActorContext> activeActorContext() {
+  private @NotNull Optional<ActorContext<?>> activeActorContext() {
     return this.activeActorContextHolder.activeContext();
   }
 

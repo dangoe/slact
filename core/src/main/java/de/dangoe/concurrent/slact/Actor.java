@@ -7,11 +7,13 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class Actor<M> implements MessageReceiver<M> {
 
-  protected final MessageReceiver<M> defaultBehaviour = Actor.this;
+  protected final @NotNull MessageReceiver<M> defaultBehaviour = Actor.this;
 
-  private MessageReceiver<M> behaviour = defaultBehaviour;
+  private @NotNull MessageReceiver<M> behaviour = defaultBehaviour;
 
-  private ActorContext context;
+  // Controlled by runtime. Not null during regular lifecycle phases
+  @SuppressWarnings("NotNullFieldNotInitialized")
+  private @NotNull ActorContext context;
 
   final void onStart(final @NotNull ActorContext context) {
     this.context = context;
@@ -70,7 +72,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   }
 
   @SuppressWarnings("unchecked")
-  protected final @NotNull <M1> ActorHandle<M1> sender() {
+  protected final <M1> @NotNull ActorHandle<M1> sender() {
     return (ActorHandle<M1>) this.context.sender();
   }
 
@@ -83,11 +85,11 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     context().respondWith(message);
   }
 
-  protected final @NotNull <M1> SendMessageOp<M1> send(final @NotNull M1 message) {
+  protected final <M1> @NotNull SendMessageOp<M1> send(final @NotNull M1 message) {
     return context().send(message);
   }
 
-  protected final @NotNull <M1> SendMessageOp<M1> forward(final @NotNull M1 message) {
+  protected final <M1> @NotNull SendMessageOp<M1> forward(final @NotNull M1 message) {
     return context().forward(message);
   }
 
