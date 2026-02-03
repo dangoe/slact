@@ -13,9 +13,9 @@ public abstract class Actor<M> implements MessageReceiver<M> {
 
   // Controlled by runtime. Not null during regular lifecycle phases
   @SuppressWarnings("NotNullFieldNotInitialized")
-  private @NotNull ActorContext context;
+  private @NotNull ActorContext<?> context;
 
-  final void onStart(final @NotNull ActorContext context) {
+  final void onStart(final @NotNull ActorContext<?> context) {
     this.context = context;
     onStart();
   }
@@ -24,7 +24,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     // Empty default hook
   }
 
-  final void onStop(final @NotNull ActorContext context) {
+  final void onStop(final @NotNull ActorContext<?> context) {
     this.context = context;
     onStop();
   }
@@ -34,7 +34,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   }
 
   @SuppressWarnings("unchecked")
-  final void onMessage(final @NotNull Object message, final @NotNull ActorContext context) {
+  final void onMessage(final @NotNull Object message, final @NotNull ActorContext<?> context) {
 
     this.context = context;
 
@@ -57,7 +57,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
     throw new MessageRejectedException(self(), message);
   }
 
-  protected final @NotNull ActorContext context() {
+  protected final @NotNull ActorContext<?> context() {
     return this.context;
   }
 

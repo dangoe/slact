@@ -1,8 +1,9 @@
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+plugins {
+    java
+    id("slact.java-lib")
 }
 
-group = "de.dangoe.concurrent.slact"
-version = "1.0-SNAPSHOT"
+dependencies {
+    implementation(libs.slf4j.api)
+    testImplementation(libs.awaitility)
+}
