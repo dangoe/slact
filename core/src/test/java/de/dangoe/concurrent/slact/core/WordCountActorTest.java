@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.core.RoutingActor.RoutingRequest;
+import de.dangoe.concurrent.slact.core.RoutingActor.SimpleRoutingRequest;
 import de.dangoe.concurrent.slact.testsupport.SlactTestContainer;
 import de.dangoe.concurrent.slact.testsupport.SlactTestContainerExtension;
 import java.io.IOException;
@@ -11,9 +13,12 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -52,15 +57,15 @@ public class WordCountActorTest {
     void ThenTheActorShouldCountTheWordsAccordingly(final @NotNull SlactTestContainer container)
         throws Exception {
 
-      final var wordCount = new AtomicInteger(0);
-
       final var wordCounterActor = container.spawn("word-counter-actor",
           () -> new Actor<WordCountActorMessage>() {
 
-            private Integer maxLines;
+            private final @NotNull Map<Integer, Integer> lineWordCounts = new HashMap<>();
 
-            private ActorHandle<WordCountResult> commandSender;
-            private ActorHandle<? extends Line> lineProcessor;
+            private @Nullable Integer maxLines = null;
+
+            private @Nullable ActorHandle<WordCountResult> commandSender;
+            private @Nullable ActorHandle<RoutingRequest<Line>> lineProcessor;
 
             @Override
             public void onMessage(final @NotNull WordCountActorMessage message) {
@@ -69,29 +74,31 @@ public class WordCountActorTest {
 
                 this.commandSender = sender();
 
-                this.lineProcessor = context().spawn(() -> new Actor<Line>() {
+                this.lineProcessor = context().spawn(
+                    RoutingActor.roundRobinWorker(10, () -> new Actor<>() {
 
-                  @Override
-                  public void onMessage(final @NotNull Line line) {
-                    send(new LineWordCount(line.number(), line.content().split(" ").length)).to(
-                        sender());
-                  }
-                });
+                      @Override
+                      public void onMessage(final @NotNull Line line) {
+                        send(new LineWordCount(line.number(), line.content().split(" ").length)).to(
+                            sender());
+                      }
+                    }));
 
-                try {
-                  final var lines = Files.readAllLines(Paths.get(
-                      Objects.requireNonNull(getClass().getResource(fileName)).toURI()));
+                behaveAs(this::processing);
 
-                  this.maxLines = lines.size();
+                try (final var lines = Files.lines(
+                    Paths.get(Objects.requireNonNull(getClass().getResource(fileName)).toURI()))) {
 
-                  behaveAs(this::processing);
+                  final var lineNumber = new AtomicInteger();
 
-                  int lineNumber = 0;
+                  lines.forEach(line -> {
+                    if (this.lineProcessor != null) {
+                      send((RoutingRequest<Line>) new SimpleRoutingRequest<>(
+                          new Line(lineNumber.getAndIncrement(), line))).to(this.lineProcessor);
+                    }
+                  });
 
-                  for (final var line : lines) {
-                    send(new Line(lineNumber, line)).to(this.lineProcessor);
-                    lineNumber++;
-                  }
+                  maxLines = lineNumber.get();
                 } catch (IOException | URISyntaxException e) {
                   fail(e);
                 }
@@ -104,17 +111,36 @@ public class WordCountActorTest {
 
               if (message instanceof LineWordCount(int lineNumber, int words)) {
 
-                wordCount.addAndGet(words);
+                lineWordCounts.put(lineNumber, words);
 
-                if (lineNumber + 1 == maxLines) {
-                  context().stop(lineProcessor);
-                  send(new WordCountResult(wordCount.get())).to(this.commandSender);
-                  this.commandSender = null;
-                  behaveAsDefault();
+                if (maxLines != null && lineWordCounts.size() == maxLines) {
+
+                  if (this.lineProcessor != null) {
+                    context().stop(this.lineProcessor);
+                  } else {
+                    fail("Line processor is null!");
+                  }
+
+                  if (this.commandSender != null) {
+                    send(new WordCountResult(
+                        lineWordCounts.values().stream().reduce(0, Integer::sum))).to(
+                        this.commandSender);
+                  } else {
+                     fail("Command sender is null!");
+                  }
+
+                  reset();
                 }
               } else {
                 reject(message);
               }
+            }
+
+            private void reset() {
+              this.commandSender = null;
+              this.maxLines = null;
+              this.lineWordCounts.clear();
+              behaveAsDefault();
             }
           });
 
