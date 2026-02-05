@@ -48,7 +48,7 @@ public final class SlactTestContainer implements SlactContainer {
   public @NotNull <M> SendMessageOp<M> sendMultiple(final @NotNull Iterable<M> messages) {
     return targetActor -> {
       for (final var message : messages) {
-        send(message);
+        send(message).to(targetActor);
       }
     };
   }

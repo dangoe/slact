@@ -5,6 +5,6 @@ plugins {
 
 dependencies {
     implementation(libs.slf4j.api)
-    testImplementation(project(":testsupport"))
+    testImplementation(project(":testkit"))
     testImplementation(libs.awaitility)
 }

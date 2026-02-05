@@ -1,9 +1,9 @@
 rootProject.name = "slact"
 
-include("core", "testsupport")
+include("core", "testkit")
 
 project(":core").name = "core"
-project(":testsupport").name = "testsupport"
+project(":testkit").name = "testkit"
 
 pluginManagement {
     includeBuild("build-logic")

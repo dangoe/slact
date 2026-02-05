@@ -3,10 +3,9 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
-import de.dangoe.concurrent.slact.testkit.patterns.actors.ForwardingActor;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,14 +41,18 @@ public class ActorBehaviourTest {
           }
         });
 
-        final var forwardingActor = container.spawn("resend-actor",
-            () -> new ForwardingActor<>(actor));
+        final var resendingActor = container.spawn("resending-actor", () -> new Actor<String>() {
+          @Override
+          public void onMessage(final @NotNull String message) {
+            send(message).to(actor);
+          }
+        });
 
-        container.sendMultiple(List.of("initialize", "Hello world!")).to(forwardingActor);
+        container.sendMultiple(List.of("initialize", "Hello world!")).to(resendingActor);
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(
-            () -> assertThat(result.get()).isEqualTo(
-                new ReceivedMessage<>("Hello world!", ActorPath.root().append("resend-actor"))));
+            () -> assertThat(result.get()).isEqualTo(new ReceivedMessage<>("Hello world!",
+                ActorPath.root().append("resending-actor"))));
       }
     }
 
@@ -80,14 +83,18 @@ public class ActorBehaviourTest {
           }
         });
 
-        final var forwardingActor = container.spawn("resend-actor",
-            () -> new ForwardingActor<>(actor));
+        final var resendingActor = container.spawn("resending-actor", () -> new Actor<String>() {
+          @Override
+          public void onMessage(final @NotNull String message) {
+            send(message).to(actor);
+          }
+        });
 
-        container.sendMultiple(List.of("Ready!", "Steady!", "Go!")).to(forwardingActor);
+        container.sendMultiple(List.of("Ready!", "Steady!", "Go!")).to(resendingActor);
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(
             () -> assertThat(result.get()).isEqualTo(
-                new ReceivedMessage<>("Go!", ActorPath.root().append("resend-actor"))));
+                new ReceivedMessage<>("Go!", ActorPath.root().append("resending-actor"))));
       }
     }
   }
