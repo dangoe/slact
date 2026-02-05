@@ -7,10 +7,10 @@ import de.dangoe.concurrent.slact.core.ActorPath;
 import de.dangoe.concurrent.slact.core.ActorRuntime;
 import de.dangoe.concurrent.slact.core.Done;
 import de.dangoe.concurrent.slact.core.FuturePipeOp;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopMessage;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
 import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.exception.ActorRegistrationException;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopMessage;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -27,7 +27,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultSlactContainer implements SlactContainer {
+public final class DefaultSlactContainer implements SlactContainer {
 
   private static class ActorRegistryImpl implements ActorRegistry {
 
@@ -73,7 +73,7 @@ public class DefaultSlactContainer implements SlactContainer {
     Objects.requireNonNull(this.scheduledExecutor, "Scheduled executor must not be null!");
 
     this.actorRegistry = new ActorRegistryImpl();
-    this.rootActorSpawner = new RootActorSpawner(logger, actorRegistry, this,
+    this.rootActorSpawner = new RootActorSpawner(logger, this.actorRegistry, this,
         this.scheduledExecutor);
 
     this.rootActor = this.rootActorSpawner.spawnRootActor(() -> new Actor<Object>() {
@@ -95,7 +95,7 @@ public class DefaultSlactContainer implements SlactContainer {
     try {
       // TODO Implement shutdown
     } finally {
-      scheduledExecutor.close();
+      this.scheduledExecutor.close();
     }
   }
 
@@ -118,7 +118,7 @@ public class DefaultSlactContainer implements SlactContainer {
 
   @Override
   public boolean isStopped() {
-    return stopped.get();
+    return this.stopped.get();
   }
 
   @Override

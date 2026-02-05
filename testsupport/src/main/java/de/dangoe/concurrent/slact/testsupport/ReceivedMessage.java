@@ -1,4 +1,4 @@
-package de.dangoe.concurrent.slact.core.testhelper;
+package de.dangoe.concurrent.slact.testsupport;
 
 import de.dangoe.concurrent.slact.core.ActorPath;
 

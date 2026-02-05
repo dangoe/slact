@@ -57,7 +57,7 @@ public final class RoutingActor<M> extends Actor<RoutingRequest<M>> {
   @SuppressWarnings("NotNullFieldNotInitialized")
   private @NotNull RoutingStrategy<M> strategy;
 
-  public RoutingActor(
+  private RoutingActor(
       final @NotNull Function<ActorContext<RoutingRequest<M>>, RoutingStrategy<M>> strategyFactory) {
     this.strategyFactory = strategyFactory;
   }

@@ -3,7 +3,7 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.core.testhelper.ReceivedMessage;
+import de.dangoe.concurrent.slact.testsupport.ReceivedMessage;
 import de.dangoe.concurrent.slact.testsupport.SlactTestContainer;
 import de.dangoe.concurrent.slact.testsupport.SlactTestContainerExtension;
 import java.time.Duration;

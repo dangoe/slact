@@ -29,6 +29,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -157,7 +158,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final Actor<M> delegate;
   private final ActorPath path;
   private final ActorSpawner actorSpawner;
-  private final ActorStopper actorStopper;
+  private final Consumer<ActorPath> stopActorFn;
   private final ActorHandleResolver actorHandleResolver;
   private final ScheduledExecutor scheduledExecutor;
 
@@ -168,7 +169,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   public ActorWrapper(final @NotNull Logger logger, final @NotNull Actor<M> delegate,
       final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
-      final @NotNull ActorStopper actorStopper,
+      final @NotNull Consumer<ActorPath> stopActorFn,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
 
@@ -178,7 +179,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.delegate = delegate;
     this.path = path;
     this.actorSpawner = actorSpawner;
-    this.actorStopper = actorStopper;
+    this.stopActorFn = stopActorFn;
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
@@ -214,7 +215,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           break;
         } else if (item instanceof StopMessage) {
           this.delegate.onStop();
-          this.actorStopper.stop(path());
+          this.stopActorFn.accept(path());
           break;
         } else if (item instanceof WrappedMessage<?>) {
           final var message = ((WrappedMessage<M>) item);
@@ -228,7 +229,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
             if (wrappedMessage instanceof StopMessage) {
               this.delegate.onStop();
-              this.actorStopper.stop(path());
+              this.stopActorFn.accept(path());
               actorContext.respondWith(Done.instance());
             } else {
               this.delegate.receiveMessage(wrappedMessage);

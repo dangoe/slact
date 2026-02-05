@@ -8,15 +8,16 @@ import de.dangoe.concurrent.slact.core.ActorPath;
 import de.dangoe.concurrent.slact.core.ActorSpawner;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartMessage;
+import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-public class RootActorSpawner implements ActorSpawner {
+final class RootActorSpawner implements ActorSpawner {
 
-  private final class ActorStopperImpl implements ActorStopper {
+  private final class StopActorFn implements Consumer<ActorPath> {
 
     @Override
-    public void stop(final @NotNull ActorPath path) {
+    public void accept(final @NotNull ActorPath path) {
 
       final var maybeActor = RootActorSpawner.this.actorHandleResolver.resolve(path);
 
@@ -51,17 +52,17 @@ public class RootActorSpawner implements ActorSpawner {
 
   private final ActorRegistry actorRegistry;
   private final ActorHandleResolver actorHandleResolver;
-  private final ActorStopperImpl actorExterminator;
+  private final Consumer<ActorPath> stopActorFn;
   private final ScheduledExecutor scheduledExecutor;
 
-  public RootActorSpawner(final @NotNull Logger logger, final @NotNull ActorRegistry actorRegistry,
+  RootActorSpawner(final @NotNull Logger logger, final @NotNull ActorRegistry actorRegistry,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
     super();
     this.logger = logger;
     this.actorRegistry = actorRegistry;
     this.actorHandleResolver = actorHandleResolver;
-    this.actorExterminator = new ActorStopperImpl();
+    this.stopActorFn = new StopActorFn();
     this.scheduledExecutor = scheduledExecutor;
   }
 
@@ -84,7 +85,7 @@ public class RootActorSpawner implements ActorSpawner {
     final var localSpawner = new PathLocalActorSpawner(path);
 
     final var actorWrapper = new ActorWrapper<>(logger, actor, path, localSpawner,
-        this.actorExterminator, this.actorHandleResolver, this.scheduledExecutor);
+        this.stopActorFn, this.actorHandleResolver, this.scheduledExecutor);
 
     actorRegistry.register(actorWrapper);
 

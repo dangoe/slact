@@ -14,10 +14,12 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+@DisplayName("Given a word counting actor")
 @ExtendWith(SlactTestContainerExtension.class)
 public class WordCountActorTest {
 
@@ -42,88 +44,87 @@ public class WordCountActorTest {
   }
 
   @Nested
-  class GivenAnWordCountingActor {
+  @DisplayName("When words of a given document should be counted")
+  class WhenWordsOfGivenDocumentShouldBeCounted {
 
-    @Nested
-    class WhenWordsOfGivenDocumentShouldBeCounted {
+    @Test
+    @DisplayName("Then the actor should count the words accordingly")
+    void ThenTheActorShouldCountTheWordsAccordingly(final @NotNull SlactTestContainer container)
+        throws Exception {
 
-      @Test
-      void TheActorShouldCountTheWordsAccordingly(final @NotNull SlactTestContainer container) throws Exception {
+      final var wordCount = new AtomicInteger(0);
 
-        final var wordCount = new AtomicInteger(0);
+      final var wordCounterActor = container.spawn("word-counter-actor",
+          () -> new Actor<WordCountActorMessage>() {
 
-        final var wordCounterActor = container.spawn("word-counter-actor",
-            () -> new Actor<WordCountActorMessage>() {
+            private Integer maxLines;
 
-              private Integer maxLines;
+            private ActorHandle<WordCountResult> commandSender;
+            private ActorHandle<? extends Line> lineProcessor;
 
-              private ActorHandle<WordCountResult> commandSender;
-              private ActorHandle<? extends Line> lineProcessor;
+            @Override
+            public void onMessage(final @NotNull WordCountActorMessage message) {
 
-              @Override
-              public void onMessage(final @NotNull WordCountActorMessage message) {
+              if (message instanceof ProcessFileCommand(String fileName)) {
 
-                if (message instanceof ProcessFileCommand(String fileName)) {
+                this.commandSender = sender();
 
-                  this.commandSender = sender();
+                this.lineProcessor = context().spawn(() -> new Actor<Line>() {
 
-                  this.lineProcessor = context().spawn(() -> new Actor<Line>() {
-
-                    @Override
-                    public void onMessage(final @NotNull Line line) {
-                      send(new LineWordCount(line.number(), line.content().split(" ").length)).to(
-                          sender());
-                    }
-                  });
-
-                  try {
-                    final var lines = Files.readAllLines(Paths.get(
-                        Objects.requireNonNull(getClass().getResource(fileName)).toURI()));
-
-                    this.maxLines = lines.size();
-
-                    behaveAs(this::processing);
-
-                    int lineNumber = 0;
-
-                    for (final var line : lines) {
-                      send(new Line(lineNumber, line)).to(this.lineProcessor);
-                      lineNumber++;
-                    }
-                  } catch (IOException | URISyntaxException e) {
-                    fail(e);
+                  @Override
+                  public void onMessage(final @NotNull Line line) {
+                    send(new LineWordCount(line.number(), line.content().split(" ").length)).to(
+                        sender());
                   }
-                } else {
-                  reject(message);
-                }
-              }
+                });
 
-              private void processing(final WordCountActorMessage message) {
+                try {
+                  final var lines = Files.readAllLines(Paths.get(
+                      Objects.requireNonNull(getClass().getResource(fileName)).toURI()));
 
-                if (message instanceof LineWordCount(int lineNumber, int words)) {
+                  this.maxLines = lines.size();
 
-                  wordCount.addAndGet(words);
+                  behaveAs(this::processing);
 
-                  if (lineNumber + 1 == maxLines) {
-                    context().stop(lineProcessor);
-                    send(new WordCountResult(wordCount.get())).to(this.commandSender);
-                    this.commandSender = null;
-                    behaveAsDefault();
+                  int lineNumber = 0;
+
+                  for (final var line : lines) {
+                    send(new Line(lineNumber, line)).to(this.lineProcessor);
+                    lineNumber++;
                   }
-                } else {
-                  reject(message);
+                } catch (IOException | URISyntaxException e) {
+                  fail(e);
                 }
+              } else {
+                reject(message);
               }
-            });
+            }
 
-        final var eventualResponse = container.requestResponseTo(
-                (WordCountActorMessage) new ProcessFileCommand("lorem-ipsum.txt"))
-            .ofType(WordCountResult.class).from(wordCounterActor);
+            private void processing(final WordCountActorMessage message) {
 
-        await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+              if (message instanceof LineWordCount(int lineNumber, int words)) {
 
-        assertThat(eventualResponse.get()).isEqualTo(new WordCountResult(9895));
-      }
+                wordCount.addAndGet(words);
+
+                if (lineNumber + 1 == maxLines) {
+                  context().stop(lineProcessor);
+                  send(new WordCountResult(wordCount.get())).to(this.commandSender);
+                  this.commandSender = null;
+                  behaveAsDefault();
+                }
+              } else {
+                reject(message);
+              }
+            }
+          });
+
+      final var eventualResponse = container.requestResponseTo(
+              (WordCountActorMessage) new ProcessFileCommand("lorem-ipsum.txt"))
+          .ofType(WordCountResult.class).from(wordCounterActor);
+
+      await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+
+      assertThat(eventualResponse.get()).isEqualTo(new WordCountResult(9895));
     }
   }
 }
