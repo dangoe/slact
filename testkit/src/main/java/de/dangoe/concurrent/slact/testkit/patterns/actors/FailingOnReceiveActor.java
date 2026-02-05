@@ -1,9 +1,9 @@
-package de.dangoe.concurrent.slact.testsupport.actor;
+package de.dangoe.concurrent.slact.testkit.patterns.actors;
 
 import de.dangoe.concurrent.slact.core.Actor;
 import org.jetbrains.annotations.NotNull;
 
-public class FailingOnMessageActor<M> extends Actor<M> {
+public class FailingOnReceiveActor<M> extends Actor<M> {
 
   @Override
   public void onMessage(@NotNull M message) {

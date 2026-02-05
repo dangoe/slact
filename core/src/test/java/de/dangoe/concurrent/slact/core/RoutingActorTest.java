@@ -3,10 +3,11 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.core.RoutingActor.RoutingRequest;
-import de.dangoe.concurrent.slact.core.RoutingActor.SimpleRoutingRequest;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainer;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor;
+import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor.RoutingRequest;
+import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor.SimpleRoutingRequest;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import org.assertj.core.api.Fail;

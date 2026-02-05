@@ -1,6 +1,10 @@
-package de.dangoe.concurrent.slact.core;
+package de.dangoe.concurrent.slact.core.patterns.actors;
 
-import de.dangoe.concurrent.slact.core.RoutingActor.RoutingRequest;
+import de.dangoe.concurrent.slact.core.Actor;
+import de.dangoe.concurrent.slact.core.ActorContext;
+import de.dangoe.concurrent.slact.core.ActorCreator;
+import de.dangoe.concurrent.slact.core.ActorHandle;
+import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor.RoutingRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;

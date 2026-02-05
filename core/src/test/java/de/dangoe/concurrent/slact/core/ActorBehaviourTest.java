@@ -3,11 +3,12 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.testsupport.ReceivedMessage;
-import de.dangoe.concurrent.slact.testsupport.actor.ResendActor;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainer;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
+import de.dangoe.concurrent.slact.testkit.patterns.actors.ForwardingActor;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Nested;
@@ -41,10 +42,10 @@ public class ActorBehaviourTest {
           }
         });
 
-        final var resendActor = container.spawn("resend-actor", () -> new ResendActor<>(actor));
+        final var forwardingActor = container.spawn("resend-actor",
+            () -> new ForwardingActor<>(actor));
 
-        container.send("initialize").to(resendActor);
-        container.send("Hello world!").to(resendActor);
+        container.sendMultiple(List.of("initialize", "Hello world!")).to(forwardingActor);
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(
             () -> assertThat(result.get()).isEqualTo(
@@ -79,11 +80,10 @@ public class ActorBehaviourTest {
           }
         });
 
-        final var resendActor = container.spawn("resend-actor", () -> new ResendActor<>(actor));
+        final var forwardingActor = container.spawn("resend-actor",
+            () -> new ForwardingActor<>(actor));
 
-        container.send("Ready!").to(resendActor);
-        container.send("Steady!").to(resendActor);
-        container.send("Go!").to(resendActor);
+        container.sendMultiple(List.of("Ready!", "Steady!", "Go!")).to(forwardingActor);
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(
             () -> assertThat(result.get()).isEqualTo(

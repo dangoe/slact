@@ -4,8 +4,8 @@ import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainer;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;

@@ -1,6 +1,5 @@
-package de.dangoe.concurrent.slact.testsupport;
+package de.dangoe.concurrent.slact.testkit;
 
-import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;

@@ -1,4 +1,4 @@
-package de.dangoe.concurrent.slact.testsupport;
+package de.dangoe.concurrent.slact.testkit;
 
 import de.dangoe.concurrent.slact.core.Actor;
 import de.dangoe.concurrent.slact.core.ActorCreator;
@@ -43,6 +43,14 @@ public final class SlactTestContainer implements SlactContainer {
   @Override
   public @NotNull <M> SendMessageOp<M> send(final @NotNull M message) {
     return delegate.send(message);
+  }
+
+  public @NotNull <M> SendMessageOp<M> sendMultiple(final @NotNull Iterable<M> messages) {
+    return targetActor -> {
+      for (final var message : messages) {
+        send(message);
+      }
+    };
   }
 
   @Override

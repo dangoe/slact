@@ -4,10 +4,10 @@ import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.testsupport.actor.MessageCapturingActor;
-import de.dangoe.concurrent.slact.testsupport.actor.MessageCapturingActor.MessageWithSender;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainer;
-import de.dangoe.concurrent.slact.testsupport.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
+import de.dangoe.concurrent.slact.testkit.patterns.actors.CapturingActor;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
+import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,19 +22,19 @@ public class ActorHandleTest {
   @DisplayName("Given an actor spawned from the root actor and a child actor spawned from the first actor")
   class GivenAnActorSpawnedFromTheRootActorAndChildActorSpawnedFromTheFirstActor {
 
-    private @NotNull MessageCapturingActor<String> actor;
+    private @NotNull CapturingActor<String> actor;
     private @NotNull ActorHandle<String> actorHandle;
 
-    private @NotNull MessageCapturingActor<String> childActor;
+    private @NotNull CapturingActor<String> childActor;
     private @NotNull ActorHandle<String> childActorHandle;
 
     @BeforeEach
     void setUp(final @NotNull SlactTestContainer container) {
 
-      actor = new MessageCapturingActor<>();
+      actor = new CapturingActor<>();
       actorHandle = container.spawn("actor", () -> actor);
 
-      childActor = new MessageCapturingActor<>();
+      childActor = new CapturingActor<>();
       childActorHandle = actorHandle.spawn("child", () -> childActor);
     }
 
@@ -62,7 +62,8 @@ public class ActorHandleTest {
 
       @Test
       @DisplayName("Then the message should have been received by the actor.")
-      void thenTheMessageShouldHaveBeenReceivedByTheActor(final @NotNull SlactTestContainer container) {
+      void thenTheMessageShouldHaveBeenReceivedByTheActor(
+          final @NotNull SlactTestContainer container) {
 
         final var sendingActorHandle = container.spawn("sending-actor", () -> new Actor<String>() {
 
@@ -79,12 +80,13 @@ public class ActorHandleTest {
 
         await().atMost(DEFAULT_TIMEOUT).untilAsserted(
             () -> assertThat(actor.receivedMessages()).containsOnly(
-                new MessageWithSender<>("Hello world!", sendingActorHandle)));
+                new ReceivedMessage<>("Hello world!", sendingActorHandle)));
       }
 
       @Test
       @DisplayName("Then the message should have been received by the child actor.")
-      void thenTheMessageShouldHaveBeenReceivedByTheChildActor(final @NotNull SlactTestContainer container) {
+      void thenTheMessageShouldHaveBeenReceivedByTheChildActor(
+          final @NotNull SlactTestContainer container) {
 
         final var sendingActorHandle = container.spawn("sending-actor", () -> new Actor<String>() {
 
@@ -101,7 +103,7 @@ public class ActorHandleTest {
 
         await().atMost(DEFAULT_TIMEOUT).untilAsserted(
             () -> assertThat(childActor.receivedMessages()).containsOnly(
-                new MessageWithSender<>("Hello world!", sendingActorHandle)));
+                new ReceivedMessage<>("Hello world!", sendingActorHandle)));
       }
     }
   }
