@@ -1,0 +1,9 @@
+package de.dangoe.concurrent.slact.core;
+
+import org.jetbrains.annotations.NotNull;
+
+@FunctionalInterface
+public interface FuturePipeOp<M> {
+
+  void to(@NotNull ActorHandle<? extends M> target);
+}

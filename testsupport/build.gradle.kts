@@ -4,5 +4,6 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":core"))
     implementation(libs.junit.jupiter)
 }
