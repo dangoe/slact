@@ -164,6 +164,6 @@ public final class DefaultSlactContainer implements SlactContainer {
   @Override
   public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
     return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
-        new StopMessage(ActorPath.root()), this.rootActor);
+        new StopMessage(ActorPath.root()), this.rootActor).thenApply(it -> Done.instance());
   }
 }

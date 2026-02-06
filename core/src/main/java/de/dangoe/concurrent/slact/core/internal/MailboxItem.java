@@ -68,6 +68,13 @@ public abstract class MailboxItem {
     }
   }
 
+  public static final class StoppedMessage extends LifecycleControlMessage {
+
+    public StoppedMessage(final @NotNull ActorPath sender) {
+      super(sender);
+    }
+  }
+
   private final String id;
 
   private final ActorPath sender;

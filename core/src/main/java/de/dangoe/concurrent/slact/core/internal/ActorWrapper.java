@@ -16,19 +16,24 @@ import de.dangoe.concurrent.slact.core.internal.MailboxItem.FireAndForgetMessage
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.LifecycleControlMessage;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.MessageWithResponseRequest;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopMessage;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.StoppedMessage;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.WrappedMessage;
+import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -84,9 +89,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public @NotNull <A extends Actor<M1>, M1> ActorHandle<M1> spawn(
-        final @NotNull String name, @NotNull ActorCreator<A, M1> actorCreator) {
-      return ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
+    public @NotNull <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final @NotNull String name,
+        @NotNull ActorCreator<A, M1> actorCreator) {
+      return ActorWrapper.this.spawn(name, actorCreator);
     }
 
     @Override
@@ -148,24 +153,27 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     @Override
     public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
       return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
-          new StopMessage(sender().path()), sender());
+          new StopMessage(sender().path()), sender()).thenApply(it -> Done.instance());
     }
   }
 
-  private final Queue<MailboxItem> mailboxItems = new LinkedBlockingQueue<>();
+  private final @NotNull Logger logger;
+  private final @NotNull Actor<M> delegate;
+  private final @NotNull ActorPath path;
+  private final @NotNull ActorSpawner actorSpawner;
+  private final @NotNull Consumer<ActorPath> stopActorFn;
+  private final @NotNull ActorHandleResolver actorHandleResolver;
+  private final @NotNull ScheduledExecutor scheduledExecutor;
 
-  private final Logger logger;
-  private final Actor<M> delegate;
-  private final ActorPath path;
-  private final ActorSpawner actorSpawner;
-  private final Consumer<ActorPath> stopActorFn;
-  private final ActorHandleResolver actorHandleResolver;
-  private final ScheduledExecutor scheduledExecutor;
+  private final @NotNull Cancellable messagePoller;
+  private final @NotNull ActiveActorContextHolder activeActorContextHolder;
 
-  private final Cancellable messagePoller;
-  private final ActiveActorContextHolder activeActorContextHolder;
+  private final @NotNull Queue<MailboxItem> mailboxItems = new LinkedBlockingQueue<>();
+  private final @NotNull Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
+  private final @NotNull List<ActorHandle<?>> children = new CopyOnWriteArrayList<>();
 
-  private final Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
+  private final @NotNull AtomicReference<ActorState> state = new AtomicReference<>(
+      ActorState.CONSTRUCTED);
 
   public ActorWrapper(final @NotNull Logger logger, final @NotNull Actor<M> delegate,
       final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
@@ -211,12 +219,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       try {
         if (item instanceof MailboxItem.StartMessage) {
+          if (!state.compareAndSet(ActorState.CONSTRUCTED, ActorState.STARTED)) {
+            return;
+          }
           this.delegate.onStart();
-          break;
-        } else if (item instanceof StopMessage) {
-          this.delegate.onStop();
-          this.stopActorFn.accept(path());
-          break;
+          this.state.compareAndSet(ActorState.STARTED, ActorState.READY);
         } else if (item instanceof WrappedMessage<?>) {
           final var message = ((WrappedMessage<M>) item);
 
@@ -228,9 +235,13 @@ final class ActorWrapper<M> implements ActorHandle<M> {
             final var wrappedMessage = message.message();
 
             if (wrappedMessage instanceof StopMessage) {
+              this.state.set(ActorState.STOPPING);
               this.delegate.onStop();
               this.stopActorFn.accept(path());
-              actorContext.respondWith(Done.instance());
+              ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
+                  new StoppedMessage(path()));
+              actorContext.respondWith(new StoppedMessage(path()));
+              this.state.set(ActorState.STOPPED);
             } else {
               this.delegate.receiveMessage(wrappedMessage);
             }
@@ -252,9 +263,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   @Override
-  public @NotNull <A extends Actor<M2>, M2> ActorHandle<M2> spawn(
-      final @NotNull String name, final @NotNull ActorCreator<A, M2> creator) {
-    return this.actorSpawner.spawn(name, creator);
+  public @NotNull <A extends Actor<M2>, M2> ActorHandle<M2> spawn(final @NotNull String name,
+      final @NotNull ActorCreator<A, M2> creator) {
+
+    if (this.state.get() != ActorState.STARTED && this.state.get() != ActorState.READY) {
+      throw new IllegalStateException("Actor is not ready");
+    }
+
+    final var child = this.actorSpawner.spawn(name, creator);
+
+    this.children.add(child);
+
+    return child;
   }
 
   @Override
@@ -275,7 +295,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     appendMessage(new WrappedMessage.FireAndForgetMessage<>(message, sender.path()));
   }
 
-  @NotNull <R> Future<R> requestResponseToInternal(final @NotNull M message,
+  <R> @NotNull Future<R> requestResponseToInternal(final @NotNull M message,
       final @NotNull ActorHandle<?> sender) {
 
     final var wrapper = new MessageWithResponseRequest<M, R>(message, sender.path());
@@ -285,7 +305,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     return wrapper.future();
   }
 
-  @NotNull <R> Future<R> requestResponseToLifecycleControlInternal(
+  <R> @NotNull RichFuture<R> requestResponseToLifecycleControlInternal(
       final @NotNull LifecycleControlMessage message, final @NotNull ActorHandle<?> sender) {
 
     final var wrapper = new MessageWithResponseRequest<LifecycleControlMessage, R>(message,
@@ -293,7 +313,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     appendMessage(wrapper);
 
-    return wrapper.future();
+    return RichFuture.of(wrapper.futureInternal());
   }
 
   void forwardInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {
