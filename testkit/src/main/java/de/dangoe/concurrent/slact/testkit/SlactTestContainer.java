@@ -8,6 +8,8 @@ import de.dangoe.concurrent.slact.core.Done;
 import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.SlactContainerBuilder;
+import de.dangoe.concurrent.slact.core.internal.ActorState;
+import de.dangoe.concurrent.slact.core.internal.ActorStateReader;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
@@ -83,5 +85,9 @@ public final class SlactTestContainer implements SlactContainer {
   public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
       @NotNull ActorCreator<A, M> actorCreator) {
     return delegate.spawn(name, actorCreator);
+  }
+
+  public @NotNull ActorState getActorState(final @NotNull ActorPath path) {
+    return new ActorStateReader(this).readState(path);
   }
 }

@@ -170,7 +170,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final @NotNull Queue<MailboxItem> mailboxItems = new LinkedBlockingQueue<>();
   private final @NotNull Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
-  private final @NotNull List<ActorHandle<?>> children = new CopyOnWriteArrayList<>();
+  private final @NotNull List<ActorWrapper<?>> children = new CopyOnWriteArrayList<>();
 
   private final @NotNull AtomicReference<ActorState> state = new AtomicReference<>(
       ActorState.CONSTRUCTED);
@@ -236,6 +236,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
             if (wrappedMessage instanceof StopMessage) {
               this.state.set(ActorState.STOPPING);
+              this.children.forEach(
+                  child -> child.sendLifecycleControlMessage(
+                      new StopMessage(actorContext.self().path())));
               this.delegate.onStop();
               this.stopActorFn.accept(path());
               ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
@@ -272,7 +275,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     final var child = this.actorSpawner.spawn(name, creator);
 
-    this.children.add(child);
+    this.children.add((ActorWrapper<?>) child);
 
     return child;
   }

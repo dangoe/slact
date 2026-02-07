@@ -4,18 +4,17 @@ import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.core.internal.ActorState;
-import de.dangoe.concurrent.slact.core.internal.ActorStateReader;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import de.dangoe.concurrent.slact.testkit.patterns.actors.FailingOnReceiveActor;
-import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,7 +47,38 @@ class CoordinatedActorStopTest {
 
     protected abstract void spawnChildActors(final @NotNull ActorContext<?> actorContext);
 
-    protected abstract void verifyStopOrder(final @NotNull List<ActorPath> stopOrder);
+    protected abstract void verifyStoppedInternal(final @NotNull List<ActorPath> stoppedActorPaths);
+
+    protected final void verifyCoordinatedStop(final @NotNull ActorPath parentPath,
+        final @NotNull Iterable<ActorPath> childrenPaths) {
+
+      await().atMost(DEFAULT_TIMEOUT).untilAsserted(() -> {
+
+        verifyUnresolvable(parentPath);
+
+        final var parentIndex = stopOrder.indexOf(parentPath);
+
+        for (final var childPath : childrenPaths) {
+
+          verifyUnresolvable(childPath);
+
+          final var childIndex = stopOrder.indexOf(childPath);
+
+          assertThat(childIndex).describedAs(
+              "Expected child actor '%s' to be stopped before parent '%s'.".formatted(childPath,
+                  parentPath)).isLessThan(parentIndex);
+        }
+      });
+    }
+
+    // Initialized by JUnit
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    private @NotNull SlactTestContainer container;
+
+    @BeforeEach
+    void beforeEach(final @NotNull SlactTestContainer container) {
+      this.container = container;
+    }
 
     @Nested
     @DisplayName("Should be stopped in a coordinated way")
@@ -122,10 +152,15 @@ class CoordinatedActorStopTest {
         await().atMost(DEFAULT_TIMEOUT)
             .untilAsserted(() -> assertThat(eventualStopResult.get()).isDone());
 
-        assertThat(ActorStateReader.readState(actor)).isEqualTo(ActorState.STOPPED);
-
-        verifyStopOrder(stopOrder);
+        verifyUnresolvable(actor.path());
+        verifyStoppedInternal(stopOrder);
       }
+    }
+
+    private void verifyUnresolvable(final @NotNull ActorPath path) {
+      assertThat(container.resolve(path)).describedAs(
+              "Expected actor '%s' to be stopped and not resolvable anymore.".formatted(path))
+          .isEmpty();
     }
   }
 
@@ -140,10 +175,11 @@ class CoordinatedActorStopTest {
     }
 
     @Override
-    protected void verifyStopOrder(final @NotNull List<ActorPath> stopOrder) {
+    protected void verifyStoppedInternal(final @NotNull List<ActorPath> stoppedActorPaths) {
 
-      assertThat(stopOrder).usingRecursiveFieldByFieldElementComparator()
-          .containsExactly(ActorPath.root().append("actor"));
+      await().atMost(DEFAULT_TIMEOUT).untilAsserted(
+          () -> assertThat(stoppedActorPaths).usingRecursiveFieldByFieldElementComparator()
+              .containsExactly(ActorPath.root().append("actor")));
     }
   }
 
@@ -154,15 +190,17 @@ class CoordinatedActorStopTest {
     @Override
     protected void spawnChildActors(final @NotNull ActorContext<?> actorContext) {
 
-      actorContext.spawn("first-child", () -> new FailingOnReceiveActor<>());
-      actorContext.spawn("second-child", () -> new FailingOnReceiveActor<>());
+      actorContext.spawn("first-child", () -> new StopTrackingActor(markAsStoppedConsumer));
+      actorContext.spawn("second-child", () -> new StopTrackingActor(markAsStoppedConsumer));
     }
 
     @Override
-    protected void verifyStopOrder(final @NotNull List<ActorPath> stopOrder) {
+    protected void verifyStoppedInternal(final @NotNull List<ActorPath> stoppedActorPaths) {
 
-      assertThat(stopOrder).usingRecursiveFieldByFieldElementComparator()
-          .containsExactly(ActorPath.root().append("actor"));
+      final var parentActorPath = ActorPath.root().append("actor");
+
+      verifyCoordinatedStop(parentActorPath,
+          Set.of(parentActorPath.append("first-child"), parentActorPath.append("second-child")));
     }
   }
 
@@ -178,10 +216,8 @@ class CoordinatedActorStopTest {
         @Override
         public void onStart() {
           super.onStart();
-          context().spawn("first-child-first-grandchild",
-              () -> new StopTrackingActor(markAsStoppedConsumer));
-          context().spawn("first-child-second-grandchild",
-              () -> new StopTrackingActor(markAsStoppedConsumer));
+          context().spawn("first-grandchild", () -> new StopTrackingActor(markAsStoppedConsumer));
+          context().spawn("second-grandchild", () -> new StopTrackingActor(markAsStoppedConsumer));
         }
       });
 
@@ -190,19 +226,24 @@ class CoordinatedActorStopTest {
         @Override
         public void onStart() {
           super.onStart();
-          context().spawn("second-child-first-grandchild",
-              () -> new StopTrackingActor(markAsStoppedConsumer));
-          context().spawn("second-child-second-grandchild",
-              () -> new StopTrackingActor(markAsStoppedConsumer));
+          context().spawn("first-grandchild", () -> new StopTrackingActor(markAsStoppedConsumer));
+          context().spawn("second-grandchild", () -> new StopTrackingActor(markAsStoppedConsumer));
         }
       });
     }
 
     @Override
-    protected void verifyStopOrder(final @NotNull List<ActorPath> stopOrder) {
+    protected void verifyStoppedInternal(final @NotNull List<ActorPath> stoppedActorPaths) {
 
-      assertThat(stopOrder).usingRecursiveFieldByFieldElementComparator()
-          .containsExactly(ActorPath.root().append("actor"));
+      final var parentActorPath = ActorPath.root().append("actor");
+      final var firstChildPath = parentActorPath.append("first-child");
+      final var secondChildPath = parentActorPath.append("second-child");
+
+      verifyCoordinatedStop(firstChildPath, Set.of(firstChildPath.append("first-grandchild"),
+          firstChildPath.append("second-grandchild")));
+      verifyCoordinatedStop(secondChildPath, Set.of(secondChildPath.append("first-grandchild"),
+          secondChildPath.append("second-grandchild")));
+      verifyCoordinatedStop(parentActorPath, Set.of(firstChildPath, secondChildPath));
     }
   }
 }
