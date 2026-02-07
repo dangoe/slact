@@ -332,6 +332,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
+  // Visible for testing
+  @NotNull ActorState state() {
+    return this.state.get();
+  }
+
   void shutdown() {
     this.messagePoller.cancel();
   }
