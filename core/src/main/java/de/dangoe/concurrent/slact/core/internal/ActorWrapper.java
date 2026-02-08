@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class ActorWrapper<M> implements ActorHandle<M> {
 
@@ -91,7 +93,17 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     @Override
     public @NotNull <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final @NotNull String name,
         @NotNull ActorCreator<A, M1> actorCreator) {
-      return ActorWrapper.this.spawn(name, actorCreator);
+
+      if (ActorWrapper.this.state.get() != ActorState.STARTED
+          && ActorWrapper.this.state.get() != ActorState.READY) {
+        throw new IllegalStateException("Actor is not ready");
+      }
+
+      final var child = ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
+
+      ActorWrapper.this.children.put(child.path(), (ActorWrapper<?>) child);
+
+      return child;
     }
 
     @Override
@@ -157,7 +169,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
-  private final @NotNull Logger logger;
+  private static final @NotNull Logger logger = LoggerFactory.getLogger(ActorWrapper.class);
+
   private final @NotNull Actor<M> delegate;
   private final @NotNull ActorPath path;
   private final @NotNull ActorSpawner actorSpawner;
@@ -170,20 +183,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final @NotNull Queue<MailboxItem> mailboxItems = new LinkedBlockingQueue<>();
   private final @NotNull Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
-  private final @NotNull List<ActorWrapper<?>> children = new CopyOnWriteArrayList<>();
+  private final @NotNull Map<ActorPath, ActorWrapper<?>> children = new ConcurrentHashMap<>();
 
   private final @NotNull AtomicReference<ActorState> state = new AtomicReference<>(
       ActorState.CONSTRUCTED);
 
-  public ActorWrapper(final @NotNull Logger logger, final @NotNull Actor<M> delegate,
-      final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
-      final @NotNull Consumer<ActorPath> stopActorFn,
+  public ActorWrapper(final @NotNull Actor<M> delegate, final @NotNull ActorPath path,
+      final @NotNull ActorSpawner actorSpawner, final @NotNull Consumer<ActorPath> stopActorFn,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
 
     super();
 
-    this.logger = logger;
     this.delegate = delegate;
     this.path = path;
     this.actorSpawner = actorSpawner;
@@ -205,10 +216,12 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     while (item != null) {
 
+      logger.debug("Processing '{}' received by actor at '{}'.", item, path);
+
       final var sender = this.actorHandleResolver.resolve(item.sender());
 
       if (sender.isEmpty()) {
-        this.logger.warn("Failed to resolve sender for message with ID '{}'.", item.id());
+        logger.warn("Failed to resolve sender handle for message '{}'.", item);
         break;
       }
 
@@ -224,6 +237,22 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           }
           this.delegate.onStart();
           this.state.compareAndSet(ActorState.STARTED, ActorState.READY);
+        } else if (item instanceof MailboxItem.StopMessage) {
+          doStop(actorContext);
+        } else if (item instanceof MailboxItem.StoppedMessage) {
+
+          logger.debug("Child actor at '{}' has been stopped.", item.sender());
+          this.children.remove(item.sender());
+          this.stopActorFn.accept(item.sender());
+
+          if (state.get() == ActorState.STOPPING && children.isEmpty()) {
+            logger.debug("No children left. Stopping actor at '{}'.", path());
+            this.delegate.onStop();
+            ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
+                new StoppedMessage(path()));
+            // actorContext.respondWith(new StoppedMessage(path()));
+            this.state.set(ActorState.STOPPED);
+          }
         } else if (item instanceof WrappedMessage<?>) {
           final var message = ((WrappedMessage<M>) item);
 
@@ -235,21 +264,12 @@ final class ActorWrapper<M> implements ActorHandle<M> {
             final var wrappedMessage = message.message();
 
             if (wrappedMessage instanceof StopMessage) {
-              this.state.set(ActorState.STOPPING);
-              this.children.forEach(
-                  child -> child.sendLifecycleControlMessage(
-                      new StopMessage(actorContext.self().path())));
-              this.delegate.onStop();
-              this.stopActorFn.accept(path());
-              ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
-                  new StoppedMessage(path()));
-              actorContext.respondWith(new StoppedMessage(path()));
-              this.state.set(ActorState.STOPPED);
+              doStop(actorContext);
             } else {
               this.delegate.receiveMessage(wrappedMessage);
             }
           } catch (final MessageRejectedException e) {
-            this.logger.warn("Message has been rejected.", e);
+            logger.warn("Message has been rejected.", e);
           }
         }
       } finally {
@@ -260,24 +280,25 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
-  @Override
-  public @NotNull ActorPath path() {
-    return this.path;
+  private void doStop(final @NotNull ActorContext<M> actorContext) {
+
+    logger.warn("Initiating stop for actor at path '{}'.", path);
+
+    this.state.set(ActorState.STOPPING);
+
+    if (this.children.isEmpty()) {
+      this.delegate.onStop();
+      ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
+          new StoppedMessage(path()));
+    } else {
+      this.children.values().forEach(
+          child -> child.sendLifecycleControlMessage(new StopMessage(actorContext.self().path())));
+    }
   }
 
   @Override
-  public @NotNull <A extends Actor<M2>, M2> ActorHandle<M2> spawn(final @NotNull String name,
-      final @NotNull ActorCreator<A, M2> creator) {
-
-    if (this.state.get() != ActorState.STARTED && this.state.get() != ActorState.READY) {
-      throw new IllegalStateException("Actor is not ready");
-    }
-
-    final var child = this.actorSpawner.spawn(name, creator);
-
-    this.children.add((ActorWrapper<?>) child);
-
-    return child;
+  public @NotNull ActorPath path() {
+    return this.path;
   }
 
   @Override

@@ -92,4 +92,9 @@ public abstract class MailboxItem {
   public final @NotNull ActorPath sender() {
     return sender;
   }
+
+  @Override
+  public String toString() {
+    return "%s{id=%s, sender=%s}".formatted(getClass().getSimpleName(), id, sender);
+  }
 }

@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact.core;
 
+import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -137,18 +138,30 @@ class ActorMessagePropagationTest {
     final var result = new CopyOnWriteArrayList<ReceivedMessage<String>>();
 
     final var parentActor = container.spawn("parent-actor", () -> new Actor<String>() {
+
+      @Override
+      public void onStart() {
+        super.onStart();
+        context().spawn("child-actor", () -> new Actor<String>() {
+          @Override
+          public void onMessage(final @NotNull String message) {
+            send(message).to(parent());
+          }
+        });
+      }
+
       @Override
       public void onMessage(final @NotNull String message) {
         result.add(new ReceivedMessage<>(message, context().sender().path()));
       }
     });
 
-    final var childActor = parentActor.spawn("child-actor", () -> new Actor<String>() {
-      @Override
-      public void onMessage(final @NotNull String message) {
-        send(message).to(parent());
-      }
-    });
+    final var childActorPath = parentActor.path().append("child-actor");
+
+    await().atMost(DEFAULT_TIMEOUT).until(() -> container.resolve(childActorPath).isPresent());
+
+    //noinspection OptionalGetWithoutIsPresent
+    final var childActor = container.<String>resolve(childActorPath).get();
 
     final var messages = IntStream.range(0, 1).boxed().map("m_%d"::formatted).toList();
 

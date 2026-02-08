@@ -4,10 +4,13 @@ import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.core.internal.ActorState;
 import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
 import de.dangoe.concurrent.slact.testkit.patterns.actors.CapturingActor;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import java.util.List;
+import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,11 +34,25 @@ public class ActorHandleTest {
     @BeforeEach
     void setUp(final @NotNull SlactTestContainer container) {
 
-      actor = new CapturingActor<>();
+      actor = new CapturingActor<>() {
+
+        @Override
+        public void onStart() {
+          super.onStart();
+          childActor = new CapturingActor<>();
+          childActorHandle = context().spawn("child", () -> childActor);
+        }
+      };
+
       actorHandle = container.spawn("actor", () -> actor);
 
-      childActor = new CapturingActor<>();
-      childActorHandle = actorHandle.spawn("child", () -> childActor);
+      await().atMost(DEFAULT_TIMEOUT).untilAsserted(
+          () -> {
+            assertThat(childActorHandle).isNotNull();
+            assertThat(List.of(container.getActorState(actorHandle.path()),
+                container.getActorState(childActorHandle.path()))).containsOnly(
+                ActorState.READY);
+          });
     }
 
     @Nested

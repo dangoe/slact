@@ -72,8 +72,8 @@ final class RootActorSpawner implements ActorSpawner {
     return spawnInternal(ActorPath.root().append(name), creator);
   }
 
-  @NotNull
-  <A extends Actor<M>, M> ActorHandle<M> spawnRootActor(final @NotNull ActorCreator<A, M> creator) {
+  @NotNull <A extends Actor<M>, M> ActorHandle<M> spawnRootActor(
+      final @NotNull ActorCreator<A, M> creator) {
     return spawnInternal(ActorPath.root(), creator);
   }
 
@@ -84,8 +84,8 @@ final class RootActorSpawner implements ActorSpawner {
 
     final var localSpawner = new PathLocalActorSpawner(path);
 
-    final var actorWrapper = new ActorWrapper<>(logger, actor, path, localSpawner,
-        this.stopActorFn, this.actorHandleResolver, this.scheduledExecutor);
+    final var actorWrapper = new ActorWrapper<>(actor, path, localSpawner, this.stopActorFn,
+        this.actorHandleResolver, this.scheduledExecutor);
 
     actorRegistry.register(actorWrapper);
 

@@ -51,7 +51,7 @@ public final class DefaultSlactContainer implements SlactContainer {
     }
   }
 
-  private static final Logger logger = LoggerFactory.getLogger(SlactContainer.class);
+  private static final Logger logger = LoggerFactory.getLogger(DefaultSlactContainer.class);
 
   private final ScheduledExecutor scheduledExecutor;
 
