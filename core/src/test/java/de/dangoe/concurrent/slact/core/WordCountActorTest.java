@@ -66,7 +66,7 @@ public class WordCountActorTest {
             private @Nullable Integer maxLines = null;
 
             private @Nullable ActorHandle<WordCountResult> commandSender;
-            private @Nullable ActorHandle<RoutingRequest<Line>> lineProcessor;
+            private @Nullable ActorHandle<SimpleRoutingRequest<Line>> lineProcessor;
 
             @Override
             public void onMessage(final @NotNull WordCountActorMessage message) {
@@ -76,7 +76,7 @@ public class WordCountActorTest {
                 this.commandSender = sender();
 
                 this.lineProcessor = context().spawn(
-                    RoutingActor.roundRobinWorker(10, () -> new Actor<>() {
+                    RoutingActor.roundRobinWorker(10, () -> new Actor<Line>() {
 
                       @Override
                       public void onMessage(final @NotNull Line line) {
@@ -127,7 +127,7 @@ public class WordCountActorTest {
                         lineWordCounts.values().stream().reduce(0, Integer::sum))).to(
                         this.commandSender);
                   } else {
-                     fail("Command sender is null!");
+                    fail("Command sender is null!");
                   }
 
                   reset();

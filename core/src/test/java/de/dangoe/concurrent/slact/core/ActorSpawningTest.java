@@ -17,6 +17,7 @@ class ActorSpawningTest {
 
   @Test
   void actorPathShouldBeChildOfRoot(final @NotNull SlactTestContainer container) {
+
     final var actor = container.spawn("actor", () -> new FailingOnReceiveActor<String>());
 
     assertThat(actor.path()).isEqualTo(ActorPath.root().append("actor"));
@@ -27,7 +28,7 @@ class ActorSpawningTest {
 
     final var childActorHandleRef = new AtomicReference<ActorHandle<?>>();
 
-    final var actor = container.spawn("actor", () -> new FailingOnReceiveActor<String>() {
+    container.spawn("actor", () -> new FailingOnReceiveActor<String>() {
 
       @Override
       public void onStart() {

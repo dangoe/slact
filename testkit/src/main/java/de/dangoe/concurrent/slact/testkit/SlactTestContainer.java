@@ -1,5 +1,7 @@
 package de.dangoe.concurrent.slact.testkit;
 
+import static org.awaitility.Awaitility.await;
+
 import de.dangoe.concurrent.slact.core.Actor;
 import de.dangoe.concurrent.slact.core.ActorCreator;
 import de.dangoe.concurrent.slact.core.ActorHandle;
@@ -10,6 +12,9 @@ import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.SlactContainerBuilder;
 import de.dangoe.concurrent.slact.core.internal.ActorState;
 import de.dangoe.concurrent.slact.core.internal.ActorStateReader;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
@@ -85,6 +90,15 @@ public final class SlactTestContainer implements SlactContainer {
   public @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(final @NotNull String name,
       @NotNull ActorCreator<A, M> actorCreator) {
     return delegate.spawn(name, actorCreator);
+  }
+
+  public void awaitReady(final @NotNull ActorPath path, final @NotNull ActorPath... paths) {
+
+    final var pathsLists = new ArrayList<>(Arrays.asList(paths));
+    pathsLists.add(path);
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> pathsLists.stream().allMatch(it -> getActorState(it) == ActorState.READY));
   }
 
   public @NotNull ActorState getActorState(final @NotNull ActorPath path) {
