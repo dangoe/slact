@@ -49,9 +49,8 @@ public class ActorHandleTest {
       await().atMost(DEFAULT_TIMEOUT).untilAsserted(
           () -> {
             assertThat(childActorHandle).isNotNull();
-            assertThat(List.of(container.getActorState(actorHandle.path()),
-                container.getActorState(childActorHandle.path()))).containsOnly(
-                ActorState.READY);
+            assertThat(container.isReady(actorHandle.path())).isTrue();
+            assertThat(container.isReady(childActorHandle.path())).isTrue();
           });
     }
 

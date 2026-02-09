@@ -10,8 +10,7 @@ import de.dangoe.concurrent.slact.core.Done;
 import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.SlactContainerBuilder;
-import de.dangoe.concurrent.slact.core.internal.ActorState;
-import de.dangoe.concurrent.slact.core.internal.ActorStateReader;
+import de.dangoe.concurrent.slact.core.internal.ActorReadinessResolver;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -98,10 +97,10 @@ public final class SlactTestContainer implements SlactContainer {
     pathsLists.add(path);
 
     await().atMost(Duration.ofSeconds(5))
-        .until(() -> pathsLists.stream().allMatch(it -> getActorState(it) == ActorState.READY));
+        .until(() -> pathsLists.stream().allMatch(this::isReady));
   }
 
-  public @NotNull ActorState getActorState(final @NotNull ActorPath path) {
-    return new ActorStateReader(this).readState(path);
+  public boolean isReady(final @NotNull ActorPath path) {
+    return new ActorReadinessResolver(this).isReady(path);
   }
 }

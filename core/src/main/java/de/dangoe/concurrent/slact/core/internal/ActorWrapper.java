@@ -12,29 +12,28 @@ import de.dangoe.concurrent.slact.core.Done;
 import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
 import de.dangoe.concurrent.slact.core.exception.MessageRejectedException;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.ActorStarted;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.ActorStopped;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.LifecycleControlMessage;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.MessageWithResponseRequest;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopMessage;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StoppedMessage;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartActor;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActor;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.WrappedMessage;
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -92,10 +91,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     public @NotNull <A extends Actor<M1>, M1> ActorHandle<M1> spawn(final @NotNull String name,
-        @NotNull ActorCreator<A, M1> actorCreator) {
+        final @NotNull ActorCreator<A, M1> actorCreator) {
 
-      if (ActorWrapper.this.state.get() != ActorState.STARTED
-          && ActorWrapper.this.state.get() != ActorState.READY) {
+      if (!ActorWrapper.this.isReady()) {
         throw new IllegalStateException("Actor is not ready");
       }
 
@@ -107,13 +105,13 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public @NotNull <M1> Optional<ActorHandle<M1>> resolve(final @NotNull ActorPath path) {
+    public <M1> @NotNull Optional<ActorHandle<M1>> resolve(final @NotNull ActorPath path) {
       return ActorWrapper.this.actorHandleResolver.resolve(path);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public @NotNull <M1> SendMessageOp<M1> send(final @NotNull M1 message) {
+    public <M1> @NotNull SendMessageOp<M1> send(final @NotNull M1 message) {
       return targetActor -> {
 
         final var messageWithResponseRequest = ActorWrapper.this.messagesWithResponseRequest.get(
@@ -136,7 +134,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     @Override
-    public @NotNull <M1> ResponseRequestOp<M1> requestResponseTo(@NotNull M1 message) {
+    public <M1> @NotNull ResponseRequestOp<M1> requestResponseTo(@NotNull M1 message) {
 
       return new ResponseRequestOp<>() {
 
@@ -158,14 +156,151 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public @NotNull <M1> SendMessageOp<M1> forward(final @NotNull M1 message) {
+    public <M1> @NotNull SendMessageOp<M1> forward(final @NotNull M1 message) {
       return targetActor -> ((ActorWrapper<M1>) targetActor).forwardInternal(message, sender());
     }
 
     @Override
     public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
       return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
-          new StopMessage(sender().path()), sender()).thenApply(it -> Done.instance());
+          new StopActor(sender().path()), sender()).thenApply(it -> Done.instance());
+    }
+  }
+
+  private interface Behavior<M> {
+
+    boolean isReady();
+
+    boolean processMailboxItem(@NotNull MailboxItem item, @NotNull ActorContext<M> context,
+        @NotNull ActorHandle<?> sender);
+  }
+
+  final class StartupBehavior implements Behavior<M> {
+
+    private boolean readyDuringStartup = false;
+
+    @Override
+    public boolean isReady() {
+      return readyDuringStartup;
+    }
+
+    @Override
+    public boolean processMailboxItem(final @NotNull MailboxItem item,
+        final @NotNull ActorContext<M> context, final @NotNull ActorHandle<?> sender) {
+
+      if (item instanceof StartActor) {
+
+        this.readyDuringStartup = true;
+
+        final var debugEnabled = ActorWrapper.logger.isDebugEnabled();
+
+        if (debugEnabled) {
+          logger.debug("Received start command from '{}'.", sender.path());
+          logger.debug("Invoking 'onStart' hook.");
+        }
+
+        ActorWrapper.this.delegate.onStart();
+
+        if (debugEnabled) {
+          logger.debug("'onStart' hook invoked.");
+          logger.debug("Sending lifecycle control event to '{}'.", context.parent().path());
+        }
+
+        ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
+            new ActorStarted(context.self().path()));
+
+        ActorWrapper.this.setBehavior(new ReadyBehavior());
+
+        return true;
+      }
+
+      return false;
+    }
+  }
+
+  final class ReadyBehavior implements Behavior<M> {
+
+    @Override
+    public boolean isReady() {
+      return true;
+    }
+
+    @Override
+    public boolean processMailboxItem(final @NotNull MailboxItem item,
+        final @NotNull ActorContext<M> context, final @NotNull ActorHandle<?> sender) {
+
+      switch (item) {
+        case StopActor msg -> {
+          doStop(context);
+          return true;
+        }
+        case ActorStopped msg -> {
+
+          if (logger.isDebugEnabled()) {
+            logger.debug("Child '{}' has been stopped.", item.sender());
+          }
+
+          ActorWrapper.this.children.remove(item.sender());
+          ActorWrapper.this.stopActorFn.accept(item.sender());
+
+          return true;
+        }
+        case WrappedMessage<?> wrappedMessage -> {
+
+          try {
+
+            if (wrappedMessage instanceof MessageWithResponseRequest<?, ?> messageWithResponseRequest) {
+              //noinspection unchecked
+              ActorWrapper.this.messagesWithResponseRequest.put(sender.path(),
+                  (MessageWithResponseRequest<M, ?>) messageWithResponseRequest);
+            }
+
+            //noinspection unchecked
+            final var message = (M) wrappedMessage.message();
+
+            if (message instanceof StopActor) {
+              doStop(context);
+            } else {
+              ActorWrapper.this.delegate.receiveMessage(message);
+            }
+          } catch (final MessageRejectedException e) {
+            logger.warn("Message has been rejected.", e);
+          }
+
+          return true;
+        }
+        default -> {
+          return false;
+        }
+      }
+    }
+  }
+
+  final class StoppingBehavior implements Behavior<M> {
+
+    @Override
+    public boolean isReady() {
+      return false;
+    }
+
+    @Override
+    public boolean processMailboxItem(final @NotNull MailboxItem item,
+        final @NotNull ActorContext<M> context, final @NotNull ActorHandle<?> sender) {
+
+      if (item instanceof ActorStopped) {
+
+        logger.debug("Child actor at '{}' has been stopped.", item.sender());
+        ActorWrapper.this.children.remove(item.sender());
+        ActorWrapper.this.stopActorFn.accept(item.sender());
+
+        logger.debug("No children left. Stopping actor at '{}'.", path());
+        ActorWrapper.this.delegate.onStop();
+        ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(new ActorStopped(path()));
+        // actorContext.respondWith(new StoppedMessage(path()));
+        return true;
+      }
+
+      return false;
     }
   }
 
@@ -185,8 +320,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final @NotNull Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
   private final @NotNull Map<ActorPath, ActorWrapper<?>> children = new ConcurrentHashMap<>();
 
-  private final @NotNull AtomicReference<ActorState> state = new AtomicReference<>(
-      ActorState.CONSTRUCTED);
+  private @NotNull ActorWrapper.Behavior<M> behavior;
 
   public ActorWrapper(final @NotNull Actor<M> delegate, final @NotNull ActorPath path,
       final @NotNull ActorSpawner actorSpawner, final @NotNull Consumer<ActorPath> stopActorFn,
@@ -202,14 +336,24 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
-    this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
-        Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
+    this.behavior = new StartupBehavior();
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
+
+    this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
+        Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
   }
 
-  @SuppressWarnings("unchecked")
+  private void setBehavior(final @NotNull ActorWrapper.Behavior<M> behavior) {
+
+    if (logger.isDebugEnabled()) {
+      logger.debug("Switching behavior to {}.", behavior.getClass().getSimpleName());
+    }
+
+    this.behavior = behavior;
+  }
+
   private void processMessages() {
 
     var item = mailboxItems.poll();
@@ -231,47 +375,12 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       this.activeActorContextHolder.activateContext(actorContext);
 
       try {
-        if (item instanceof MailboxItem.StartMessage) {
-          if (!state.compareAndSet(ActorState.CONSTRUCTED, ActorState.STARTED)) {
-            return;
-          }
-          this.delegate.onStart();
-          this.state.compareAndSet(ActorState.STARTED, ActorState.READY);
-        } else if (item instanceof MailboxItem.StopMessage) {
-          doStop(actorContext);
-        } else if (item instanceof MailboxItem.StoppedMessage) {
-
-          logger.debug("Child actor at '{}' has been stopped.", item.sender());
-          this.children.remove(item.sender());
-          this.stopActorFn.accept(item.sender());
-
-          if (state.get() == ActorState.STOPPING && children.isEmpty()) {
-            logger.debug("No children left. Stopping actor at '{}'.", path());
-            this.delegate.onStop();
-            ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
-                new StoppedMessage(path()));
-            // actorContext.respondWith(new StoppedMessage(path()));
-            this.state.set(ActorState.STOPPED);
-          }
-        } else if (item instanceof WrappedMessage<?>) {
-          final var message = ((WrappedMessage<M>) item);
-
-          try {
-            if (message instanceof MessageWithResponseRequest<M, ?> messageWithResponseRequest) {
-              this.messagesWithResponseRequest.put(senderHandle.path(), messageWithResponseRequest);
-            }
-
-            final var wrappedMessage = message.message();
-
-            if (wrappedMessage instanceof StopMessage) {
-              doStop(actorContext);
-            } else {
-              this.delegate.receiveMessage(wrappedMessage);
-            }
-          } catch (final MessageRejectedException e) {
-            logger.warn("Message has been rejected.", e);
-          }
+        if (!this.behavior.processMailboxItem(item, actorContext, senderHandle)) {
+          logger.warn("Dismissing unprocessable mailbox item: {}", item);
         }
+
+      } catch (Exception e) {
+        logger.error("Failed to process mailbox item.", e);
       } finally {
         this.activeActorContextHolder.deactivateContext();
       }
@@ -284,15 +393,15 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     logger.warn("Initiating stop for actor at path '{}'.", path);
 
-    this.state.set(ActorState.STOPPING);
+    this.setBehavior(new StoppingBehavior());
 
     if (this.children.isEmpty()) {
       this.delegate.onStop();
       ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
-          new StoppedMessage(path()));
+          new ActorStopped(path()));
     } else {
       this.children.values().forEach(
-          child -> child.sendLifecycleControlMessage(new StopMessage(actorContext.self().path())));
+          child -> child.sendLifecycleControlMessage(new StopActor(actorContext.self().path())));
     }
   }
 
@@ -357,8 +466,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   // Visible for testing
-  @NotNull ActorState state() {
-    return this.state.get();
+  boolean isReady() {
+    return this.behavior.isReady();
   }
 
   void shutdown() {

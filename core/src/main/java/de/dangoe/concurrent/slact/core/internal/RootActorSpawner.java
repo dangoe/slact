@@ -7,7 +7,7 @@ import de.dangoe.concurrent.slact.core.ActorHandleResolver;
 import de.dangoe.concurrent.slact.core.ActorPath;
 import de.dangoe.concurrent.slact.core.ActorSpawner;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartMessage;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartActor;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -92,7 +92,7 @@ final class RootActorSpawner implements ActorSpawner {
     final var parentPath = path.isRoot() ? path
         : path.parent().orElseThrow(() -> new IllegalStateException("Root actor path is null."));
 
-    actorWrapper.sendLifecycleControlMessage(new StartMessage(parentPath));
+    actorWrapper.sendLifecycleControlMessage(new StartActor(parentPath));
 
     return actorWrapper;
   }

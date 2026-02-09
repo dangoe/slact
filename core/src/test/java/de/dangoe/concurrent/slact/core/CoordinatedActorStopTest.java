@@ -38,7 +38,7 @@ class CoordinatedActorStopTest {
     }
   }
 
-  private static abstract class CoordinatedActorStopBehaviour {
+  private static abstract class CoordinatedActorStopBehavior {
 
     private final @NotNull AtomicReference<Future<Done>> eventualStopResult = new AtomicReference<>();
     private final @NotNull List<ActorPath> stopOrder = new CopyOnWriteArrayList<>();
@@ -171,7 +171,7 @@ class CoordinatedActorStopTest {
 
   @Nested
   @DisplayName("An actor without children")
-  class AnActorWithoutChildren extends CoordinatedActorStopBehaviour {
+  class AnActorWithoutChildren extends CoordinatedActorStopBehavior {
 
     @Override
     protected void spawnChildActors(final @NotNull ActorContext<?> actorContext) {
@@ -190,7 +190,7 @@ class CoordinatedActorStopTest {
 
   @Nested
   @DisplayName("An actor with children but no grandchildren")
-  class AnActorWithChildrenButNoGrandchildren extends CoordinatedActorStopBehaviour {
+  class AnActorWithChildrenButNoGrandchildren extends CoordinatedActorStopBehavior {
 
     @Override
     protected void spawnChildActors(final @NotNull ActorContext<?> actorContext) {
@@ -211,7 +211,7 @@ class CoordinatedActorStopTest {
 
   @Nested
   @DisplayName("An actor with children and grandchildren")
-  class AnActorWithChildrenAndGrandchildren extends CoordinatedActorStopBehaviour {
+  class AnActorWithChildrenAndGrandchildren extends CoordinatedActorStopBehavior {
 
     @Override
     protected void spawnChildActors(final @NotNull ActorContext<?> actorContext) {

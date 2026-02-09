@@ -15,13 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(SlactTestContainerExtension.class)
-public class ActorBehaviourTest {
+public class ActorBehaviorTest {
 
   @Nested
   class GivenAnActorWithDifferentBehaviours {
 
     @Nested
-    class WhenTheBehaviourIsChangedForFirstSpecialMessageReceived {
+    class WhenTheBehaviorIsChangedForFirstSpecialMessageReceived {
 
       @Test
       void shouldChangeTheBehaviour(final @NotNull SlactTestContainer container) {
@@ -57,7 +57,7 @@ public class ActorBehaviourTest {
     }
 
     @Nested
-    class WhenTheBehaviourIsChangedMultipleTimesForTwoSpecialMessages {
+    class WhenTheBehaviorIsChangedMultipleTimesForTwoSpecialMessages {
 
       @Test
       void shouldChangeTheBehaviourAccordingly(final @NotNull SlactTestContainer container) {

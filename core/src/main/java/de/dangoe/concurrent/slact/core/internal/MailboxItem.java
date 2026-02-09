@@ -54,23 +54,30 @@ public abstract class MailboxItem {
     }
   }
 
-  public static final class StartMessage extends LifecycleControlMessage {
+  public static final class StartActor extends LifecycleControlMessage {
 
-    public StartMessage(final @NotNull ActorPath sender) {
+    public StartActor(final @NotNull ActorPath sender) {
       super(sender);
     }
   }
 
-  public static final class StopMessage extends LifecycleControlMessage {
+  public static final class ActorStarted extends LifecycleControlMessage {
 
-    public StopMessage(final @NotNull ActorPath sender) {
+    public ActorStarted(final @NotNull ActorPath sender) {
       super(sender);
     }
   }
 
-  public static final class StoppedMessage extends LifecycleControlMessage {
+  public static final class StopActor extends LifecycleControlMessage {
 
-    public StoppedMessage(final @NotNull ActorPath sender) {
+    public StopActor(final @NotNull ActorPath sender) {
+      super(sender);
+    }
+  }
+
+  public static final class ActorStopped extends LifecycleControlMessage {
+
+    public ActorStopped(final @NotNull ActorPath sender) {
       super(sender);
     }
   }
