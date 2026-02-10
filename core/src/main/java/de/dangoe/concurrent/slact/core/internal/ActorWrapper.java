@@ -20,6 +20,7 @@ import de.dangoe.concurrent.slact.core.internal.MailboxItem.MessageWithResponseR
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartActor;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActor;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.WrappedMessage;
+import de.dangoe.concurrent.slact.core.logging.ActorLogger;
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -36,8 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 final class ActorWrapper<M> implements ActorHandle<M> {
 
@@ -57,6 +56,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     @Override
     public @NotNull ActorHandle<?> parent() {
+
       final var maybeParentPath = ActorWrapper.this.path.parent();
 
       if (maybeParentPath.isEmpty()) {
@@ -167,7 +167,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
-  private interface Behavior<M> {
+  private interface ActorLogic<M> {
 
     boolean isReady();
 
@@ -175,7 +175,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         @NotNull ActorHandle<?> sender);
   }
 
-  final class StartupBehavior implements Behavior<M> {
+  private final class StartupActorLogic implements ActorLogic<M> {
 
     private boolean readyDuringStartup = false;
 
@@ -192,24 +192,38 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         this.readyDuringStartup = true;
 
-        final var debugEnabled = ActorWrapper.logger.isDebugEnabled();
+        final boolean isLoggerDebugEnabled = ActorWrapper.this.logger.isDebugEnabled();
 
-        if (debugEnabled) {
+        if (isLoggerDebugEnabled) {
           logger.debug("Received start command from '{}'.", sender.path());
+        }
+
+        if (isLoggerDebugEnabled) {
           logger.debug("Invoking 'onStart' hook.");
         }
 
         ActorWrapper.this.delegate.onStart();
 
-        if (debugEnabled) {
+        if (isLoggerDebugEnabled) {
           logger.debug("'onStart' hook invoked.");
-          logger.debug("Sending lifecycle control event to '{}'.", context.parent().path());
         }
 
-        ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
-            new ActorStarted(context.self().path()));
+        if (!isRootActor()) {
 
-        ActorWrapper.this.setBehavior(new ReadyBehavior());
+          if (isLoggerDebugEnabled) {
+            logger.debug("Actor has been started. Notifying parent actor '{}'.",
+                context.parent().path());
+          }
+
+          ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
+              new ActorStarted(context.self().path()));
+        }
+
+        if (isLoggerDebugEnabled) {
+          logger.debug("Actor is becoming ready.");
+        }
+
+        ActorWrapper.this.setBehavior(new ReadyActorLogic());
 
         return true;
       }
@@ -218,7 +232,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
-  final class ReadyBehavior implements Behavior<M> {
+  private final class ReadyActorLogic implements ActorLogic<M> {
 
     @Override
     public boolean isReady() {
@@ -229,15 +243,23 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     public boolean processMailboxItem(final @NotNull MailboxItem item,
         final @NotNull ActorContext<M> context, final @NotNull ActorHandle<?> sender) {
 
+      final var isLoggerDebugEnabled = logger.isDebugEnabled();
+
       switch (item) {
         case StopActor msg -> {
+
+          if (isLoggerDebugEnabled) {
+            logger.debug("Stop requested from '{}'.", item.sender());
+          }
+
           doStop(context);
+
           return true;
         }
         case ActorStopped msg -> {
 
-          if (logger.isDebugEnabled()) {
-            logger.debug("Child '{}' has been stopped.", item.sender());
+          if (isLoggerDebugEnabled) {
+            logger.debug("Received stop notification from '{}'.", item.sender());
           }
 
           ActorWrapper.this.children.remove(item.sender());
@@ -276,7 +298,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
-  final class StoppingBehavior implements Behavior<M> {
+  private final class StoppingActorLogic implements ActorLogic<M> {
 
     @Override
     public boolean isReady() {
@@ -289,14 +311,31 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       if (item instanceof ActorStopped) {
 
-        logger.debug("Child actor at '{}' has been stopped.", item.sender());
+        final var isLoggerDebugEnabled = logger.isDebugEnabled();
+
         ActorWrapper.this.children.remove(item.sender());
         ActorWrapper.this.stopActorFn.accept(item.sender());
 
-        logger.debug("No children left. Stopping actor at '{}'.", path());
-        ActorWrapper.this.delegate.onStop();
-        ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(new ActorStopped(path()));
-        // actorContext.respondWith(new StoppedMessage(path()));
+        if (isLoggerDebugEnabled) {
+          logger.debug("Child actor '{}' has been stopped.", item.sender());
+        }
+
+        if (ActorWrapper.this.children.isEmpty()) {
+
+          if (isLoggerDebugEnabled) {
+            logger.debug("No children left. Stopping actor.");
+          }
+
+          ActorWrapper.this.delegate.onStop();
+          ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
+              new ActorStopped(path()));
+          // actorContext.respondWith(new StoppedMessage(path()));
+
+          if (isLoggerDebugEnabled) {
+            logger.debug("Actor has been stopped.");
+          }
+        }
+
         return true;
       }
 
@@ -304,7 +343,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
-  private static final @NotNull Logger logger = LoggerFactory.getLogger(ActorWrapper.class);
+  private final @NotNull ActorLogger logger;
 
   private final @NotNull Actor<M> delegate;
   private final @NotNull ActorPath path;
@@ -320,14 +359,17 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final @NotNull Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
   private final @NotNull Map<ActorPath, ActorWrapper<?>> children = new ConcurrentHashMap<>();
 
-  private @NotNull ActorWrapper.Behavior<M> behavior;
+  private @NotNull ActorWrapper.ActorLogic<M> actorLogic;
 
-  public ActorWrapper(final @NotNull Actor<M> delegate, final @NotNull ActorPath path,
-      final @NotNull ActorSpawner actorSpawner, final @NotNull Consumer<ActorPath> stopActorFn,
+  public ActorWrapper(final @NotNull ActorLogger logger, final @NotNull Actor<M> delegate,
+      final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
+      final @NotNull Consumer<ActorPath> stopActorFn,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
 
     super();
+
+    this.logger = logger;
 
     this.delegate = delegate;
     this.path = path;
@@ -336,7 +378,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
-    this.behavior = new StartupBehavior();
+    this.actorLogic = new StartupActorLogic();
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
@@ -345,13 +387,13 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
   }
 
-  private void setBehavior(final @NotNull ActorWrapper.Behavior<M> behavior) {
+  private void setBehavior(final @NotNull ActorWrapper.ActorLogic<M> actorLogic) {
 
     if (logger.isDebugEnabled()) {
-      logger.debug("Switching behavior to {}.", behavior.getClass().getSimpleName());
+      logger.debug("Switching logic to '{}'.", actorLogic.getClass().getSimpleName());
     }
 
-    this.behavior = behavior;
+    this.actorLogic = actorLogic;
   }
 
   private void processMessages() {
@@ -360,7 +402,9 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     while (item != null) {
 
-      logger.debug("Processing '{}' received by actor at '{}'.", item, path);
+      if (logger.isDebugEnabled()) {
+        logger.debug("Processing '{}' from '{}'.", item, item.sender());
+      }
 
       final var sender = this.actorHandleResolver.resolve(item.sender());
 
@@ -375,7 +419,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       this.activeActorContextHolder.activateContext(actorContext);
 
       try {
-        if (!this.behavior.processMailboxItem(item, actorContext, senderHandle)) {
+        if (!this.actorLogic.processMailboxItem(item, actorContext, senderHandle)) {
           logger.warn("Dismissing unprocessable mailbox item: {}", item);
         }
 
@@ -391,15 +435,47 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private void doStop(final @NotNull ActorContext<M> actorContext) {
 
-    logger.warn("Initiating stop for actor at path '{}'.", path);
+    final var isLoggerDebugEnabled = ActorWrapper.this.logger.isDebugEnabled();
 
-    this.setBehavior(new StoppingBehavior());
+    if (isLoggerDebugEnabled) {
+      logger.debug("Initiating stop.");
+    }
+
+    this.setBehavior(new StoppingActorLogic());
 
     if (this.children.isEmpty()) {
+
+      if (isLoggerDebugEnabled) {
+        logger.debug("Actor has no children. Stopping immediately.");
+      }
+
+      if (isLoggerDebugEnabled) {
+        logger.debug("Invoking 'onStop' hook.");
+      }
+
       this.delegate.onStop();
-      ((ActorWrapper<?>) actorContext.parent()).sendLifecycleControlMessage(
-          new ActorStopped(path()));
+
+      if (isLoggerDebugEnabled) {
+        logger.debug("'onStop' hook invoked.");
+      }
+
+      if (!isRootActor()) {
+
+        final var parent = (ActorWrapper<?>) actorContext.parent();
+
+        if (isLoggerDebugEnabled) {
+          logger.debug("Actor has been stopped. Notifying parent actor '{}'.", parent.path());
+        }
+
+        parent.sendLifecycleControlMessage(new ActorStopped(path()));
+      }
+
     } else {
+
+      if (isLoggerDebugEnabled) {
+        logger.debug("Child actors are registered. Initiating coordinated stop.");
+      }
+
       this.children.values().forEach(
           child -> child.sendLifecycleControlMessage(new StopActor(actorContext.self().path())));
     }
@@ -422,6 +498,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private @NotNull Optional<ActorContext<?>> activeActorContext() {
     return this.activeActorContextHolder.activeContext();
+  }
+
+  private boolean isRootActor() {
+    return Objects.equals(path(), ActorPath.root());
   }
 
   void sendInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {
@@ -467,7 +547,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   // Visible for testing
   boolean isReady() {
-    return this.behavior.isReady();
+    return this.actorLogic.isReady();
   }
 
   void shutdown() {

@@ -103,6 +103,8 @@ class CoordinatedActorStopTest {
               }
             });
 
+        container.awaitReady(actor.path());
+
         eventualStopResult.set(container.stop(actor));
 
         verifyStopped(actor);
@@ -121,6 +123,8 @@ class CoordinatedActorStopTest {
                 spawnChildActors(context());
               }
             });
+
+        container.awaitReady(actor.path());
 
         container.spawn("stopping-actor", () -> new FailingOnReceiveActor<>() {
 

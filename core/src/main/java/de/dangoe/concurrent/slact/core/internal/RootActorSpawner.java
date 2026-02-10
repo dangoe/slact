@@ -8,9 +8,10 @@ import de.dangoe.concurrent.slact.core.ActorPath;
 import de.dangoe.concurrent.slact.core.ActorSpawner;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartActor;
+import de.dangoe.concurrent.slact.core.logging.internal.Slf4jActorLogger;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
 
 final class RootActorSpawner implements ActorSpawner {
 
@@ -48,18 +49,18 @@ final class RootActorSpawner implements ActorSpawner {
     }
   }
 
-  private final Logger logger;
 
-  private final ActorRegistry actorRegistry;
-  private final ActorHandleResolver actorHandleResolver;
-  private final Consumer<ActorPath> stopActorFn;
-  private final ScheduledExecutor scheduledExecutor;
+  private final @NotNull UUID containerId;
+  private final @NotNull ActorRegistry actorRegistry;
+  private final @NotNull ActorHandleResolver actorHandleResolver;
+  private final @NotNull Consumer<ActorPath> stopActorFn;
+  private final @NotNull ScheduledExecutor scheduledExecutor;
 
-  RootActorSpawner(final @NotNull Logger logger, final @NotNull ActorRegistry actorRegistry,
+  RootActorSpawner(final @NotNull UUID containerId, final @NotNull ActorRegistry actorRegistry,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
     super();
-    this.logger = logger;
+    this.containerId = containerId;
     this.actorRegistry = actorRegistry;
     this.actorHandleResolver = actorHandleResolver;
     this.stopActorFn = new StopActorFn();
@@ -82,9 +83,13 @@ final class RootActorSpawner implements ActorSpawner {
 
     final var actor = creator.create();
 
+    //noinspection unchecked
+    final var logger = new Slf4jActorLogger(this.containerId, path,
+        (Class<Actor<?>>) actor.getClass());
+
     final var localSpawner = new PathLocalActorSpawner(path);
 
-    final var actorWrapper = new ActorWrapper<>(actor, path, localSpawner, this.stopActorFn,
+    final var actorWrapper = new ActorWrapper<>(logger, actor, path, localSpawner, this.stopActorFn,
         this.actorHandleResolver, this.scheduledExecutor);
 
     actorRegistry.register(actorWrapper);

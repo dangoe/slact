@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -53,14 +54,16 @@ public final class DefaultSlactContainer implements SlactContainer {
 
   private static final Logger logger = LoggerFactory.getLogger(DefaultSlactContainer.class);
 
-  private final ScheduledExecutor scheduledExecutor;
+  private final @NotNull UUID id;
 
-  private final AtomicBoolean stopped = new AtomicBoolean(false);
+  private final @NotNull ScheduledExecutor scheduledExecutor;
 
-  private final ActorRegistryImpl actorRegistry;
-  private final RootActorSpawner rootActorSpawner;
+  private final @NotNull AtomicBoolean stopped = new AtomicBoolean(false);
 
-  private final ActorHandle<Object> rootActor;
+  private final @NotNull ActorRegistryImpl actorRegistry;
+  private final @NotNull RootActorSpawner rootActorSpawner;
+
+  private final @NotNull ActorHandle<Object> rootActor;
 
   // TODO Add configuration
   public DefaultSlactContainer(
@@ -68,12 +71,14 @@ public final class DefaultSlactContainer implements SlactContainer {
 
     super();
 
+    this.id = UUID.randomUUID();
+
     this.scheduledExecutor = scheduledExecutorFactory.get();
 
     Objects.requireNonNull(this.scheduledExecutor, "Scheduled executor must not be null!");
 
     this.actorRegistry = new ActorRegistryImpl();
-    this.rootActorSpawner = new RootActorSpawner(logger, this.actorRegistry, this,
+    this.rootActorSpawner = new RootActorSpawner(id, this.actorRegistry, this,
         this.scheduledExecutor);
 
     this.rootActor = this.rootActorSpawner.spawnRootActor(() -> new Actor<Object>() {
