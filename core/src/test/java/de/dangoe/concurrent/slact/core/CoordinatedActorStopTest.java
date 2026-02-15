@@ -158,8 +158,8 @@ class CoordinatedActorStopTest {
 
       private void verifyStopped(final @NotNull ActorHandle<Object> actor) {
 
-      /*  await().atMost(DEFAULT_TIMEOUT)
-            .untilAsserted(() -> assertThat(eventualStopResult.get()).isDone());*/
+        await().atMost(DEFAULT_TIMEOUT)
+            .untilAsserted(() -> assertThat(eventualStopResult.get()).isDone());
 
         verifyStoppedInternal(stopOrder);
         verifyUnresolvable(actor.path());

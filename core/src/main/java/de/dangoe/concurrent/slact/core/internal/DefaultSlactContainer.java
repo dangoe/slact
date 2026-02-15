@@ -10,7 +10,7 @@ import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
 import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.exception.ActorRegistrationException;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActor;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActorCommand;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -169,6 +169,6 @@ public final class DefaultSlactContainer implements SlactContainer {
   @Override
   public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
     return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
-        new StopActor(ActorPath.root()), this.rootActor).thenApply(it -> Done.instance());
+        new StopActorCommand(ActorPath.root()), this.rootActor).thenApply(it -> Done.instance());
   }
 }

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-@DisplayName("Given an routing actor")
+@DisplayName("Given a routing actor")
 @ExtendWith(SlactTestContainerExtension.class)
 public class RoutingActorTest {
 
