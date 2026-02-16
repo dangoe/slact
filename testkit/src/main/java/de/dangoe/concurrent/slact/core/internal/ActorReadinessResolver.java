@@ -16,4 +16,9 @@ public final class ActorReadinessResolver {
     return ((ActorWrapper<?>) actorRuntime.resolve(path).orElseThrow(() -> new AssertionError(
         "Failed to resolve actor with path '%s'.".formatted(path)))).isReady();
   }
+
+  public boolean isStartupComplete(final @NotNull ActorPath path) {
+    return ((ActorWrapper<?>) actorRuntime.resolve(path).orElseThrow(() -> new AssertionError(
+        "Failed to resolve actor with path '%s'.".formatted(path)))).isStartupComplete();
+  }
 }

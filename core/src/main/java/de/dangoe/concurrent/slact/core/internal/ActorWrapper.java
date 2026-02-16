@@ -7,7 +7,6 @@ import de.dangoe.concurrent.slact.core.ActorHandle;
 import de.dangoe.concurrent.slact.core.ActorHandleResolver;
 import de.dangoe.concurrent.slact.core.ActorPath;
 import de.dangoe.concurrent.slact.core.ActorSpawner;
-import de.dangoe.concurrent.slact.core.Cancellable;
 import de.dangoe.concurrent.slact.core.Done;
 import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
@@ -36,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 
@@ -199,8 +199,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           logger.debug("'onStart' hook invoked.");
         }
 
-        if (ActorWrapper.this.logger.isDebugEnabled()) {
-          logger.debug("Actor is becoming ready.");
+        if (ActorWrapper.this.logger.isInfoEnabled()) {
+          logger.info("Actor is becoming ready.");
         }
 
         ActorWrapper.this.setLogic(new ReadyActorLogic());
@@ -229,14 +229,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           return true;
         }
         case ActorStoppedEvent unused -> {
-
-          if (logger.isDebugEnabled()) {
-            logger.debug("Received stop notification from '{}'.", item.sender());
-          }
-
-          ActorWrapper.this.children.remove(item.sender());
-          ActorWrapper.this.stopActorFn.accept(item.sender());
-
+          unregisterChild(item.sender());
           return true;
         }
         case WrappedMessage<?> wrappedMessage -> {
@@ -262,8 +255,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           }
 
           return true;
-        }
-        default -> {
+        } default -> {
           return false;
         }
       }
@@ -293,16 +285,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         final var children = ActorWrapper.this.children;
 
-        if (!children.isEmpty() && !stopPropagated) {
+        if (!children.isEmpty()) {
 
-          if (logger.isDebugEnabled()) {
-            logger.debug("Child actors are registered. Initiating coordinated stop.");
+          if (!stopPropagated) {
+            if (logger.isDebugEnabled()) {
+              logger.debug("Child actors are registered. Initiating coordinated stop.");
+            }
+
+            children.values().forEach(child -> child.sendLifecycleControlMessage(
+                new StopActorCommand(context.self().path())));
+
+            stopPropagated = true;
           }
-
-          children.values().forEach(child -> child.sendLifecycleControlMessage(
-              new StopActorCommand(context.self().path())));
-
-          stopPropagated = true;
 
         } else {
           completeStop(context);
@@ -311,12 +305,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         return true;
       } else if (item instanceof ActorStoppedEvent) {
 
-        if (logger.isDebugEnabled()) {
-          logger.debug("Child actor '{}' has been stopped.", item.sender());
-        }
-
-        children.remove(item.sender());
-        ActorWrapper.this.stopActorFn.accept(item.sender());
+        unregisterChild(item.sender());
 
         ActorWrapper.this.sendLifecycleControlMessage(
             new TryCompleteStopActorCommand(context.self().path()));
@@ -336,23 +325,30 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       ActorWrapper.this.delegate.onStop();
 
+      // TODO Check for unprocessed mailbox items
+      ActorWrapper.this.mailboxItems.clear();
+      ActorWrapper.this.stopped.set(true);
+
+      if (logger.isInfoEnabled()) {
+        logger.info("Actor has been stopped.");
+      }
+
+      if (!context.self().path().isRoot()) {
+
+        final var parentActor = (ActorWrapper<?>) context.parent();
+
+        if (logger.isDebugEnabled()) {
+          logger.debug("Sending stop notification to parent actor '{}'.", parentActor.path());
+        }
+
+        parentActor.sendLifecycleControlMessage(new ActorStoppedEvent(path()));
+      }
+
       final var stopResponseRequest = ActorWrapper.this.messagesWithResponseRequest.get(
           this.stopRequestOrigin);
 
       if (stopResponseRequest != null) {
         ((CompletableFuture<Done>) stopResponseRequest.futureInternal()).complete(Done.instance());
-      }
-
-      if (logger.isDebugEnabled()) {
-        logger.debug("Actor has been stopped.");
-      }
-
-      ActorWrapper.this.mailboxItems.clear();
-      ActorWrapper.this.messagePoller.cancel();
-
-      if (!context.self().path().isRoot()) {
-        ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
-            new ActorStoppedEvent(path()));
       }
     }
   }
@@ -362,22 +358,24 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final @NotNull Actor<M> delegate;
   private final @NotNull ActorPath path;
   private final @NotNull ActorSpawner actorSpawner;
-  private final @NotNull Consumer<ActorPath> stopActorFn;
+  private final @NotNull Consumer<ActorPath> unregisterActorFn;
   private final @NotNull ActorHandleResolver actorHandleResolver;
   private final @NotNull ScheduledExecutor scheduledExecutor;
 
-  private final @NotNull Cancellable messagePoller;
   private final @NotNull ActiveActorContextHolder activeActorContextHolder;
 
   private final @NotNull Queue<MailboxItem> mailboxItems = new LinkedBlockingQueue<>();
   private final @NotNull Map<ActorPath, MessageWithResponseRequest<M, ?>> messagesWithResponseRequest;
   private final @NotNull Map<ActorPath, ActorWrapper<?>> children = new ConcurrentHashMap<>();
 
+  private final @NotNull AtomicBoolean mailboxProcessingActive = new AtomicBoolean(false);
+  private final @NotNull AtomicBoolean stopped = new AtomicBoolean(false);
+
   private @NotNull ActorWrapper.ActorLogic<M> actorLogic;
 
   public ActorWrapper(final @NotNull ActorLogger logger, final @NotNull Actor<M> delegate,
       final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
-      final @NotNull Consumer<ActorPath> stopActorFn,
+      final @NotNull Consumer<ActorPath> unregisterActorFn,
       final @NotNull ActorHandleResolver actorHandleResolver,
       final @NotNull ScheduledExecutor scheduledExecutor) {
 
@@ -388,7 +386,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.delegate = delegate;
     this.path = path;
     this.actorSpawner = actorSpawner;
-    this.stopActorFn = stopActorFn;
+    this.unregisterActorFn = unregisterActorFn;
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
@@ -396,9 +394,6 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
-
-    this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
-        Duration.of(0, ChronoUnit.MILLIS), Duration.of(100, ChronoUnit.MILLIS));
   }
 
   private void setLogic(final @NotNull ActorWrapper.ActorLogic<M> actorLogic) {
@@ -425,6 +420,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       if (sender.isEmpty()) {
         logger.warn("Failed to resolve sender handle for message '{}'.", item);
         break;
+      } else if (this.stopped.get()) {
+        return;
       }
 
       final var senderHandle = sender.get();
@@ -445,6 +442,21 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       item = mailboxItems.poll();
     }
+
+    if (!mailboxItems.isEmpty()) {
+      rescheduleMessageProcessing();
+    } else {
+      mailboxProcessingActive.lazySet(false);
+    }
+  }
+
+  private void rescheduleMessageProcessing() {
+
+    if (this.stopped.get()) {
+      return;
+    }
+
+    scheduledExecutor.scheduleOnce(this::processMessages, Duration.ZERO);
   }
 
   private void initiateStop(final @NotNull ActorContext<M> actorContext) {
@@ -465,6 +477,16 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
 
     this.children.put(childActor.path(), childActor);
+  }
+
+  private void unregisterChild(final @NotNull ActorPath childActorPath) {
+
+    if (logger.isDebugEnabled()) {
+      logger.debug("Unregistering child actor '{}'.", childActorPath);
+    }
+
+    children.remove(childActorPath);
+    ActorWrapper.this.unregisterActorFn.accept(childActorPath);
   }
 
   @Override
@@ -519,20 +541,25 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   private void appendMessage(final @NotNull MailboxItem mailboxItem) {
+
     if (this.mailboxItems.size() < 1000 || mailboxItem instanceof LifecycleControlMessage) {
       this.mailboxItems.add(mailboxItem);
     } else {
       // TODO Use overflow strategy
     }
+
+    if (!this.mailboxProcessingActive.compareAndExchange(false, true)) {
+      rescheduleMessageProcessing();
+    }
   }
 
-  // Visible for testing
   boolean isReady() {
     return this.actorLogic.isReady();
   }
 
-  void shutdown() {
-    this.messagePoller.cancel();
+  // Visible for testing
+  boolean isStartupComplete() {
+    return this.actorLogic instanceof ReadyActorLogic;
   }
 
   @Override

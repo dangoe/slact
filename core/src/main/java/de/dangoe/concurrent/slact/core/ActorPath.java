@@ -69,14 +69,16 @@ public abstract class ActorPath {
 
     @Override
     public boolean equals(final Object o) {
+
       if (this == o) {
         return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
+      } else if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      Element element = (Element) o;
-      return (Objects.equals(parent, element.parent) && Objects.equals(name, element.name));
+
+      final var element = (Element) o;
+
+      return Objects.equals(parent, element.parent) && Objects.equals(name, element.name);
     }
 
     @Override

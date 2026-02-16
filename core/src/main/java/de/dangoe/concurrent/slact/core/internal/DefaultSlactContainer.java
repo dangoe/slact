@@ -43,8 +43,8 @@ public final class DefaultSlactContainer implements SlactContainer {
     }
 
     @Override
-    public void unregister(final @NotNull ActorWrapper<?> actor) {
-      actors.remove(actor.path());
+    public void unregister(final @NotNull ActorPath actorPath) {
+      actors.remove(actorPath);
     }
 
 
@@ -109,7 +109,7 @@ public final class DefaultSlactContainer implements SlactContainer {
 
       while (!eventualResult.isDone() && !eventualResult.isCancelled()) {
 
-        Thread.sleep(1000);
+        Thread.sleep(10);
 
         if (start.isAfter(start.plusSeconds(60))) {
           break;

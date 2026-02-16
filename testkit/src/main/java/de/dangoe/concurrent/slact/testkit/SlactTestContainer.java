@@ -110,4 +110,25 @@ public final class SlactTestContainer implements SlactContainer {
   public boolean isReady(final @NotNull ActorPath path) {
     return new ActorReadinessResolver(this).isReady(path);
   }
+
+  public void awaitStartupComplete(final @NotNull Iterable<ActorPath> paths) {
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(
+            () -> StreamSupport.stream(paths.spliterator(), true)
+                .allMatch(this::isStartupComplete));
+  }
+
+  public void awaitStartupComplete(final @NotNull ActorPath path,
+      final @NotNull ActorPath... paths) {
+
+    final var pathsLists = new ArrayList<>(Arrays.asList(paths));
+    pathsLists.add(path);
+
+    awaitReady(pathsLists);
+  }
+
+  public boolean isStartupComplete(final @NotNull ActorPath path) {
+    return new ActorReadinessResolver(this).isStartupComplete(path);
+  }
 }

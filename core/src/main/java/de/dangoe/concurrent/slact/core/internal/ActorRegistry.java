@@ -10,5 +10,5 @@ interface ActorRegistry {
 
   void register(@NotNull ActorWrapper<?> actor);
 
-  void unregister(@NotNull ActorWrapper<?> actor);
+  void unregister(@NotNull ActorPath actor);
 }

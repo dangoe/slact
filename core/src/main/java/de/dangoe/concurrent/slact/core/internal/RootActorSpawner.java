@@ -15,22 +15,11 @@ import org.jetbrains.annotations.NotNull;
 
 final class RootActorSpawner implements ActorSpawner {
 
-  private final class StopActorFn implements Consumer<ActorPath> {
+  private final class UnregisterActorFn implements Consumer<ActorPath> {
 
     @Override
     public void accept(final @NotNull ActorPath path) {
-
-      final var maybeActor = RootActorSpawner.this.actorHandleResolver.resolve(path);
-
-      if (maybeActor.isEmpty()) {
-        return;
-      }
-
-      final var actor = ((ActorWrapper<?>) maybeActor.get());
-
-      actor.shutdown();
-
-      RootActorSpawner.this.actorRegistry.unregister(actor);
+      RootActorSpawner.this.actorRegistry.unregister(path);
     }
   }
 
@@ -53,7 +42,7 @@ final class RootActorSpawner implements ActorSpawner {
   private final @NotNull UUID containerId;
   private final @NotNull ActorRegistry actorRegistry;
   private final @NotNull ActorHandleResolver actorHandleResolver;
-  private final @NotNull Consumer<ActorPath> stopActorFn;
+  private final @NotNull Consumer<ActorPath> unregisterActorFn;
   private final @NotNull ScheduledExecutor scheduledExecutor;
 
   RootActorSpawner(final @NotNull UUID containerId, final @NotNull ActorRegistry actorRegistry,
@@ -63,7 +52,7 @@ final class RootActorSpawner implements ActorSpawner {
     this.containerId = containerId;
     this.actorRegistry = actorRegistry;
     this.actorHandleResolver = actorHandleResolver;
-    this.stopActorFn = new StopActorFn();
+    this.unregisterActorFn = new UnregisterActorFn();
     this.scheduledExecutor = scheduledExecutor;
   }
 
@@ -89,8 +78,8 @@ final class RootActorSpawner implements ActorSpawner {
 
     final var localSpawner = new PathLocalActorSpawner(path);
 
-    final var actorWrapper = new ActorWrapper<>(logger, actor, path, localSpawner, this.stopActorFn,
-        this.actorHandleResolver, this.scheduledExecutor);
+    final var actorWrapper = new ActorWrapper<>(logger, actor, path, localSpawner,
+        this.unregisterActorFn, this.actorHandleResolver, this.scheduledExecutor);
 
     actorRegistry.register(actorWrapper);
 
