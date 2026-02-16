@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.Future;
+import java.util.stream.StreamSupport;
 import org.jetbrains.annotations.NotNull;
 
 public final class SlactTestContainer implements SlactContainer {
@@ -91,13 +92,19 @@ public final class SlactTestContainer implements SlactContainer {
     return delegate.spawn(name, actorCreator);
   }
 
+  public void awaitReady(final @NotNull Iterable<ActorPath> paths) {
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(
+            () -> StreamSupport.stream(paths.spliterator(), true).allMatch(this::isReady));
+  }
+
   public void awaitReady(final @NotNull ActorPath path, final @NotNull ActorPath... paths) {
 
     final var pathsLists = new ArrayList<>(Arrays.asList(paths));
     pathsLists.add(path);
 
-    await().atMost(Duration.ofSeconds(5))
-        .until(() -> pathsLists.stream().allMatch(this::isReady));
+    awaitReady(pathsLists);
   }
 
   public boolean isReady(final @NotNull ActorPath path) {

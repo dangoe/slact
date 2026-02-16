@@ -12,12 +12,11 @@ import de.dangoe.concurrent.slact.core.Done;
 import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
 import de.dangoe.concurrent.slact.core.exception.MessageRejectedException;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.ActorStartedEvent;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.ActorStoppedEvent;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.CompleteStartActorCommand;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.FireAndForgetMessage;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.LifecycleControlMessage;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.MessageWithResponseRequest;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartActorCommand;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActorCommand;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.TryCompleteStopActorCommand;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.WrappedMessage;
@@ -99,11 +98,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         throw new IllegalStateException("Actor is not ready");
       }
 
-      final var child = ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
-
-      ActorWrapper.this.children.put(child.path(), (ActorWrapper<?>) child);
-
-      return child;
+      return ActorWrapper.this.actorSpawner.spawn(name, actorCreator);
     }
 
     @Override
@@ -165,7 +160,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     @Override
     public @NotNull Future<Done> stop(final @NotNull ActorHandle<?> actor) {
       return ((ActorWrapper<?>) actor).requestResponseToLifecycleControlInternal(
-          new StopActorCommand(sender().path()), sender()).thenApply(_ -> Done.instance());
+          new StopActorCommand(sender().path()), sender()).thenApply(unused -> Done.instance());
     }
   }
 
@@ -179,23 +174,19 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private final class StartupActorLogic implements ActorLogic<M> {
 
-    private boolean readyDuringStartup = false;
-
     @Override
     public boolean isReady() {
-      return readyDuringStartup;
+      return true;
     }
 
     @Override
     public boolean processMailboxItem(final @NotNull MailboxItem item,
         final @NotNull ActorContext<M> context, final @NotNull ActorHandle<?> sender) {
 
-      if (item instanceof StartActorCommand) {
-
-        this.readyDuringStartup = true;
+      if (item instanceof CompleteStartActorCommand) {
 
         if (ActorWrapper.this.logger.isDebugEnabled()) {
-          logger.debug("Received start command from '{}'.", sender.path());
+          logger.debug("Received complete start command from '{}'.", sender.path());
         }
 
         if (ActorWrapper.this.logger.isDebugEnabled()) {
@@ -208,22 +199,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           logger.debug("'onStart' hook invoked.");
         }
 
-        if (!isRootActor()) {
-
-          if (ActorWrapper.this.logger.isDebugEnabled()) {
-            logger.debug("Actor has been started. Notifying parent actor '{}'.",
-                context.parent().path());
-          }
-
-          ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
-              new ActorStartedEvent(context.self().path()));
-        }
-
         if (ActorWrapper.this.logger.isDebugEnabled()) {
           logger.debug("Actor is becoming ready.");
         }
 
-        ActorWrapper.this.setBehavior(new ReadyActorLogic());
+        ActorWrapper.this.setLogic(new ReadyActorLogic());
 
         return true;
       }
@@ -244,11 +224,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
         final @NotNull ActorContext<M> context, final @NotNull ActorHandle<?> sender) {
 
       switch (item) {
-        case StopActorCommand _ -> {
+        case StopActorCommand unused -> {
           initiateStop(context);
           return true;
         }
-        case ActorStoppedEvent _ -> {
+        case ActorStoppedEvent unused -> {
 
           if (logger.isDebugEnabled()) {
             logger.debug("Received stop notification from '{}'.", item.sender());
@@ -294,6 +274,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
     private final @NotNull ActorPath stopRequestOrigin;
 
+    private boolean stopPropagated = false;
+
     private StoppingActorLogic(final @NotNull ActorPath stopRequestOrigin) {
       this.stopRequestOrigin = stopRequestOrigin;
     }
@@ -311,20 +293,22 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
         final var children = ActorWrapper.this.children;
 
-        if (!children.isEmpty()) {
+        if (!children.isEmpty() && !stopPropagated) {
 
           if (logger.isDebugEnabled()) {
             logger.debug("Child actors are registered. Initiating coordinated stop.");
           }
 
-          children.values().forEach(
-              child -> child.sendLifecycleControlMessage(
-                  new StopActorCommand(context.self().path())));
+          children.values().forEach(child -> child.sendLifecycleControlMessage(
+              new StopActorCommand(context.self().path())));
+
+          stopPropagated = true;
 
         } else {
           completeStop(context);
         }
 
+        return true;
       } else if (item instanceof ActorStoppedEvent) {
 
         if (logger.isDebugEnabled()) {
@@ -351,8 +335,6 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       }
 
       ActorWrapper.this.delegate.onStop();
-      ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
-          new ActorStoppedEvent(path()));
 
       final var stopResponseRequest = ActorWrapper.this.messagesWithResponseRequest.get(
           this.stopRequestOrigin);
@@ -363,6 +345,14 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       if (logger.isDebugEnabled()) {
         logger.debug("Actor has been stopped.");
+      }
+
+      ActorWrapper.this.mailboxItems.clear();
+      ActorWrapper.this.messagePoller.cancel();
+
+      if (!context.self().path().isRoot()) {
+        ((ActorWrapper<?>) context.parent()).sendLifecycleControlMessage(
+            new ActorStoppedEvent(path()));
       }
     }
   }
@@ -402,16 +392,16 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
-    this.actorLogic = new StartupActorLogic();
+    this.actorLogic = this.path.isRoot() ? new ReadyActorLogic() : new StartupActorLogic();
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
 
     this.messagePoller = scheduledExecutor.scheduleAtFixedRate(this::processMessages,
-        Duration.of(0, ChronoUnit.MILLIS), Duration.of(1, ChronoUnit.MILLIS));
+        Duration.of(0, ChronoUnit.MILLIS), Duration.of(100, ChronoUnit.MILLIS));
   }
 
-  private void setBehavior(final @NotNull ActorWrapper.ActorLogic<M> actorLogic) {
+  private void setLogic(final @NotNull ActorWrapper.ActorLogic<M> actorLogic) {
 
     if (logger.isDebugEnabled()) {
       logger.debug("Switching logic to '{}'.", actorLogic.getClass().getSimpleName());
@@ -463,9 +453,18 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       logger.debug("Initiating stop.");
     }
 
-    this.setBehavior(new StoppingActorLogic(actorContext.sender().path()));
+    this.setLogic(new StoppingActorLogic(actorContext.sender().path()));
 
     sendLifecycleControlMessage(new TryCompleteStopActorCommand(actorContext.self().path()));
+  }
+
+  void registerChild(final @NotNull ActorWrapper<?> childActor) {
+
+    if (logger.isDebugEnabled()) {
+      logger.debug("Registering child actor '{}'.", childActor.path());
+    }
+
+    this.children.put(childActor.path(), childActor);
   }
 
   @Override
@@ -485,10 +484,6 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private @NotNull Optional<ActorContext<?>> activeActorContext() {
     return this.activeActorContextHolder.activeContext();
-  }
-
-  private boolean isRootActor() {
-    return Objects.equals(path(), ActorPath.root());
   }
 
   void sendInternal(final @NotNull M message, final @NotNull ActorHandle<?> sender) {

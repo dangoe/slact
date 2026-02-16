@@ -9,7 +9,7 @@ public final class SlactContainerBuilder {
   private Supplier<ScheduledExecutor> scheduledExecutorFactory;
 
   public SlactContainerBuilder() {
-    this.scheduledExecutorFactory = () -> ScheduledExecutor.withFixedThreadPool(4);
+    this.scheduledExecutorFactory = () -> ScheduledExecutor.withFixedThreadPool(16);
   }
 
   public SlactContainerBuilder withScheduledExecutorFactory(

@@ -7,7 +7,7 @@ import de.dangoe.concurrent.slact.core.ActorHandleResolver;
 import de.dangoe.concurrent.slact.core.ActorPath;
 import de.dangoe.concurrent.slact.core.ActorSpawner;
 import de.dangoe.concurrent.slact.core.ScheduledExecutor;
-import de.dangoe.concurrent.slact.core.internal.MailboxItem.StartActorCommand;
+import de.dangoe.concurrent.slact.core.internal.MailboxItem.CompleteStartActorCommand;
 import de.dangoe.concurrent.slact.core.logging.internal.Slf4jActorLogger;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -94,10 +94,15 @@ final class RootActorSpawner implements ActorSpawner {
 
     actorRegistry.register(actorWrapper);
 
-    final var parentPath = path.isRoot() ? path
-        : path.parent().orElseThrow(() -> new IllegalStateException("Root actor path is null."));
+    if (!path.isRoot()) {
 
-    actorWrapper.sendLifecycleControlMessage(new StartActorCommand(parentPath));
+      final var parentActor = path.parent().flatMap(this.actorRegistry::get).orElseThrow(
+          () -> new IllegalStateException(
+              "Failed to resolve parent actor for '%s'.".formatted(path)));
+
+      parentActor.registerChild(actorWrapper);
+      actorWrapper.sendLifecycleControlMessage(new CompleteStartActorCommand(parentActor.path()));
+    }
 
     return actorWrapper;
   }

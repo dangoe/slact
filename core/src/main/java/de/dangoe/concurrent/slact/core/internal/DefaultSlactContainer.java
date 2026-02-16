@@ -12,6 +12,7 @@ import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.exception.ActorRegistrationException;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActorCommand;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
@@ -46,8 +47,9 @@ public final class DefaultSlactContainer implements SlactContainer {
       actors.remove(actor.path());
     }
 
-    @NotNull
-    public Optional<ActorHandle<?>> get(final @NotNull ActorPath path) {
+
+    @Override
+    public @NotNull Optional<ActorWrapper<?>> get(final @NotNull ActorPath path) {
       return Optional.ofNullable(actors.get(path));
     }
   }
@@ -58,6 +60,7 @@ public final class DefaultSlactContainer implements SlactContainer {
 
   private final @NotNull ScheduledExecutor scheduledExecutor;
 
+  private final @NotNull AtomicBoolean stopping = new AtomicBoolean(false);
   private final @NotNull AtomicBoolean stopped = new AtomicBoolean(false);
 
   private final @NotNull ActorRegistryImpl actorRegistry;
@@ -96,10 +99,25 @@ public final class DefaultSlactContainer implements SlactContainer {
 
   @Override
   public void shutdown() throws Exception {
-    this.stopped.compareAndExchange(false, true);
+
+    this.stopping.compareAndExchange(false, true);
+
     try {
-      // TODO Implement shutdown
+      final var eventualResult = stop(rootActor);
+
+      final var start = Instant.now();
+
+      while (!eventualResult.isDone() && !eventualResult.isCancelled()) {
+
+        Thread.sleep(1000);
+
+        if (start.isAfter(start.plusSeconds(60))) {
+          break;
+        }
+      }
     } finally {
+      this.stopping.compareAndExchange(true, false);
+      this.stopped.compareAndExchange(false, true);
       this.scheduledExecutor.close();
     }
   }
