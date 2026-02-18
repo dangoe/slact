@@ -199,8 +199,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           logger.debug("'onStart' hook invoked.");
         }
 
-        if (ActorWrapper.this.logger.isInfoEnabled()) {
-          logger.info("Actor is becoming ready.");
+        if (ActorWrapper.this.logger.isDebugEnabled()) {
+          logger.debug("Actor is becoming ready.");
         }
 
         ActorWrapper.this.setLogic(new ReadyActorLogic());
@@ -255,7 +255,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
           }
 
           return true;
-        } default -> {
+        }
+        default -> {
           return false;
         }
       }
@@ -329,8 +330,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       ActorWrapper.this.mailboxItems.clear();
       ActorWrapper.this.stopped.set(true);
 
-      if (logger.isInfoEnabled()) {
-        logger.info("Actor has been stopped.");
+      if (logger.isDebugEnabled()) {
+        logger.debug("Actor has been stopped.");
       }
 
       if (!context.self().path().isRoot()) {
@@ -394,6 +395,12 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
+
+    this.scheduledExecutor.scheduleAtFixedRate(() -> {
+      if (!this.mailboxProcessingActive.compareAndExchange(false, true)) {
+        rescheduleMessageProcessing();
+      }
+    }, Duration.ofSeconds(1), Duration.ofSeconds(1));
   }
 
   private void setLogic(final @NotNull ActorWrapper.ActorLogic<M> actorLogic) {
