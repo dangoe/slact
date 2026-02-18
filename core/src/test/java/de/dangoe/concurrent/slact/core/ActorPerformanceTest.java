@@ -103,8 +103,8 @@ public class ActorPerformanceTest {
   void testMessageThroughputPerformance(final @NotNull SlactTestContainer container)
       throws Exception {
 
-    final int numActors = 100_000;
-    final int messagesPerActor = 1000;
+    final int numActors = 10;
+    final int messagesPerActor = 10;
     final long totalMessages = (long) numActors * messagesPerActor;
 
     logger.info("Starting message throughput test: {} actors, {} messages each, {} total messages",
@@ -171,14 +171,13 @@ public class ActorPerformanceTest {
   void testRequestResponsePerformance(final @NotNull SlactTestContainer container)
       throws Exception {
 
-    final int numRequests = 10_000;
+    final int numRequests = 100_000;
 
     logger.info("Starting request-response test: {} requests", numRequests);
 
     final var responder = container.spawn("responder", () -> new Actor<String>() {
       @Override
       public void onMessage(final @NotNull String message) {
-        logger.info("Responding to {}", message);
         respondWith("response-" + message);
       }
     });

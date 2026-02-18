@@ -395,12 +395,6 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
-
-    this.scheduledExecutor.scheduleAtFixedRate(() -> {
-      if (!this.mailboxProcessingActive.compareAndExchange(false, true)) {
-        rescheduleMessageProcessing();
-      }
-    }, Duration.ofSeconds(1), Duration.ofSeconds(1));
   }
 
   private void setLogic(final @NotNull ActorWrapper.ActorLogic<M> actorLogic) {
@@ -413,6 +407,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   private void processMessages() {
+
+    if (mailboxProcessingActive.compareAndExchange(false, true)) {
+      return;
+    }
 
     var item = mailboxItems.poll();
 
@@ -450,10 +448,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       item = mailboxItems.poll();
     }
 
+    mailboxProcessingActive.set(false);
+
     if (!mailboxItems.isEmpty()) {
       rescheduleMessageProcessing();
-    } else {
-      mailboxProcessingActive.lazySet(false);
     }
   }
 
@@ -549,15 +547,10 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
   private void appendMessage(final @NotNull MailboxItem mailboxItem) {
 
-    if (this.mailboxItems.size() < 1000 || mailboxItem instanceof LifecycleControlMessage) {
-      this.mailboxItems.add(mailboxItem);
-    } else {
-      // TODO Use overflow strategy
-    }
+    // TODO Overflow strategy
+    this.mailboxItems.add(mailboxItem);
 
-    if (!this.mailboxProcessingActive.compareAndExchange(false, true)) {
-      rescheduleMessageProcessing();
-    }
+    rescheduleMessageProcessing();
   }
 
   boolean isReady() {
