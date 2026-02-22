@@ -17,6 +17,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -58,6 +59,8 @@ public final class DefaultSlactContainer implements SlactContainer {
 
   private static final Logger logger = LoggerFactory.getLogger(DefaultSlactContainer.class);
 
+  private final @NotNull UUID id;
+
   private final @NotNull ScheduledExecutor scheduledExecutor;
 
   private final @NotNull AtomicBoolean stopping = new AtomicBoolean(false);
@@ -73,6 +76,8 @@ public final class DefaultSlactContainer implements SlactContainer {
       final @NotNull Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 
     super();
+
+    this.id = UUID.randomUUID();
 
     this.scheduledExecutor = scheduledExecutorFactory.get();
 
