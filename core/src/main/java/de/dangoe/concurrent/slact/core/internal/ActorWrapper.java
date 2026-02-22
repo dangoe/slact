@@ -36,6 +36,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 
@@ -354,6 +355,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     }
   }
 
+  private static final int MAILBOX_BATCH_SIZE = 64;
+
   private final @NotNull ActorLogger logger;
 
   private final @NotNull Actor<M> delegate;
@@ -372,7 +375,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   private final @NotNull AtomicBoolean mailboxProcessingActive = new AtomicBoolean(false);
   private final @NotNull AtomicBoolean stopped = new AtomicBoolean(false);
 
-  private @NotNull ActorWrapper.ActorLogic<M> actorLogic;
+  private final @NotNull AtomicReference<ActorLogic<M>> actorLogic;
 
   public ActorWrapper(final @NotNull ActorLogger logger, final @NotNull Actor<M> delegate,
       final @NotNull ActorPath path, final @NotNull ActorSpawner actorSpawner,
@@ -391,7 +394,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     this.actorHandleResolver = actorHandleResolver;
     this.scheduledExecutor = scheduledExecutor;
 
-    this.actorLogic = this.path.isRoot() ? new ReadyActorLogic() : new StartupActorLogic();
+    this.actorLogic = new AtomicReference<>(
+        this.path.isRoot() ? new ReadyActorLogic() : new StartupActorLogic());
     this.activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
     this.messagesWithResponseRequest = new HashMap<>();
@@ -403,7 +407,7 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       logger.debug("Switching logic to '{}'.", actorLogic.getClass().getSimpleName());
     }
 
-    this.actorLogic = actorLogic;
+    this.actorLogic.set(actorLogic);
   }
 
   private void processMessages() {
@@ -411,6 +415,8 @@ final class ActorWrapper<M> implements ActorHandle<M> {
     if (mailboxProcessingActive.compareAndExchange(false, true)) {
       return;
     }
+
+    int processedItemCount = 0;
 
     var item = mailboxItems.poll();
 
@@ -435,14 +441,23 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       this.activeActorContextHolder.activateContext(actorContext);
 
       try {
-        if (!this.actorLogic.processMailboxItem(item, actorContext, senderHandle)) {
+        if (!actorLogic().processMailboxItem(item, actorContext, senderHandle)) {
           logger.warn("Dismissing unprocessable mailbox item: {}", item);
         }
 
-      } catch (Exception e) {
+      } catch (final Exception e) {
         logger.error("Failed to process mailbox item.", e);
+      } catch (final Error e) {
+        logger.error("Critical error during mailbox item processing.", e);
+        throw e;
       } finally {
         this.activeActorContextHolder.deactivateContext();
+      }
+
+      processedItemCount++;
+
+      if (processedItemCount >= MAILBOX_BATCH_SIZE) {
+        break;
       }
 
       item = mailboxItems.poll();
@@ -554,12 +569,16 @@ final class ActorWrapper<M> implements ActorHandle<M> {
   }
 
   boolean isReady() {
-    return this.actorLogic.isReady();
+    return actorLogic().isReady();
   }
 
   // Visible for testing
   boolean isStartupComplete() {
-    return this.actorLogic instanceof ReadyActorLogic;
+    return actorLogic() instanceof ReadyActorLogic;
+  }
+
+  private ActorLogic<M> actorLogic() {
+    return this.actorLogic.get();
   }
 
   @Override
