@@ -2,6 +2,9 @@ package de.dangoe.concurrent.slact.core;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Marker class representing completion of an operation.
+ */
 public final class Done {
 
   @SuppressWarnings("InstantiationOfUtilityClass")
@@ -11,6 +14,11 @@ public final class Done {
     // prevent instantiation
   }
 
+  /**
+   * Returns the singleton instance of Done.
+   *
+   * @return The Done instance.
+   */
   public static @NotNull Done instance() {
     return instance;
   }

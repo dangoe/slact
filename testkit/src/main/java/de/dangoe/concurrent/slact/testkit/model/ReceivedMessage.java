@@ -5,14 +5,30 @@ import de.dangoe.concurrent.slact.core.ActorPath;
 import java.util.Objects;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Represents a message received by an actor in tests.
+ *
+ * @param <M>     The message type.
+ * @param message The received message.
+ * @param sender  The sender's actor path.
+ */
 public record ReceivedMessage<M>(@NotNull M message, @NotNull ActorPath sender) {
 
+  /**
+   * Constructs a ReceivedMessage with an ActorHandle sender.
+   *
+   * @param message The message.
+   * @param sender  The sender handle.
+   */
+  public ReceivedMessage(@NotNull M message, @NotNull ActorHandle<?> sender) {
+    this(message, sender.path());
+  }
+
+  /**
+   * Validates the message and sender fields.
+   */
   public ReceivedMessage {
     Objects.requireNonNull(message, "Message must not be null");
     Objects.requireNonNull(sender, "Sender must not be null");
-  }
-
-  public ReceivedMessage(@NotNull M message, @NotNull ActorHandle<?> sender) {
-    this(message, sender.path());
   }
 }

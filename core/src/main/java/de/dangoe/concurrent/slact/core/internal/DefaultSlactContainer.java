@@ -17,7 +17,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -29,6 +28,9 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Default implementation of the SlactContainer for actor management and runtime operations.
+ */
 public final class DefaultSlactContainer implements SlactContainer {
 
   private static class ActorRegistryImpl implements ActorRegistry {
@@ -56,8 +58,6 @@ public final class DefaultSlactContainer implements SlactContainer {
 
   private static final Logger logger = LoggerFactory.getLogger(DefaultSlactContainer.class);
 
-  private final @NotNull UUID id;
-
   private final @NotNull ScheduledExecutor scheduledExecutor;
 
   private final @NotNull AtomicBoolean stopping = new AtomicBoolean(false);
@@ -73,8 +73,6 @@ public final class DefaultSlactContainer implements SlactContainer {
       final @NotNull Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 
     super();
-
-    this.id = UUID.randomUUID();
 
     this.scheduledExecutor = scheduledExecutorFactory.get();
 

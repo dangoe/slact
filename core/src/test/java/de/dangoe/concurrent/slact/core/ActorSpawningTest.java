@@ -1,5 +1,9 @@
 package de.dangoe.concurrent.slact.core;
 
+import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEOUT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import de.dangoe.concurrent.slact.testkit.patterns.actors.FailingOnReceiveActor;
@@ -7,10 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
-import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEOUT;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 @ExtendWith(SlactTestContainerExtension.class)
 class ActorSpawningTest {

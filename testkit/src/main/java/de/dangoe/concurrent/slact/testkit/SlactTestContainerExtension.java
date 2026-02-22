@@ -7,9 +7,19 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
+/**
+ * JUnit extension for managing SlactTestContainer lifecycle in tests.
+ */
 public class SlactTestContainerExtension implements AfterEachCallback, ParameterResolver {
 
   private SlactTestContainer testContainer;
+
+  /**
+   * Default constructor for this extension.
+   */
+  public SlactTestContainerExtension() {
+    super();
+  }
 
   @Override
   public void afterEach(ExtensionContext extensionContext) throws Exception {

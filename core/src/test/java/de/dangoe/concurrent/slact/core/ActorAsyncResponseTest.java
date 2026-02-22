@@ -3,9 +3,9 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
 import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;

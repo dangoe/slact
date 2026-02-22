@@ -7,6 +7,9 @@ import java.util.Objects;
 import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Abstract base class for actor loggers providing common functionality.
+ */
 public abstract class AbstractActorLogger implements ActorLogger {
 
   private final @NotNull UUID containerId;
@@ -14,6 +17,12 @@ public abstract class AbstractActorLogger implements ActorLogger {
 
   protected final @NotNull LogTemplateRenderer renderer;
 
+  /**
+   * Constructs an AbstractActorLogger.
+   *
+   * @param containerId The container UUID.
+   * @param actorPath   The actor path.
+   */
   protected AbstractActorLogger(final @NotNull UUID containerId,
       final @NotNull ActorPath actorPath) {
 
@@ -23,16 +32,33 @@ public abstract class AbstractActorLogger implements ActorLogger {
     this.renderer = new BraceTemplateRenderer();
   }
 
+  /**
+   * Returns the container UUID.
+   *
+   * @return The container UUID.
+   */
   @Override
   public final @NotNull UUID containerId() {
     return this.containerId;
   }
 
+  /**
+   * Returns the actor path.
+   *
+   * @return The actor path.
+   */
   @Override
   public final @NotNull ActorPath actorPath() {
     return this.actorPath;
   }
 
+  /**
+   * Renders a formatted log message.
+   *
+   * @param template The message template.
+   * @param args     Arguments for the template.
+   * @return The rendered message.
+   */
   protected final @NotNull String render(final @NotNull String template,
       final @NotNull Object... args) {
 

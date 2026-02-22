@@ -19,10 +19,16 @@ import java.util.concurrent.Future;
 import java.util.stream.StreamSupport;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Test container for managing actors and their lifecycle in tests.
+ */
 public final class SlactTestContainer implements SlactContainer {
 
   private final @NotNull SlactContainer delegate;
 
+  /**
+   * Creates a new test container.
+   */
   public SlactTestContainer() {
     this.delegate = new SlactContainerBuilder().build();
   }
@@ -52,6 +58,13 @@ public final class SlactTestContainer implements SlactContainer {
     return delegate.send(message);
   }
 
+  /**
+   * Sends multiple messages to actors.
+   *
+   * @param messages Iterable of messages.
+   * @param <M>      The message type.
+   * @return SendMessageOp for multiple messages.
+   */
   public @NotNull <M> SendMessageOp<M> sendMultiple(final @NotNull Iterable<M> messages) {
     return targetActor -> {
       for (final var message : messages) {
@@ -92,13 +105,12 @@ public final class SlactTestContainer implements SlactContainer {
     return delegate.spawn(name, actorCreator);
   }
 
-  public void awaitReady(final @NotNull Iterable<ActorPath> paths) {
-
-    await().atMost(Duration.ofSeconds(5))
-        .until(
-            () -> StreamSupport.stream(paths.spliterator(), true).allMatch(this::isReady));
-  }
-
+  /**
+   * Waits until the given actor path and additional paths are ready.
+   *
+   * @param path  The main actor path.
+   * @param paths Additional actor paths.
+   */
   public void awaitReady(final @NotNull ActorPath path, final @NotNull ActorPath... paths) {
 
     final var pathsLists = new ArrayList<>(Arrays.asList(paths));
@@ -107,18 +119,24 @@ public final class SlactTestContainer implements SlactContainer {
     awaitReady(pathsLists);
   }
 
-  public boolean isReady(final @NotNull ActorPath path) {
-    return new ActorReadinessResolver(this).isReady(path);
-  }
-
-  public void awaitStartupComplete(final @NotNull Iterable<ActorPath> paths) {
+  /**
+   * Waits until all given actor paths are ready.
+   *
+   * @param paths Iterable of actor paths.
+   */
+  public void awaitReady(final @NotNull Iterable<ActorPath> paths) {
 
     await().atMost(Duration.ofSeconds(5))
         .until(
-            () -> StreamSupport.stream(paths.spliterator(), true)
-                .allMatch(this::isStartupComplete));
+            () -> StreamSupport.stream(paths.spliterator(), true).allMatch(this::isReady));
   }
 
+  /**
+   * Waits until the given actor path and additional paths have completed startup.
+   *
+   * @param path  The main actor path.
+   * @param paths Additional actor paths.
+   */
   public void awaitStartupComplete(final @NotNull ActorPath path,
       final @NotNull ActorPath... paths) {
 
@@ -128,6 +146,35 @@ public final class SlactTestContainer implements SlactContainer {
     awaitReady(pathsLists);
   }
 
+  /**
+   * Waits until all given actor paths have completed startup.
+   *
+   * @param paths Iterable of actor paths.
+   */
+  public void awaitStartupComplete(final @NotNull Iterable<ActorPath> paths) {
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(
+            () -> StreamSupport.stream(paths.spliterator(), true)
+                .allMatch(this::isStartupComplete));
+  }
+
+  /**
+   * Checks if the given actor path is ready.
+   *
+   * @param path The actor path.
+   * @return True if ready, false otherwise.
+   */
+  public boolean isReady(final @NotNull ActorPath path) {
+    return new ActorReadinessResolver(this).isReady(path);
+  }
+
+  /**
+   * Checks if the given actor path has completed startup.
+   *
+   * @param path The actor path.
+   * @return True if startup is complete, false otherwise.
+   */
   public boolean isStartupComplete(final @NotNull ActorPath path) {
     return new ActorReadinessResolver(this).isStartupComplete(path);
   }

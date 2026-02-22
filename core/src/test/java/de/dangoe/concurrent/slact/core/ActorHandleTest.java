@@ -4,10 +4,10 @@ import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
-import de.dangoe.concurrent.slact.testkit.patterns.actors.CapturingActor;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
+import de.dangoe.concurrent.slact.testkit.patterns.actors.CapturingActor;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +25,9 @@ public class ActorHandleTest {
     private @NotNull CapturingActor<String> actor;
     private @NotNull ActorHandle<String> actorHandle;
 
+    @SuppressWarnings("NotNullFieldNotInitialized")
     private @NotNull CapturingActor<String> childActor;
+    @SuppressWarnings("NotNullFieldNotInitialized")
     private @NotNull ActorHandle<String> childActorHandle;
 
     @BeforeEach
