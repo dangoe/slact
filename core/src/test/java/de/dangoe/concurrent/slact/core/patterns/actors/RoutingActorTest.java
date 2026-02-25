@@ -107,36 +107,42 @@ public class RoutingActorTest {
       }
     }
 
-    @Test
+    @Nested
     @DisplayName("When multiple worker actors are used")
-    void whenMultipleWorkerActorsAreUsed(final @NotNull SlactTestContainer container) {
+    class WhenMultipleWorkerActorsAreUsed {
 
-      final var actorCounter = new AtomicInteger(1);
+      @Test
+      @DisplayName("Should distribute messages round-robin across all workers")
+      void shouldDistributeMessagesRoundRobinAcrossAllWorkers(
+          final @NotNull SlactTestContainer container) {
 
-      final var computedResult = new ConcurrentHashMap<Integer, Integer>();
+        final var actorCounter = new AtomicInteger(1);
 
-      final var actor = container.spawn(
-          RoutingActor.roundRobinWorker(3, () -> new Actor<Integer>() {
+        final var computedResult = new ConcurrentHashMap<Integer, Integer>();
 
-            private final int id = actorCounter.getAndIncrement();
+        final var actor = container.spawn(
+            RoutingActor.roundRobinWorker(3, () -> new Actor<Integer>() {
 
-            @Override
-            public void onMessage(final @NotNull Integer message) {
-              computedResult.compute(id,
-                  (key, value) -> id * (Optional.ofNullable(value).orElse(0) + message));
-            }
-          }));
+              private final int id = actorCounter.getAndIncrement();
 
-      container.awaitReady(actor.path());
+              @Override
+              public void onMessage(final @NotNull Integer message) {
+                computedResult.compute(id,
+                    (key, value) -> id * (Optional.ofNullable(value).orElse(0) + message));
+              }
+            }));
 
-      container.sendMultiple(
-              IntStream.range(0, 6).boxed().map(it -> new SimpleRoutingRequest<>(2)).toList())
-          .to(actor);
+        container.awaitReady(actor.path());
 
-      await().atMost(DEFAULT_TIMEOUT)
-          .untilAsserted(() -> assertThat(computedResult).containsExactlyInAnyOrderEntriesOf(
-              Map.of(1, 4, 2, 12, 3, 24)
-          ));
+        container.sendMultiple(
+                IntStream.range(0, 6).boxed().map(it -> new SimpleRoutingRequest<>(2)).toList())
+            .to(actor);
+
+        await().atMost(DEFAULT_TIMEOUT)
+            .untilAsserted(() -> assertThat(computedResult).containsExactlyInAnyOrderEntriesOf(
+                Map.of(1, 4, 2, 12, 3, 24)
+            ));
+      }
     }
   }
 }

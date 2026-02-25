@@ -8,22 +8,28 @@ import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(SlactTestContainerExtension.class)
+@DisplayName("Actor behavior")
 public class ActorBehaviorTest {
 
   @Nested
+  @DisplayName("given an actor with different behaviours")
   class GivenAnActorWithDifferentBehaviours {
 
     @Nested
+    @DisplayName("when the behavior is changed for the first special message received")
     class WhenTheBehaviorIsChangedForFirstSpecialMessageReceived {
 
       @Test
+      @DisplayName("should change the behaviour")
       void shouldChangeTheBehaviour(final @NotNull SlactTestContainer container) {
 
         final var result = new AtomicReference<ReceivedMessage<String>>();
@@ -57,9 +63,11 @@ public class ActorBehaviorTest {
     }
 
     @Nested
+    @DisplayName("when the behavior is changed multiple times for two special messages")
     class WhenTheBehaviorIsChangedMultipleTimesForTwoSpecialMessages {
 
       @Test
+      @DisplayName("should change the behaviour accordingly")
       void shouldChangeTheBehaviourAccordingly(final @NotNull SlactTestContainer container) {
 
         final var result = new AtomicReference<ReceivedMessage<String>>();
@@ -95,6 +103,46 @@ public class ActorBehaviorTest {
         await().atMost(Duration.ofSeconds(5)).untilAsserted(
             () -> assertThat(result.get()).isEqualTo(
                 new ReceivedMessage<>("Go!", ActorPath.root().append("resending-actor"))));
+      }
+    }
+
+    @Nested
+    @DisplayName("when the behavior is switched back to default after a prior change")
+    class WhenTheBehaviorIsSwitchedBackToDefault {
+
+      @Test
+      @DisplayName("should resume the original default behaviour")
+      void shouldResumeTheOriginalDefaultBehaviour(final @NotNull SlactTestContainer container) {
+
+        final var defaultHandledCount = new AtomicInteger(0);
+        final var alternateHandledCount = new AtomicInteger(0);
+
+        final var actor = container.spawn("actor", () -> new Actor<String>() {
+          @Override
+          public void onMessage(final @NotNull String message) {
+            if ("switch".equals(message)) {
+              behaveAs(this::alternateBehaviour);
+            } else {
+              defaultHandledCount.incrementAndGet();
+            }
+          }
+
+          private void alternateBehaviour(final String message) {
+            if ("reset".equals(message)) {
+              behaveAsDefault();
+            } else {
+              alternateHandledCount.incrementAndGet();
+            }
+          }
+        });
+
+        container.sendMultiple(List.of("default-1", "switch", "alternate-1", "reset", "default-2"))
+            .to(actor);
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+          assertThat(defaultHandledCount.get()).isEqualTo(2);
+          assertThat(alternateHandledCount.get()).isEqualTo(1);
+        });
       }
     }
   }

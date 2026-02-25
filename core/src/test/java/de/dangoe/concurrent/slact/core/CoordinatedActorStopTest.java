@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.core;
 
 import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.awaitility.Awaitility.await;
 
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
@@ -174,12 +175,35 @@ class CoordinatedActorStopTest {
   }
 
   @Nested
+  @DisplayName("When stopping an already-stopped actor")
+  class WhenStoppingAnAlreadyStoppedActor {
+
+    @Test
+    @DisplayName("when stop is called a second time, then no exception is thrown and the actor remains unresolvable")
+    void whenStopIsCalledASecondTime_thenNoExceptionIsThrownAndActorRemainsUnresolvable(
+        final @NotNull SlactTestContainer container) {
+
+      final var actor = container.spawn("actor", FailingOnReceiveActor::new);
+
+      container.awaitReady(actor.path());
+
+      final var firstStop = container.stop(actor);
+
+      await().atMost(DEFAULT_TIMEOUT).untilAsserted(() -> assertThat(firstStop).isDone());
+
+      assertThatNoException().isThrownBy(() -> container.stop(actor));
+      assertThat(container.resolve(actor.path()))
+          .describedAs("Actor should remain unresolvable after a second stop call")
+          .isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("An actor without children")
   class AnActorWithoutChildren extends CoordinatedActorStopBehavior {
 
     @Override
     protected void spawnChildActors(final @NotNull ActorContext<?> actorContext) {
-
       // Nothing to do
     }
 

@@ -14,17 +14,21 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(SlactTestContainerExtension.class)
+@DisplayName("Actor async response")
 public class ActorAsyncResponseTest {
 
   @Nested
+  @DisplayName("given an actor that works with results provided asynchronously")
   class GivenAnActorThatWorksWithResultsProvidedAsynchronously {
 
     @Test
+    @DisplayName("should process piped results correctly when futures complete asynchronously")
     void shouldProcessPipedResultsCorrectly(final @NotNull SlactTestContainer container) {
 
       try (final var executor = Executors.newFixedThreadPool(12)) {
@@ -63,27 +67,71 @@ public class ActorAsyncResponseTest {
           container.send(message).to(actor);
         }
 
-        await().atMost(Duration.ofSeconds(1000)).untilAsserted(
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(
             () -> assertThat(result).containsExactlyInAnyOrderElementsOf(messages.stream()
                 .map(message -> new ReceivedMessage<>(message, ActorPath.root().append("actor")))
                 .toList()));
       }
     }
+
+    @Test
+    @DisplayName("should not deliver a message to the target actor when the piped future fails exceptionally")
+    void shouldNotDeliverMessageWhenPipedFutureFailsExceptionally(
+        final @NotNull SlactTestContainer container) {
+
+      final var receivedMessages = new CopyOnWriteArrayList<String>();
+
+      final var terminalActor = container.spawn("terminal-actor", () -> new Actor<String>() {
+        @Override
+        public void onMessage(final @NotNull String message) {
+          receivedMessages.add(message);
+        }
+      });
+
+      final var actor = container.spawn("actor", () -> new Actor<String>() {
+        @Override
+        public void onMessage(final @NotNull String message) {
+          pipeFuture(CompletableFuture.failedFuture(
+              new RuntimeException("intentional failure"))).to(terminalActor);
+        }
+      });
+
+      container.send("trigger").to(actor);
+
+      final var probeReceived = new CopyOnWriteArrayList<String>();
+      final var probeActor = container.spawn("probe-actor", () -> new Actor<String>() {
+        @Override
+        public void onMessage(final @NotNull String message) {
+          probeReceived.add(message);
+        }
+      });
+
+      container.send("probe").to(probeActor);
+
+      await().atMost(Duration.ofSeconds(5))
+          .untilAsserted(() -> assertThat(probeReceived).containsExactly("probe"));
+      assertThat(receivedMessages).isEmpty();
+    }
   }
 
   @Nested
+  @DisplayName("given an actor that should respond asynchronously")
   class GivenAnActorThatShouldRespondAsynchronously {
 
     @Nested
+    @DisplayName("when a request is received")
     class WhenRequestIsReceived {
 
       @Nested
+      @DisplayName("when used from outside of the container")
       class WhenUsedFromOutsideOfTheContainer {
 
         @Nested
+        @DisplayName("should complete the corresponding future when the operation is finished")
         class ShouldCompleteTheCorrespondingFutureWhenTheOperationIsFinished {
 
           @Test
+          @DisplayName("when send is used to respond")
           void whenSendIsUsedToRespond(final @NotNull SlactTestContainer container)
               throws Exception {
 
@@ -103,6 +151,7 @@ public class ActorAsyncResponseTest {
           }
 
           @Test
+          @DisplayName("when respond is used to respond")
           void whenRespondIsUsedToRespond(final @NotNull SlactTestContainer container)
               throws Exception {
 
@@ -123,6 +172,7 @@ public class ActorAsyncResponseTest {
         }
 
         @Test
+        @DisplayName("should complete the future with the correct result")
         void shouldCompleteTheFutureWithTheCorrectResult(
             final @NotNull SlactTestContainer container) throws Exception {
 
@@ -130,7 +180,6 @@ public class ActorAsyncResponseTest {
             @Override
             public void onMessage(final @NotNull String message) {
 
-              // Wait to ensure that both messages are scheduled
               try {
                 Thread.sleep(1000);
               } catch (InterruptedException e) {
@@ -154,10 +203,11 @@ public class ActorAsyncResponseTest {
       }
 
       @Nested
+      @DisplayName("when used from inside of the container")
       class WhenUsedFromInsideOfTheContainer {
 
-
         @Test
+        @DisplayName("when send is used to respond")
         void whenSendIsUsedToRespond(final @NotNull SlactTestContainer container) {
 
           final AtomicReference<String> result = new AtomicReference<>();
@@ -190,6 +240,7 @@ public class ActorAsyncResponseTest {
         }
 
         @Test
+        @DisplayName("when respond is used to respond")
         void whenRespondIsUsedToRespond(final @NotNull SlactTestContainer container) {
 
           final AtomicReference<String> result = new AtomicReference<>();
