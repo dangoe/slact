@@ -3,14 +3,12 @@ package de.dangoe.concurrent.slact.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.persistence.testkit.InMemoryEventStore;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
@@ -27,20 +25,20 @@ public class PersistentActorTest {
 
   private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
-  private sealed interface CounterMessage permits Increment, GetCount, CurrentCount {
+  private sealed interface CounterMessage permits CounterMessage.CurrentCount,
+      CounterMessage.GetCount, CounterMessage.Increment {
 
-  }
+    record Increment() implements CounterMessage {
 
-  private record Increment() implements CounterMessage {
+    }
 
-  }
+    record GetCount() implements CounterMessage {
 
-  private record GetCount() implements CounterMessage {
+    }
 
-  }
+    record CurrentCount(int value) implements CounterMessage {
 
-  private record CurrentCount(int value) implements CounterMessage {
-
+    }
   }
 
   private record Incremented() {
@@ -57,41 +55,26 @@ public class PersistentActorTest {
     @Override
     public void onMessage(final @NotNull CounterMessage message) {
       switch (message) {
-        case Increment() -> persist(new Incremented());
-        case GetCount() -> respondWith(new CurrentCount(events().size()));
-        case CurrentCount ignored -> reject(message);
+        case CounterMessage.Increment() -> persist(new Incremented());
+        case CounterMessage.GetCount() ->
+            respondWith(new CounterMessage.CurrentCount(events().size()));
+        case CounterMessage.CurrentCount ignored -> reject(message);
       }
     }
   }
 
-  @SuppressWarnings("rawtypes")
-  private static final class InMemoryEventStore implements EventStore {
-
-    private final ConcurrentHashMap<String, CopyOnWriteArrayList<Object>> store = new ConcurrentHashMap<>();
-
-    @Override
-    public @NotNull CompletableFuture<List> loadEvents(final @NotNull PartitionKey partitionKey) {
-      return CompletableFuture.completedFuture(
-          List.copyOf(store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>())));
-    }
-
-    @Override
-    public @NotNull CompletableFuture<Void> appendMultiple(final @NotNull PartitionKey partitionKey,
-        final @NotNull List events) {
-      store.computeIfAbsent(partitionKey.value(), k -> new CopyOnWriteArrayList<>()).addAll(events);
-      return CompletableFuture.completedFuture(null);
-    }
-  }
-
-  private final InMemoryEventStore eventStore = new InMemoryEventStore();
+  private final InMemoryEventStore<Incremented> eventStore = new InMemoryEventStore<>(
+      Clock.systemUTC());
 
   @BeforeEach
   void setUp() {
+
     PersistenceExtensionHolder.getInstance().register(new PersistenceExtension() {
+
       @Override
       @SuppressWarnings("unchecked")
       public <S> @NotNull Optional<EventStore<S>> resolveStore(final @NotNull PartitionKey key) {
-        return Optional.of(eventStore);
+        return Optional.of((EventStore<S>) eventStore);
       }
     });
   }
@@ -120,15 +103,16 @@ public class PersistentActorTest {
 
       assertThat(firstRecoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
-      container.send((CounterMessage) new Increment()).to(counterV1);
-      container.send((CounterMessage) new Increment()).to(counterV1);
-      container.send((CounterMessage) new Increment()).to(counterV1);
+      container.send((CounterMessage) new CounterMessage.Increment()).to(counterV1);
+      container.send((CounterMessage) new CounterMessage.Increment()).to(counterV1);
+      container.send((CounterMessage) new CounterMessage.Increment()).to(counterV1);
 
-      final var countAfterFirstRun = container.requestResponseTo((CounterMessage) new GetCount())
-          .ofType(CurrentCount.class).from(counterV1);
+      final var countAfterFirstRun = container.requestResponseTo(
+              (CounterMessage) new CounterMessage.GetCount())
+          .ofType(CounterMessage.CurrentCount.class).from(counterV1);
 
       await().atMost(TIMEOUT).until(countAfterFirstRun::isDone);
-      assertThat(countAfterFirstRun.get()).isEqualTo(new CurrentCount(3));
+      assertThat(countAfterFirstRun.get()).isEqualTo(new CounterMessage.CurrentCount(3));
 
       container.stop(counterV1).get(5, TimeUnit.SECONDS);
 
@@ -142,20 +126,22 @@ public class PersistentActorTest {
 
       assertThat(secondRecoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
-      final var countAfterRecovery = container.requestResponseTo((CounterMessage) new GetCount())
-          .ofType(CurrentCount.class).from(counterV2);
+      final var countAfterRecovery = container.requestResponseTo(
+              (CounterMessage) new CounterMessage.GetCount())
+          .ofType(CounterMessage.CurrentCount.class).from(counterV2);
 
       await().atMost(TIMEOUT).until(countAfterRecovery::isDone);
-      assertThat(countAfterRecovery.get()).isEqualTo(new CurrentCount(3));
+      assertThat(countAfterRecovery.get()).isEqualTo(new CounterMessage.CurrentCount(3));
 
-      container.send((CounterMessage) new Increment()).to(counterV2);
-      container.send((CounterMessage) new Increment()).to(counterV2);
+      container.send((CounterMessage) new CounterMessage.Increment()).to(counterV2);
+      container.send((CounterMessage) new CounterMessage.Increment()).to(counterV2);
 
       final var countAfterMoreIncrements = container.requestResponseTo(
-          (CounterMessage) new GetCount()).ofType(CurrentCount.class).from(counterV2);
+              (CounterMessage) new CounterMessage.GetCount()).ofType(CounterMessage.CurrentCount.class)
+          .from(counterV2);
 
       await().atMost(TIMEOUT).until(countAfterMoreIncrements::isDone);
-      assertThat(countAfterMoreIncrements.get()).isEqualTo(new CurrentCount(5));
+      assertThat(countAfterMoreIncrements.get()).isEqualTo(new CounterMessage.CurrentCount(5));
     }
   }
 }
