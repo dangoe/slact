@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jetbrains.annotations.NotNull;
 
 public final class InMemoryEventStore<E> implements EventStore<E> {
@@ -40,8 +41,10 @@ public final class InMemoryEventStore<E> implements EventStore<E> {
         .max()
         .orElse(0L);
 
+    final var orderingCounter = new AtomicInteger((int) lastOrdering + 1);
+
     final var addedEventEnvelopes = events.stream()
-        .map(it -> new EventEnvelope<>(lastOrdering + 1, Instant.now(clock), it))
+        .map(it -> new EventEnvelope<>(orderingCounter.getAndIncrement(), Instant.now(clock), it))
         .toList();
 
     store.computeIfAbsent(partitionKey.value(), k -> new CopyOnWriteArrayList<>())
