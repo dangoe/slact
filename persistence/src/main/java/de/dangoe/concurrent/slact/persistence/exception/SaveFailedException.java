@@ -1,8 +1,10 @@
-package de.dangoe.concurrent.slact.persistence;
+package de.dangoe.concurrent.slact.persistence.exception;
 
+import de.dangoe.concurrent.slact.core.exception.SlactException;
+import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import org.jetbrains.annotations.NotNull;
 
-public final class SaveFailedException extends RuntimeException {
+public final class SaveFailedException extends SlactException {
 
   public SaveFailedException(final @NotNull PartitionKey partitionKey,
       final @NotNull Throwable cause) {

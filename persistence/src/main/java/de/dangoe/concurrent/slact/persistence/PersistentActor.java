@@ -1,6 +1,8 @@
 package de.dangoe.concurrent.slact.persistence;
 
 import de.dangoe.concurrent.slact.core.Actor;
+import de.dangoe.concurrent.slact.persistence.exception.RecoveryFailedException;
+import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
