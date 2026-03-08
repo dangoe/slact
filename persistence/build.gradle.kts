@@ -14,4 +14,5 @@ dependencies {
 
     testImplementation(project(":testkit"))
     testImplementation(libs.awaitility)
+    testImplementation(libs.logback.classic)
 }
