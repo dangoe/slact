@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import org.jetbrains.annotations.NotNull;
@@ -21,12 +22,12 @@ public class HikariConnectionPool implements JdbcConnectionPool {
   public @NotNull Connection acquire() throws InterruptedException {
     try {
       return dataSource.getConnection();
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       if (e.getCause() instanceof InterruptedException interrupted) {
         Thread.currentThread().interrupt();
         throw interrupted;
       }
-      throw new RuntimeException("Failed to acquire connection from pool", e);
+      throw new PersistenceException("Failed to acquire connection from pool", e);
     }
   }
 
