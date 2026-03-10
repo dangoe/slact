@@ -1,5 +1,6 @@
 package de.dangoe.concurrent.slact.persistence.testkit;
 
+import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
@@ -23,23 +24,19 @@ public final class InMemoryEventStore<E> implements EventStore<E> {
   }
 
   @Override
-  public @NotNull CompletableFuture<List<EventEnvelope<E>>> loadEvents(
+  public @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
       final @NotNull PartitionKey partitionKey) {
 
-    return CompletableFuture.completedFuture(
-        List.copyOf(store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>())));
+    return RichFuture.of(CompletableFuture.completedFuture(
+        List.copyOf(store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>()))));
   }
 
   @Override
-  public @NotNull CompletableFuture<List<EventEnvelope<E>>> appendMultiple(
-      final @NotNull PartitionKey partitionKey,
-      final @NotNull List<E> events) {
+  public @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
+      final @NotNull PartitionKey partitionKey, final @NotNull List<E> events) {
 
     final var lastOrdering = store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>())
-        .stream()
-        .mapToLong(EventEnvelope::ordering)
-        .max()
-        .orElse(0L);
+        .stream().mapToLong(EventEnvelope::ordering).max().orElse(0L);
 
     final var orderingCounter = new AtomicInteger((int) lastOrdering + 1);
 
@@ -50,6 +47,6 @@ public final class InMemoryEventStore<E> implements EventStore<E> {
     store.computeIfAbsent(partitionKey.value(), k -> new CopyOnWriteArrayList<>())
         .addAll(addedEventEnvelopes);
 
-    return CompletableFuture.completedFuture(addedEventEnvelopes);
+    return RichFuture.of(CompletableFuture.completedFuture(addedEventEnvelopes));
   }
 }

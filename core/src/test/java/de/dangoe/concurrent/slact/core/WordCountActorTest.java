@@ -7,13 +7,13 @@ import static org.awaitility.Awaitility.await;
 import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor;
 import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor.RoutingRequest;
 import de.dangoe.concurrent.slact.core.patterns.actors.RoutingActor.SimpleRoutingRequest;
+import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -149,7 +149,7 @@ public class WordCountActorTest {
               (WordCountActorMessage) new ProcessFileCommand("lorem-ipsum.txt"))
           .ofType(WordCountResult.class).from(wordCounterActor);
 
-      await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
 
       assertThat(eventualResponse.get()).isEqualTo(new WordCountResult(9895));
     }

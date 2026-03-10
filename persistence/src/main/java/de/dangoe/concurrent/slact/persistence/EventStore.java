@@ -1,7 +1,7 @@
 package de.dangoe.concurrent.slact.persistence;
 
+import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -18,10 +18,10 @@ public interface EventStore<E> {
    *
    * @param partitionKey The partition key for which to load the events. This key is used to
    *                     identify the specific stream of events to retrieve.
-   * @return A CompletableFuture that, when completed, will contain a list of EventEnvelope objects
-   * representing the events associated with the given partition key.
+   * @return A {@link RichFuture}  that, when completed, will contain a list of
+   * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
-  @NotNull CompletableFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey);
+  @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey);
 
   /**
    * Appends a single event to the event store for the specified partition key.
@@ -31,11 +31,10 @@ public interface EventStore<E> {
    *                     added.
    * @param event        The event to be appended to the event store. This is the actual event data
    *                     of type <code>E</code> that will be stored.
-   * @return A CompletableFuture that, when completed, will contain an EventEnvelope representing
-   * the appended event, including its ordering and timestamp.
+   * @return A {@link RichFuture} that, when completed, will contain an {@link EventEnvelope}
+   * representing the appended event, including its ordering and timestamp.
    */
-  default @NotNull CompletableFuture<EventEnvelope<E>> append(
-      final @NotNull PartitionKey partitionKey,
+  default @NotNull RichFuture<EventEnvelope<E>> append(final @NotNull PartitionKey partitionKey,
       @NotNull E event) {
 
     return appendMultiple(partitionKey, List.of(event)).thenApply(List::getFirst);
@@ -50,10 +49,9 @@ public interface EventStore<E> {
    *                     added.
    * @param events       The list of events to be appended to the event store. These are the actual
    *                     event data of type <code>E</code> that will be stored.
-   * @return A CompletableFuture that, when completed, will contain a list of EventEnvelope objects
-   * representing the appended events, including their ordering and timestamps.
+   * @return A {@link RichFuture} that, when completed, will contain a list of {@link EventEnvelope}
+   * objects representing the appended events, including their ordering and timestamps.
    */
-  @NotNull CompletableFuture<List<EventEnvelope<E>>> appendMultiple(
-      @NotNull PartitionKey partitionKey,
+  @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(@NotNull PartitionKey partitionKey,
       @NotNull List<E> events);
 }

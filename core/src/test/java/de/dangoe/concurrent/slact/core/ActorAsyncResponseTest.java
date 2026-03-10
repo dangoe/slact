@@ -3,10 +3,10 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
-import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -67,7 +67,7 @@ public class ActorAsyncResponseTest {
           container.send(message).to(actor);
         }
 
-        await().atMost(Duration.ofSeconds(10)).untilAsserted(
+        await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
             () -> assertThat(result).containsExactlyInAnyOrderElementsOf(messages.stream()
                 .map(message -> new ReceivedMessage<>(message, ActorPath.root().append("actor")))
                 .toList()));
@@ -108,7 +108,7 @@ public class ActorAsyncResponseTest {
 
       container.send("probe").to(probeActor);
 
-      await().atMost(Duration.ofSeconds(5))
+      await().atMost(Constants.DEFAULT_TIMEOUT)
           .untilAsserted(() -> assertThat(probeReceived).containsExactly("probe"));
       assertThat(receivedMessages).isEmpty();
     }
@@ -145,7 +145,7 @@ public class ActorAsyncResponseTest {
             final var eventualResponse = container.requestResponseTo("Hello world!")
                 .ofType(String.class).from(actor);
 
-            await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+            await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
 
             assertThat(eventualResponse.get()).isEqualTo("Hi there!");
           }
@@ -165,7 +165,7 @@ public class ActorAsyncResponseTest {
             final var eventualResponse = container.requestResponseTo("Hello world!")
                 .ofType(String.class).from(actor);
 
-            await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+            await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
 
             assertThat(eventualResponse.get()).isEqualTo("Hi there!");
           }
@@ -196,7 +196,7 @@ public class ActorAsyncResponseTest {
                   "Second message for which the future should be completed.").ofType(String.class)
               .from(actor);
 
-          await().atMost(Duration.ofSeconds(5)).until(eventualResponse::isDone);
+          await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
 
           assertThat(eventualResponse.get()).startsWith("Second");
         }
@@ -234,7 +234,7 @@ public class ActorAsyncResponseTest {
 
           container.send("test").to(otherActor);
 
-          await().atMost(Duration.ofSeconds(5)).until(() -> result.get() != null);
+          await().atMost(Constants.DEFAULT_TIMEOUT).until(() -> result.get() != null);
 
           assertThat(result.get()).isEqualTo("_test_");
         }
@@ -267,7 +267,7 @@ public class ActorAsyncResponseTest {
 
           container.send("test").to(otherActor);
 
-          await().atMost(Duration.ofSeconds(5)).until(() -> result.get() != null);
+          await().atMost(Constants.DEFAULT_TIMEOUT).until(() -> result.get() != null);
 
           assertThat(result.get()).isEqualTo("_test_");
         }

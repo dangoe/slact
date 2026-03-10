@@ -1,6 +1,6 @@
 package de.dangoe.concurrent.slact.core;
 
-import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEOUT;
+import static de.dangoe.concurrent.slact.testkit.Constants.DEFAULT_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
