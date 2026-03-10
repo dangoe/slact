@@ -5,30 +5,42 @@ import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.function.Function;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Abstracts database-specific SQL for inserting events and retrieving their generated metadata.
- * The SELECT path is standard SQL and does not require a dialect.
+ * Abstracts database-specific SQL for inserting events and retrieving their generated metadata. The
+ * SELECT path is standard SQL and does not require a dialect.
  */
 public interface JdbcDialect {
+
+  /**
+   * Loads all events for the given partition key, ordered by their natural ordering (e.g. insertion
+   * order). The deserializer is used to convert the binary payload back into event objects.
+   *
+   * @param connection   An active JDBC connection.
+   * @param partitionKey The partition key to load events for.
+   * @param <E>          The event type.
+   * @return A list of event envelopes containing the loaded events and their associated metadata,
+   * ordered by their natural ordering.
+   * @throws SQLException Thrown, if a database error occurs while loading events.
+   */
+  <E> @NotNull List<EventEnvelope<E>> loadEvents(
+      @NotNull Connection connection,
+      @NotNull PartitionKey partitionKey) throws SQLException;
 
   /**
    * Inserts the given events for the partition and returns their persisted envelopes, including
    * database-generated values such as ordering and timestamp.
    *
-   * @param connection    An active JDBC connection.
-   * @param partitionKey  The partition key to insert events under.
-   * @param events        The events to insert.
-   * @param serializer    Converts an event to its binary representation for storage.
-   * @param <E>           The event type.
+   * @param connection   An active JDBC connection.
+   * @param partitionKey The partition key to insert events under.
+   * @param events       The events to insert.
+   * @param <E>          The event type.
    * @return The persisted envelopes for the inserted events, in insertion order.
-   * @throws SQLException If a database error occurs.
+   * @throws SQLException Thrown, if a database error occurs.
    */
   <E> @NotNull List<EventEnvelope<E>> insertEvents(
       @NotNull Connection connection,
       @NotNull PartitionKey partitionKey,
-      @NotNull List<E> events,
-      @NotNull Function<E, byte[]> serializer) throws SQLException;
+      @NotNull List<E> events) throws SQLException;
 }
