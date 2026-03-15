@@ -22,7 +22,7 @@ public record PartitionKey(@NotNull String value) implements Serializable {
     Objects.requireNonNull(value, "Value must not be null!");
 
     if (value.isBlank()) {
-      throw new IllegalArgumentException("Partition key value must not be blank.");
+      throw new IllegalArgumentException("Value must not be blank!");
     }
   }
 

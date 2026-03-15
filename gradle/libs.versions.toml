@@ -1,24 +1,26 @@
 [versions]
-slf4j = "2.0.17"
-logback = "1.5.27"
-jetbrains-annotations = "24.0.0"
-junit-jupiter = "5.10.0"
 assertj-core = "3.26.3"
 awaitility = "4.2.2"
-testcontainers = "1.20.4"
-liquibase = "4.29.2"
 hikaricp = "5.1.0"
+jetbrains-annotations = "24.0.0"
+junit-jupiter = "5.10.0"
+liquibase = "4.29.2"
+logback = "1.5.27"
+mockito = "5.23.0"
 postgresql = "42.7.4"
+slf4j = "2.0.17"
+testcontainers = "1.20.4"
 
 [libraries]
-slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj-core" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
-liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
-hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
