@@ -6,6 +6,7 @@ import de.dangoe.concurrent.slact.persistence.exception.RecoveryFailedException;
 import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -87,7 +88,8 @@ public abstract class PersistentActor<M, E> extends Actor<M> {
     final var partitionKey = partitionKey();
 
     try {
-      final var addedEvents = this.eventStore.appendMultiple(partitionKey, events).join();
+      final var addedEvents = this.eventStore.appendMultiple(partitionKey, maxOrdering(), events)
+          .join();
       this.events.addAll(addedEvents);
     } catch (final Exception cause) {
       throw new SaveFailedException(partitionKey, cause);
@@ -122,5 +124,9 @@ public abstract class PersistentActor<M, E> extends Actor<M> {
    */
   protected final @NotNull List<EventEnvelope<E>> events() {
     return Collections.unmodifiableList(events);
+  }
+
+  private long maxOrdering() {
+    return this.events.stream().mapToLong(EventEnvelope::ordering).max().orElse(-1L);
   }
 }

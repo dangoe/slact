@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -24,23 +25,26 @@ public interface JdbcDialect {
    * ordered by their natural ordering.
    * @throws SQLException Thrown, if a database error occurs while loading events.
    */
-  <E> @NotNull List<EventEnvelope<E>> loadEvents(
-      @NotNull Connection connection,
+  <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey) throws SQLException;
 
   /**
    * Inserts the given events for the partition and returns their persisted envelopes, including
    * database-generated values such as ordering and timestamp.
    *
-   * @param connection   An active JDBC connection.
-   * @param partitionKey The partition key to insert events under.
-   * @param events       The events to insert.
-   * @param <E>          The event type.
+   * @param connection      An active JDBC connection.
+   * @param partitionKey    The partition key to insert events under.
+   * @param lastMaxOrdering The last known maximum ordering value for the events in the partition.
+   *                        This is used to detect any potential concurrency issues.
+   * @param events          The events to insert.
+   * @param <E>             The event type.
    * @return The persisted envelopes for the inserted events, in insertion order.
-   * @throws SQLException Thrown, if a database error occurs.
+   * @throws SQLException             Thrown, if a database error occurs.
+   * @throws ConcurrentWriteException Thrown, if a concurrency conflict is detected, i.e., if the
+   *                                  last known maximum ordering value does not match the current
+   *                                  maximum ordering in the event store.
    */
-  <E> @NotNull List<EventEnvelope<E>> insertEvents(
-      @NotNull Connection connection,
-      @NotNull PartitionKey partitionKey,
-      @NotNull List<E> events) throws SQLException;
+  <E> @NotNull List<EventEnvelope<E>> insertEvents(@NotNull Connection connection,
+      @NotNull PartitionKey partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
+      throws SQLException, ConcurrentWriteException;
 }

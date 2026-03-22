@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0002
+      author: Daniel Götten
+      changes:
+        - dropAutoIncrement:
+            tableName: events
+            columnName: ordering

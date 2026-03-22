@@ -4,6 +4,7 @@ import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -33,10 +34,15 @@ public final class InMemoryEventStore<E> implements EventStore<E> {
 
   @Override
   public @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
-      final @NotNull PartitionKey partitionKey, final @NotNull List<E> events) {
+      final @NotNull PartitionKey partitionKey, final long lastMaxOrdering,
+      final @NotNull List<E> events) throws ConcurrentWriteException {
 
     final var lastOrdering = store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>())
-        .stream().mapToLong(EventEnvelope::ordering).max().orElse(0L);
+        .stream().mapToLong(EventEnvelope::ordering).max().orElse(-1L);
+
+    if (lastOrdering > lastMaxOrdering) {
+      throw new ConcurrentWriteException(partitionKey);
+    }
 
     final var orderingCounter = new AtomicInteger((int) lastOrdering + 1);
 

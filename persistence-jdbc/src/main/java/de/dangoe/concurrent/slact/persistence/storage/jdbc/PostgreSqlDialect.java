@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -53,25 +54,30 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <E> @NotNull List<EventEnvelope<E>> insertEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, final @NotNull List<E> events) throws SQLException {
+      final @NotNull PartitionKey partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
+      throws SQLException, ConcurrentWriteException {
 
     final var inserted = new ArrayList<EventEnvelope<E>>();
 
+    var ordering = lastMaxOrdering + 1;
+
     for (final var event : events) {
       try (final var statement = connection.prepareStatement(
-          "INSERT INTO events (partition_key, timestamp, payload) VALUES (?, ?, ?) RETURNING ordering, timestamp")) {
+          "INSERT INTO events (partition_key, ordering, timestamp, payload) VALUES (?, ?, ?, ?) RETURNING timestamp")) {
 
         statement.setString(1, partitionKey.value());
-        statement.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
-        statement.setBytes(3, serialize(event));
+        statement.setLong(2, ordering);
+        statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+        statement.setBytes(4, serialize(event));
 
         try (final var resultSet = statement.executeQuery()) {
           if (resultSet.next()) {
-            final var ordering = resultSet.getLong("ordering");
             final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
             inserted.add(new EventEnvelope<>(ordering, timestamp, event));
           }
         }
+
+        ordering++;
       }
     }
 

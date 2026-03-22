@@ -11,4 +11,3 @@ public final class SaveFailedException extends PersistenceException {
     super("Saving state failed for partition key '%s'.".formatted(partitionKey.value()), cause);
   }
 }
-
