@@ -3,6 +3,7 @@ databaseChangeLog:
       id: 0002
       author: Daniel Götten
       changes:
-        - dropAutoIncrement:
+        - modifyDataType:
             tableName: events
             columnName: ordering
+            newDataType: BIGINT
