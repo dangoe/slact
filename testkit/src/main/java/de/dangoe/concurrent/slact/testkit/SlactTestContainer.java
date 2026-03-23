@@ -11,7 +11,6 @@ import de.dangoe.concurrent.slact.core.FuturePipeOp;
 import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.SlactContainerBuilder;
 import de.dangoe.concurrent.slact.core.internal.ActorReadinessResolver;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
@@ -126,24 +125,9 @@ public final class SlactTestContainer implements SlactContainer {
    */
   public void awaitReady(final @NotNull Iterable<ActorPath> paths) {
 
-    await().atMost(Duration.ofSeconds(5))
+    await().atMost(Constants.DEFAULT_TIMEOUT)
         .until(
             () -> StreamSupport.stream(paths.spliterator(), true).allMatch(this::isReady));
-  }
-
-  /**
-   * Waits until the given actor path and additional paths have completed startup.
-   *
-   * @param path  The main actor path.
-   * @param paths Additional actor paths.
-   */
-  public void awaitStartupComplete(final @NotNull ActorPath path,
-      final @NotNull ActorPath... paths) {
-
-    final var pathsLists = new ArrayList<>(Arrays.asList(paths));
-    pathsLists.add(path);
-
-    awaitReady(pathsLists);
   }
 
   /**
@@ -153,7 +137,7 @@ public final class SlactTestContainer implements SlactContainer {
    */
   public void awaitStartupComplete(final @NotNull Iterable<ActorPath> paths) {
 
-    await().atMost(Duration.ofSeconds(5))
+    await().atMost(Constants.DEFAULT_TIMEOUT)
         .until(
             () -> StreamSupport.stream(paths.spliterator(), true)
                 .allMatch(this::isStartupComplete));

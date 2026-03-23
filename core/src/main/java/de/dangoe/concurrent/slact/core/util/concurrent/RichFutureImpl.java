@@ -46,4 +46,15 @@ class RichFutureImpl<T> implements RichFuture<T> {
       final @NotNull Function<? super T, ? extends S> mapper) {
     return new RichFutureImpl<>(delegate.thenApply(mapper));
   }
+
+  @Override
+  public @NotNull RichFuture<T> exceptionally(
+      final @NotNull Function<Throwable, ? extends T> fn) {
+    return new RichFutureImpl<>(delegate.exceptionally(fn));
+  }
+
+  @Override
+  public T join() {
+    return delegate.join();
+  }
 }

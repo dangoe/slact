@@ -1,13 +1,13 @@
 package de.dangoe.concurrent.slact.core;
 
-import static de.dangoe.concurrent.slact.core.testhelper.Constants.DEFAULT_TIMEOUT;
+import static de.dangoe.concurrent.slact.testkit.Constants.DEFAULT_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
-import java.time.Duration;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.IntStream;
 import org.jetbrains.annotations.NotNull;
@@ -43,7 +43,7 @@ class ActorMessagePropagationTest {
         container.send(message).to(actor);
       }
 
-      await().atMost(Duration.ofSeconds(5)).untilAsserted(
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
           () -> assertThat(result).containsExactlyElementsOf(
               messages.stream().map(message -> new ReceivedMessage<>(message, ActorPath.root()))
                   .toList()));
@@ -76,7 +76,7 @@ class ActorMessagePropagationTest {
         container.send(message).to(actorHandle);
       }
 
-      await().atMost(Duration.ofSeconds(5))
+      await().atMost(Constants.DEFAULT_TIMEOUT)
           .untilAsserted(() -> assertThat(result).containsExactlyElementsOf(messages));
     }
 
@@ -127,7 +127,7 @@ class ActorMessagePropagationTest {
         container.send(message).to(actor);
       }
 
-      await().atMost(Duration.ofSeconds(5)).untilAsserted(
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
           () -> assertThat(result).hasSize(messages.size()).containsExactlyElementsOf(
               messages.stream().map(message -> new ReceivedMessage<>("_%s_".formatted(message),
                   ActorPath.root().append("other-actor"))).toList()));
@@ -165,7 +165,7 @@ class ActorMessagePropagationTest {
         container.send(message).to(actor);
       }
 
-      await().atMost(Duration.ofSeconds(5)).untilAsserted(
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
           () -> assertThat(result).containsExactlyElementsOf(messages.stream()
               .map(message -> new ReceivedMessage<>(message, ActorPath.root().append("actor")))
               .toList()));
@@ -210,7 +210,7 @@ class ActorMessagePropagationTest {
         container.send(message).to(originActor);
       }
 
-      await().atMost(Duration.ofSeconds(5)).untilAsserted(
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
           () -> assertThat(result).containsExactlyElementsOf(messages.stream()
               .map(msg -> new ReceivedMessage<>(msg, ActorPath.root().append("origin-actor")))
               .toList()));
@@ -261,7 +261,7 @@ class ActorMessagePropagationTest {
       }
 
       // Then
-      await().atMost(Duration.ofSeconds(5)).untilAsserted(
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
           () -> assertThat(result).containsExactlyElementsOf(
               messages.stream().map(msg -> new ReceivedMessage<>(msg, childActor.path()))
                   .toList()));

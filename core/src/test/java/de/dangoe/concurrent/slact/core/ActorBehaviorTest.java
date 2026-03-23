@@ -3,10 +3,10 @@ package de.dangoe.concurrent.slact.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import de.dangoe.concurrent.slact.testkit.model.ReceivedMessage;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,9 +56,9 @@ public class ActorBehaviorTest {
 
         container.sendMultiple(List.of("initialize", "Hello world!")).to(resendingActor);
 
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(
-            () -> assertThat(result.get()).isEqualTo(new ReceivedMessage<>("Hello world!",
-                ActorPath.root().append("resending-actor"))));
+        await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
+            () -> assertThat(result.get()).isEqualTo(
+                new ReceivedMessage<>("Hello world!", ActorPath.root().append("resending-actor"))));
       }
     }
 
@@ -100,7 +100,7 @@ public class ActorBehaviorTest {
 
         container.sendMultiple(List.of("Ready!", "Steady!", "Go!")).to(resendingActor);
 
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(
+        await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(
             () -> assertThat(result.get()).isEqualTo(
                 new ReceivedMessage<>("Go!", ActorPath.root().append("resending-actor"))));
       }
@@ -139,7 +139,7 @@ public class ActorBehaviorTest {
         container.sendMultiple(List.of("default-1", "switch", "alternate-1", "reset", "default-2"))
             .to(actor);
 
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+        await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(() -> {
           assertThat(defaultHandledCount.get()).isEqualTo(2);
           assertThat(alternateHandledCount.get()).isEqualTo(1);
         });

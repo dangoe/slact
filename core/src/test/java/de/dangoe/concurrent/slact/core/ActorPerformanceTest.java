@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.core;
 
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.time.Duration;
@@ -60,7 +61,7 @@ public class ActorPerformanceTest {
   private static final int ACTOR_COUNT = readRequestedActorCount();
 
   @Test
-  void testActorSpawningPerformance(final @NotNull SlactTestContainer container) throws Exception {
+  void testActorSpawningPerformance(final @NotNull SlactTestContainer container) {
 
     final var start = Instant.now();
 
@@ -78,8 +79,7 @@ public class ActorPerformanceTest {
 
     final var spawned = Instant.now();
 
-    await().atMost(Duration.ofMinutes(1))
-        .until(() -> futures.stream().allMatch(Future::isDone));
+    await().atMost(Duration.ofMinutes(1)).until(() -> futures.stream().allMatch(Future::isDone));
 
     final var actors = futures.stream().map(it -> {
       try {
@@ -115,10 +115,8 @@ public class ActorPerformanceTest {
     final var latch = new CountDownLatch(numActors);
 
     for (int i = 0; i < numActors; i++) {
-      final var receiver = container.spawn(
-          "receiver-" + i,
-          () -> new CountingActor(messagesPerActor, latch)
-      );
+      final var receiver = container.spawn("receiver-" + i,
+          () -> new CountingActor(messagesPerActor, latch));
       receivers.add(receiver);
     }
 
@@ -138,7 +136,7 @@ public class ActorPerformanceTest {
       }
     }
 
-    await().atMost(Duration.ofSeconds(5))
+    await().atMost(Constants.DEFAULT_TIMEOUT)
         .until(() -> futures.stream().allMatch(it -> it.isDone() || it.isCancelled()));
 
     final var sentComplete = Instant.now();
@@ -163,8 +161,7 @@ public class ActorPerformanceTest {
     logger.info("Messages processed in {} ms", totalDurationMs);
     logger.info("Send rate: {} messages/second", sendRate);
     logger.info("Processing rate: {} messages/second", processingRate);
-    logger.info("Average latency: {} microseconds",
-        (totalDurationMs * 1000.0) / totalMessages);
+    logger.info("Average latency: {} microseconds", (totalDurationMs * 1000.0) / totalMessages);
   }
 
   @Test
@@ -189,9 +186,7 @@ public class ActorPerformanceTest {
     // Send requests and collect futures
     final var responseFutures = new ArrayList<Future<String>>();
     for (int i = 0; i < numRequests; i++) {
-      Future<String> response = container
-          .requestResponseTo("request-" + i)
-          .ofType(String.class)
+      Future<String> response = container.requestResponseTo("request-" + i).ofType(String.class)
           .from(responder);
       responseFutures.add(response);
     }
@@ -207,8 +202,7 @@ public class ActorPerformanceTest {
     logger.info("=== Request-Response Results ===");
     logger.info("Completed {} request-response cycles in {} ms", numRequests, durationMs);
     logger.info("Request-response rate: {} requests/second", requestsPerSecond);
-    logger.info("Average round-trip latency: {} microseconds",
-        (durationMs * 1000.0) / numRequests);
+    logger.info("Average round-trip latency: {} microseconds", (durationMs * 1000.0) / numRequests);
   }
 
   private static int readRequestedActorCount() {
