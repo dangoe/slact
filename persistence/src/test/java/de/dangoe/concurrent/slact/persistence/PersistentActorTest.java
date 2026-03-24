@@ -43,7 +43,7 @@ public class PersistentActorTest {
 
   }
 
-  private static class CounterActor extends SimplePersistentActor<CounterMessage, Incremented> {
+  private static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
 
     @Override
     protected @NotNull PartitionKey partitionKey() {
@@ -71,9 +71,15 @@ public class PersistentActorTest {
 
       @Override
       @SuppressWarnings("unchecked")
-      public <E, S extends SnapshotPayload> @NotNull Optional<EventStore<E, S>> resolveStore(
-          final @NotNull PartitionKey key) {
-        return Optional.of((EventStore<E, S>) eventStore);
+      public <S> @NotNull Optional<EventStore<S>> resolveStore(final @NotNull PartitionKey key) {
+        return Optional.of((EventStore<S>) eventStore);
+      }
+
+      @Override
+      public @NotNull <E, S> Optional<SnapshotCapableEventStore<E, S>> resolveSnapshotCapableStore(
+          @NotNull PartitionKey key) {
+        throw new UnsupportedOperationException(
+            "Snapshot capable store is not supported in this test");
       }
     });
   }

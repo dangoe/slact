@@ -8,8 +8,8 @@ import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtension;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtensionHolder;
-import de.dangoe.concurrent.slact.persistence.SimplePersistentActor;
-import de.dangoe.concurrent.slact.persistence.SnapshotPayload;
+import de.dangoe.concurrent.slact.persistence.PersistentActor;
+import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
 import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
@@ -70,7 +70,7 @@ public class JdbcPersistentActorTest {
     private static final long serialVersionUID = 1L;
   }
 
-  private static class CounterActor extends SimplePersistentActor<CounterMessage, Incremented> {
+  private static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
 
     @Override
     protected @NotNull PartitionKey partitionKey() {
@@ -97,10 +97,8 @@ public class JdbcPersistentActorTest {
     connectionPool = new HikariConnectionPool(config);
 
     try (final var connection = connectionPool.acquire()) {
-      final var liquibase = new Liquibase(
-          "db/changelog/db.changelog-master.yaml",
-          new ClassLoaderResourceAccessor(),
-          new JdbcConnection(connection));
+      final var liquibase = new Liquibase("db/changelog/db.changelog-master.yaml",
+          new ClassLoaderResourceAccessor(), new JdbcConnection(connection));
       liquibase.update();
     }
 
@@ -115,8 +113,7 @@ public class JdbcPersistentActorTest {
 
   @BeforeEach
   void setUp() throws InterruptedException, SQLException {
-    try (final var connection = connectionPool.acquire();
-        final var statement = connection.createStatement()) {
+    try (final var connection = connectionPool.acquire(); final var statement = connection.createStatement()) {
       statement.execute("TRUNCATE TABLE events RESTART IDENTITY");
     }
 
@@ -127,9 +124,15 @@ public class JdbcPersistentActorTest {
 
       @Override
       @SuppressWarnings("unchecked")
-      public <E, S extends SnapshotPayload> @NotNull Optional<EventStore<E, S>> resolveStore(
-          final @NotNull PartitionKey key) {
-        return Optional.of((EventStore<E, S>) eventStore);
+      public <S> @NotNull Optional<EventStore<S>> resolveStore(final @NotNull PartitionKey key) {
+        return Optional.of((EventStore<S>) eventStore);
+      }
+
+      @Override
+      public @NotNull <E, S> Optional<SnapshotCapableEventStore<E, S>> resolveSnapshotCapableStore(
+          @NotNull PartitionKey key) {
+        throw new UnsupportedOperationException(
+            "Snapshot capable store is not supported in this test");
       }
     });
   }
@@ -163,8 +166,8 @@ public class JdbcPersistentActorTest {
       container.send((CounterMessage) new CounterMessage.Increment()).to(counterV1);
 
       final var countAfterFirstRun = container.requestResponseTo(
-              (CounterMessage) new CounterMessage.GetCount())
-          .ofType(CounterMessage.CurrentCount.class).from(counterV1);
+              (CounterMessage) new CounterMessage.GetCount()).ofType(CounterMessage.CurrentCount.class)
+          .from(counterV1);
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(countAfterFirstRun::isDone);
       assertThat(countAfterFirstRun.get()).isEqualTo(new CounterMessage.CurrentCount(3));
@@ -182,8 +185,8 @@ public class JdbcPersistentActorTest {
       assertThat(secondRecoveryLatch.await(10, TimeUnit.SECONDS)).isTrue();
 
       final var countAfterRecovery = container.requestResponseTo(
-              (CounterMessage) new CounterMessage.GetCount())
-          .ofType(CounterMessage.CurrentCount.class).from(counterV2);
+              (CounterMessage) new CounterMessage.GetCount()).ofType(CounterMessage.CurrentCount.class)
+          .from(counterV2);
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(countAfterRecovery::isDone);
       assertThat(countAfterRecovery.get()).isEqualTo(new CounterMessage.CurrentCount(3));
@@ -192,8 +195,8 @@ public class JdbcPersistentActorTest {
       container.send((CounterMessage) new CounterMessage.Increment()).to(counterV2);
 
       final var countAfterMoreIncrements = container.requestResponseTo(
-              (CounterMessage) new CounterMessage.GetCount())
-          .ofType(CounterMessage.CurrentCount.class).from(counterV2);
+              (CounterMessage) new CounterMessage.GetCount()).ofType(CounterMessage.CurrentCount.class)
+          .from(counterV2);
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(countAfterMoreIncrements::isDone);
       assertThat(countAfterMoreIncrements.get()).isEqualTo(new CounterMessage.CurrentCount(5));

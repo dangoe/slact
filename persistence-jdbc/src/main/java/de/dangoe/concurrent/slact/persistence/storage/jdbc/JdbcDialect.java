@@ -2,7 +2,6 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
-import de.dangoe.concurrent.slact.persistence.SnapshotPayload;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -26,8 +25,7 @@ public interface JdbcDialect {
    * ordered by their natural ordering.
    * @throws SQLException Thrown, if a database error occurs while loading events.
    */
-  <E> @NotNull List<EventEnvelope<E, SnapshotPayload.None>> loadEvents(
-      @NotNull Connection connection,
+  <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey) throws SQLException;
 
   /**
@@ -46,8 +44,7 @@ public interface JdbcDialect {
    *                                  last known maximum ordering value does not match the current
    *                                  maximum ordering in the event store.
    */
-  <E> @NotNull List<EventEnvelope<E, SnapshotPayload.None>> insertEvents(
-      @NotNull Connection connection,
+  <E> @NotNull List<EventEnvelope<E>> insertEvents(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
       throws SQLException, ConcurrentWriteException;
 }

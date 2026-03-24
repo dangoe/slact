@@ -10,10 +10,8 @@ import org.jetbrains.annotations.NotNull;
  * a specific partition key.
  *
  * @param <E> The type of domain events that the event store will manage.
- * @param <S> The type of snapshot payloads. Use {@link SnapshotPayload.None} for stores that do
- *            not support snapshotting.
  */
-public interface EventStore<E, S extends SnapshotPayload> {
+public interface EventStore<E> {
 
   /**
    * Loads the events associated with the given partition key. The returned list of events is
@@ -24,7 +22,7 @@ public interface EventStore<E, S extends SnapshotPayload> {
    * @return A {@link RichFuture}  that, when completed, will contain a list of
    * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
-  @NotNull RichFuture<List<EventEnvelope<E, S>>> loadEvents(@NotNull PartitionKey partitionKey);
+  @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey);
 
   /**
    * Appends a single event to the event store for the specified partition key.
@@ -42,7 +40,7 @@ public interface EventStore<E, S extends SnapshotPayload> {
    *                                  last known maximum ordering value does not match the current
    *                                  maximum ordering in the event store.
    */
-  default @NotNull RichFuture<EventEnvelope<E, S>> append(final @NotNull PartitionKey partitionKey,
+  default @NotNull RichFuture<EventEnvelope<E>> append(final @NotNull PartitionKey partitionKey,
       long lastMaxOrdering, @NotNull E event) throws ConcurrentWriteException {
 
     return appendMultiple(partitionKey, lastMaxOrdering, List.of(event)).thenApply(List::getFirst);
@@ -65,6 +63,6 @@ public interface EventStore<E, S extends SnapshotPayload> {
    *                                  last known maximum ordering value does not match the current
    *                                  maximum ordering in the event store.
    */
-  @NotNull RichFuture<List<EventEnvelope<E, S>>> appendMultiple(@NotNull PartitionKey partitionKey,
+  @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(@NotNull PartitionKey partitionKey,
       long lastMaxOrdering, @NotNull List<E> events) throws ConcurrentWriteException;
 }

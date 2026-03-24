@@ -4,24 +4,25 @@ import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
-import de.dangoe.concurrent.slact.persistence.SnapshotPayload;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * An implementation of the EventStore interface that uses JDBC to persist events in a relational
- * database. Does not support snapshotting; the snapshot type is fixed to {@link SnapshotPayload.None}.
+ * database.
  *
  * @param <E> The type of events that this event store will manage.
  */
-public class JdbcEventStore<E> implements EventStore<E, SnapshotPayload.None> {
+public class JdbcEventStore<E> implements EventStore<E> {
 
   private final @NotNull JdbcConnectionPool connectionPool;
   private final @NotNull ExecutorService executorService;
@@ -38,7 +39,7 @@ public class JdbcEventStore<E> implements EventStore<E, SnapshotPayload.None> {
   }
 
   @Override
-  public @NotNull RichFuture<List<EventEnvelope<E, SnapshotPayload.None>>> loadEvents(
+  public @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
       final @NotNull PartitionKey partitionKey) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
@@ -58,7 +59,7 @@ public class JdbcEventStore<E> implements EventStore<E, SnapshotPayload.None> {
   }
 
   @Override
-  public @NotNull RichFuture<List<EventEnvelope<E, SnapshotPayload.None>>> appendMultiple(
+  public @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
       final @NotNull PartitionKey partitionKey, final long lastMaxOrdering,
       final @NotNull List<E> events) throws ConcurrentWriteException {
 
