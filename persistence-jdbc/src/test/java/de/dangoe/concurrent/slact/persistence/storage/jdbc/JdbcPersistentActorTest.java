@@ -8,7 +8,8 @@ import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtension;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtensionHolder;
-import de.dangoe.concurrent.slact.persistence.PersistentActor;
+import de.dangoe.concurrent.slact.persistence.SimplePersistentActor;
+import de.dangoe.concurrent.slact.persistence.SnapshotPayload;
 import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
@@ -69,7 +70,7 @@ public class JdbcPersistentActorTest {
     private static final long serialVersionUID = 1L;
   }
 
-  private static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
+  private static class CounterActor extends SimplePersistentActor<CounterMessage, Incremented> {
 
     @Override
     protected @NotNull PartitionKey partitionKey() {
@@ -119,14 +120,16 @@ public class JdbcPersistentActorTest {
       statement.execute("TRUNCATE TABLE events RESTART IDENTITY");
     }
 
-    final var eventStore = new JdbcEventStore<Incremented>(connectionPool, executorService, new PostgreSqlDialect());
+    final var eventStore = new JdbcEventStore<Incremented>(connectionPool, executorService,
+        new PostgreSqlDialect());
 
     PersistenceExtensionHolder.getInstance().register(new PersistenceExtension() {
 
       @Override
       @SuppressWarnings("unchecked")
-      public <S> @NotNull Optional<EventStore<S>> resolveStore(final @NotNull PartitionKey key) {
-        return Optional.of((EventStore<S>) eventStore);
+      public <E, S extends SnapshotPayload> @NotNull Optional<EventStore<E, S>> resolveStore(
+          final @NotNull PartitionKey key) {
+        return Optional.of((EventStore<E, S>) eventStore);
       }
     });
   }

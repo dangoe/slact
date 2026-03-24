@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.SnapshotPayload;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import java.io.ByteArrayInputStream;
@@ -25,8 +26,9 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   @SuppressWarnings("unchecked")
-  public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey) throws SQLException {
+  public @NotNull <E> List<EventEnvelope<E, SnapshotPayload.None>> loadEvents(
+      final @NotNull Connection connection, final @NotNull PartitionKey partitionKey)
+      throws SQLException {
 
     try (final var statement = connection.prepareStatement(
         "SELECT ordering, timestamp, payload FROM events WHERE partition_key = ? ORDER BY ordering ASC")) {
@@ -35,7 +37,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
       try (final var resultSet = statement.executeQuery()) {
 
-        final var events = new ArrayList<EventEnvelope<E>>();
+        final var events = new ArrayList<EventEnvelope<E, SnapshotPayload.None>>();
 
         while (resultSet.next()) {
 
@@ -44,7 +46,7 @@ public class PostgreSqlDialect implements JdbcDialect {
           final var payload = resultSet.getBytes("payload");
           final var event = (E) deserialize(payload);
 
-          events.add(new EventEnvelope<>(ordering, timestamp, event));
+          events.add(new EventEnvelope.DefaultEventEnvelope<>(ordering, timestamp, event));
         }
 
         return events;
@@ -53,11 +55,12 @@ public class PostgreSqlDialect implements JdbcDialect {
   }
 
   @Override
-  public <E> @NotNull List<EventEnvelope<E>> insertEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
+  public <E> @NotNull List<EventEnvelope<E, SnapshotPayload.None>> insertEvents(
+      final @NotNull Connection connection, final @NotNull PartitionKey partitionKey,
+      long lastMaxOrdering, final @NotNull List<E> events)
       throws SQLException, ConcurrentWriteException {
 
-    final var inserted = new ArrayList<EventEnvelope<E>>();
+    final var inserted = new ArrayList<EventEnvelope<E, SnapshotPayload.None>>();
 
     var ordering = lastMaxOrdering + 1;
 
@@ -73,7 +76,7 @@ public class PostgreSqlDialect implements JdbcDialect {
         try (final var resultSet = statement.executeQuery()) {
           if (resultSet.next()) {
             final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
-            inserted.add(new EventEnvelope<>(ordering, timestamp, event));
+            inserted.add(new EventEnvelope.DefaultEventEnvelope<>(ordering, timestamp, event));
           }
         }
 

@@ -43,7 +43,7 @@ public class PersistentActorTest {
 
   }
 
-  private static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
+  private static class CounterActor extends SimplePersistentActor<CounterMessage, Incremented> {
 
     @Override
     protected @NotNull PartitionKey partitionKey() {
@@ -71,8 +71,9 @@ public class PersistentActorTest {
 
       @Override
       @SuppressWarnings("unchecked")
-      public <S> @NotNull Optional<EventStore<S>> resolveStore(final @NotNull PartitionKey key) {
-        return Optional.of((EventStore<S>) eventStore);
+      public <E, S extends SnapshotPayload> @NotNull Optional<EventStore<E, S>> resolveStore(
+          final @NotNull PartitionKey key) {
+        return Optional.of((EventStore<E, S>) eventStore);
       }
     });
   }

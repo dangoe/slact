@@ -13,9 +13,12 @@ public interface PersistenceExtension {
    * Resolves an event store for the given partition key.
    *
    * @param key The partition key for which to resolve the event store.
-   * @param <S> The type of events that the resolved EventStore will manage.
+   * @param <E> The type of domain events that the resolved EventStore will manage.
+   * @param <S> The type of snapshot payloads. Use {@link SnapshotPayload.None} for stores that do
+   *            not support snapshotting.
    * @return An <code>Optional</code> containing the resolved {@link EventStore} if available, or an
    * empty <code>Optional</code> if no store is found for the given partition key.
    */
-  <S> @NotNull Optional<EventStore<S>> resolveStore(@NotNull PartitionKey key);
+  <E, S extends SnapshotPayload> @NotNull Optional<EventStore<E, S>> resolveStore(
+      @NotNull PartitionKey key);
 }

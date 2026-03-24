@@ -6,7 +6,6 @@ import de.dangoe.concurrent.slact.persistence.exception.RecoveryFailedException;
 import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,9 +16,11 @@ import org.jetbrains.annotations.NotNull;
  * is complete.
  *
  * @param <M> The type of messages that the actor will process.
- * @param <E> The type of events that the actor will persist and recover.
+ * @param <E> The type of domain events that the actor will persist and recover.
+ * @param <S> The type of snapshot payloads. Use {@link SnapshotPayload.None} for actors that do
+ *            not support snapshotting, or extend {@link SimplePersistentActor} instead.
  */
-public abstract class PersistentActor<M, E> extends Actor<M> {
+public abstract class PersistentActor<M, E, S extends SnapshotPayload> extends Actor<M> {
 
   private record RecoveryResultMessage<E>(@NotNull List<E> events) {
 
@@ -32,9 +33,9 @@ public abstract class PersistentActor<M, E> extends Actor<M> {
 
   // Ensured by onStart() before any message is processed
   @SuppressWarnings("NotNullFieldNotInitialized")
-  private @NotNull EventStore<E> eventStore;
+  private @NotNull EventStore<E, S> eventStore;
 
-  private @NotNull List<EventEnvelope<E>> events;
+  private @NotNull List<EventEnvelope<E, S>> events;
 
   protected PersistentActor() {
     this.events = new ArrayList<>();
@@ -46,7 +47,7 @@ public abstract class PersistentActor<M, E> extends Actor<M> {
     final var partitionKey = partitionKey();
 
     this.eventStore = PersistenceExtensionHolder.getInstance().require()
-        .<E>resolveStore(partitionKey).orElseThrow(() -> new PersistenceException(
+        .<E, S>resolveStore(partitionKey).orElseThrow(() -> new PersistenceException(
             "Failed to resolve store for partition key '%s'".formatted(partitionKey.value())));
 
     this.events = new ArrayList<>();
@@ -67,7 +68,7 @@ public abstract class PersistentActor<M, E> extends Actor<M> {
 
     if (message instanceof RecoveryResultMessage<?> result) {
 
-      this.events = new ArrayList<>(((RecoveryResultMessage<EventEnvelope<E>>) result).events());
+      this.events = new ArrayList<>(((RecoveryResultMessage<EventEnvelope<E, S>>) result).events());
 
       behaveAsDefault();
       afterRecovery();
@@ -122,7 +123,7 @@ public abstract class PersistentActor<M, E> extends Actor<M> {
    * @return An unmodifiable list of EventEnvelope objects representing the recovered events,
    * ordered by their ordering values.
    */
-  protected final @NotNull List<EventEnvelope<E>> events() {
+  protected final @NotNull List<EventEnvelope<E, S>> events() {
     return Collections.unmodifiableList(events);
   }
 
