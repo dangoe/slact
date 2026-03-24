@@ -20,12 +20,13 @@ import org.jetbrains.annotations.NotNull;
  *
  * @param <M> The type of messages that the actor will process.
  * @param <E> The type of domain events that the actor will persist and recover.
- * @param <S> The type of event store that the actor will use for persisting and recovering events.
+ * @param <ST> The type of event store that the actor will use for persisting and recovering events.
  *            This type must extend the EventStore interface.
  */
-abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, S extends EventStore<E>> extends
+abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends EventStore<E>> extends
     Actor<M> {
 
+  @FunctionalInterface
   protected interface RecoveryData<E> {
 
     @NotNull List<EventEnvelope<E>> events();
@@ -106,7 +107,7 @@ abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, S extends Ev
    */
   protected abstract RichFuture<R> loadRecoveryData(@NotNull PartitionKey partitionKey);
 
-  protected abstract @NotNull S eventStore();
+  protected abstract @NotNull ST eventStore();
 
   /**
    * Persists a single event to the event store. This method is a convenience wrapper around the

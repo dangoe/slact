@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.jetbrains.annotations.NotNull;
 
 public final class InMemoryEventStore<E> implements EventStore<E> {
@@ -44,7 +44,7 @@ public final class InMemoryEventStore<E> implements EventStore<E> {
       throw new ConcurrentWriteException(partitionKey);
     }
 
-    final var orderingCounter = new AtomicInteger((int) lastOrdering + 1);
+    final var orderingCounter = new AtomicLong(lastOrdering + 1);
 
     final var addedEventEnvelopes = events.stream()
         .map(it -> new EventEnvelope<>(orderingCounter.getAndIncrement(), Instant.now(clock), it))

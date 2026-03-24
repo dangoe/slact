@@ -20,7 +20,7 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
     PersistentActorBase<M, E, SnapshotCapableRecoveryData<E, S>, SnapshotCapableEventStore<E, S>> {
 
   public record SnapshotCapableRecoveryData<E, S>(@NotNull List<EventEnvelope<E>> events,
-                                                  @Nullable SnapshotEnvelope.SnapshotEventEnvelope<S> latestSnapshot) implements
+                                                  @Nullable SnapshotEnvelope<S> latestSnapshot) implements
       RecoveryData<E> {
 
   }
@@ -31,8 +31,9 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   @Override
   protected final RichFuture<SnapshotCapableRecoveryData<E, S>> loadRecoveryData(
       final @NotNull PartitionKey partitionKey) {
-    return eventStore().loadEvents(partitionKey).thenCompose(
-        events -> eventStore().loadLatestSnapshot(partitionKey).thenApply(
+    final var store = eventStore();
+    return store.loadEvents(partitionKey).thenCompose(
+        events -> store.loadLatestSnapshot(partitionKey).thenApply(
             latestSnapshot -> new SnapshotCapableRecoveryData<>(events,
                 latestSnapshot.orElse(null))));
   }
@@ -41,10 +42,15 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   protected final void recoverInternal(
       final @NotNull SnapshotCapableRecoveryData<E, S> recoveryPayload) {
 
-    final var latestSnapshot = recoveryPayload.latestSnapshot();
-
-    if (latestSnapshot != null) {
-      this.latestSnapshot = latestSnapshot.snapshot();
+    switch (recoveryPayload.latestSnapshot()) {
+      case SnapshotEnvelope.SnapshotEventEnvelope<S> envelope ->
+          this.latestSnapshot = envelope.snapshot();
+      case SnapshotEnvelope.SnapshotMarkerEventEnvelope<S> ignored ->
+          // A marker references a snapshot stored externally; the store implementation is
+          // expected to resolve and return the actual snapshot data. If a marker reaches here,
+          // snapshot state cannot be restored and recovery proceeds from events only.
+          this.latestSnapshot = null;
+      case null -> this.latestSnapshot = null;
     }
   }
 

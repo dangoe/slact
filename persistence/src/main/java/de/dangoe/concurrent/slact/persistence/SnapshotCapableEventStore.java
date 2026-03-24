@@ -1,7 +1,6 @@
 package de.dangoe.concurrent.slact.persistence;
 
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
-import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope.SnapshotEventEnvelope;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,10 +26,11 @@ public interface SnapshotCapableEventStore<E, S> extends EventStore<E> {
    *            identify the specific stream of events from which the snapshot will be loaded.
    * @return A {@link RichFuture} that, when completed, will contain an <code>Optional</code>
    * containing a {@link SnapshotEnvelope} representing the latest snapshot for the given partition
-   * key. The snapshot envelope may contain either a snapshot event with the actual snapshot data or
-   * a snapshot marker indicating the presence of a snapshot without the data. If no snapshot is
-   * available for the given partition key, the returned <code>Optional</code> will be empty.
+   * key. The snapshot envelope may contain either a {@link SnapshotEnvelope.SnapshotEventEnvelope}
+   * with the actual snapshot data, or a {@link SnapshotEnvelope.SnapshotMarkerEventEnvelope}
+   * pointing to a snapshot stored elsewhere. If no snapshot is available, the returned
+   * <code>Optional</code> will be empty.
    */
-  @NotNull RichFuture<Optional<SnapshotEventEnvelope<S>>> loadLatestSnapshot(
+  @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
       @NotNull PartitionKey key);
 }

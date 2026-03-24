@@ -36,12 +36,12 @@ public interface EventStore<E> {
    *                        data of type <code>E</code> that will be stored.
    * @return A {@link RichFuture} that, when completed, will contain an {@link EventEnvelope}
    * representing the appended event, including its ordering and timestamp.
-   * @throws ConcurrentWriteException Thrown if a concurrency conflict is detected, i.e., if the
-   *                                  last known maximum ordering value does not match the current
+   * @throws ConcurrentWriteException if a concurrency conflict is detected, i.e., if the last
+   *                                  known maximum ordering value does not match the current
    *                                  maximum ordering in the event store.
    */
   default @NotNull RichFuture<EventEnvelope<E>> append(final @NotNull PartitionKey partitionKey,
-      long lastMaxOrdering, @NotNull E event) throws ConcurrentWriteException {
+      long lastMaxOrdering, @NotNull E event) {
 
     return appendMultiple(partitionKey, lastMaxOrdering, List.of(event)).thenApply(List::getFirst);
   }
@@ -59,10 +59,10 @@ public interface EventStore<E> {
    *                        actual event data of type <code>E</code> that will be stored.
    * @return A {@link RichFuture} that, when completed, will contain a list of {@link EventEnvelope}
    * objects representing the appended events, including their ordering and timestamps.
-   * @throws ConcurrentWriteException Thrown if a concurrency conflict is detected, i.e., if the
-   *                                  last known maximum ordering value does not match the current
+   * @throws ConcurrentWriteException if a concurrency conflict is detected, i.e., if the last
+   *                                  known maximum ordering value does not match the current
    *                                  maximum ordering in the event store.
    */
   @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(@NotNull PartitionKey partitionKey,
-      long lastMaxOrdering, @NotNull List<E> events) throws ConcurrentWriteException;
+      long lastMaxOrdering, @NotNull List<E> events);
 }
