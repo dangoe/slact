@@ -39,4 +39,41 @@ public class JdbcSnapshotCapableEventStore<E, S> extends JdbcEventStore<E> imple
 
     return RichFuture.of(eventualResult);
   }
+
+  @Override
+  public @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(
+      final @NotNull PartitionKey partitionKey, final long lastSnapshotOrdering,
+      final long appliedUpToOrdering, final @NotNull S snapshot) {
+
+    final var eventualResult = CompletableFuture.supplyAsync(() -> {
+
+      try (final var connection = connectionPool.acquire()) {
+        try {
+          connection.setAutoCommit(false);
+
+          final var result = dialect.insertSnapshot(connection, partitionKey, lastSnapshotOrdering,
+              appliedUpToOrdering, snapshot);
+          dialect.insertSnapshotMarkerEvent(connection, partitionKey, result.ordering(),
+              appliedUpToOrdering);
+
+          connection.commit();
+
+          return result;
+        } catch (final Exception e) {
+          connection.rollback();
+          throw e;
+        } finally {
+          connection.setAutoCommit(true);
+        }
+      } catch (InterruptedException | SQLException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        throw new PersistenceException(
+            "Failed to save snapshot for partition key '%s'".formatted(partitionKey.value()), e);
+      }
+    });
+
+    return RichFuture.of(eventualResult);
+  }
 }

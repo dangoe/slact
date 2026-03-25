@@ -76,6 +76,8 @@ public class JdbcEventStore<E> implements EventStore<E> {
         } catch (final Exception e) {
           connection.rollback();
           throw e;
+        } finally {
+          connection.setAutoCommit(true);
         }
       } catch (final InterruptedException | SQLException e) {
         if (e instanceof InterruptedException) {

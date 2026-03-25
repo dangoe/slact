@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
  * every {@link JdbcDialect} implementation that supports snapshots.
  *
  * <p>Subclasses provide the concrete infrastructure via
- * {@link #createSnapshotCapableEventStore()} and seed snapshot data for read-path tests via
- * {@link #seedSnapshot(PartitionKey, long, TestSnapshot)}, keeping the spec independent of any
- * future {@code saveSnapshot} API.
+ * {@link #createSnapshotCapableEventStore()}. Read-path tests use raw SQL via
+ * {@link #seedSnapshot(PartitionKey, long, long, TestSnapshot)}; write-path tests exercise
+ * {@code saveSnapshot} directly.
  */
 @DisplayName("Snapshot-capable event store")
 public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
@@ -163,6 +163,114 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("Loading one partition does not return the snapshot from the other partition")
     void loadingOnePartitionDoesNotReturnSnapshotFromAnother() {
+      final var resultA = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var resultB = snapshotStore.loadLatestSnapshot(PARTITION_B).join();
+
+      assertThat(resultA).isPresent();
+      assertThat(resultA.get().snapshot()).isEqualTo(new TestSnapshot("state-a"));
+
+      assertThat(resultB).isPresent();
+      assertThat(resultB.get().snapshot()).isEqualTo(new TestSnapshot("state-b"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Given a saved snapshot")
+  class GivenASavedSnapshot {
+
+    private static final TestSnapshot SNAPSHOT = new TestSnapshot("state-v1");
+    private static final long LAST_SNAPSHOT_ORDERING = -1L;
+    private static final long APPLIED_UP_TO_ORDERING = 3L;
+
+    @Test
+    @DisplayName("The returned envelope has ordering equal to lastSnapshotOrdering + 1")
+    void theReturnedEnvelopeHasCorrectOrdering() {
+      final var envelope = snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING,
+          APPLIED_UP_TO_ORDERING, SNAPSHOT).join();
+
+      assertThat(envelope.ordering()).isEqualTo(LAST_SNAPSHOT_ORDERING + 1);
+    }
+
+    @Test
+    @DisplayName("The returned envelope has a non-null timestamp")
+    void theReturnedEnvelopeHasTimestamp() {
+      final var envelope = snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING,
+          APPLIED_UP_TO_ORDERING, SNAPSHOT).join();
+
+      assertThat(envelope.timestamp()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("The returned envelope has appliedUpToOrdering equal to the input value")
+    void theReturnedEnvelopeHasCorrectAppliedUpToOrdering() {
+      final var envelope = snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING,
+          APPLIED_UP_TO_ORDERING, SNAPSHOT).join();
+
+      assertThat(envelope.appliedUpToOrdering()).isEqualTo(APPLIED_UP_TO_ORDERING);
+    }
+
+    @Test
+    @DisplayName("The returned envelope contains the saved snapshot")
+    void theReturnedEnvelopeContainsTheSavedSnapshot() {
+      final var envelope = snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING,
+          APPLIED_UP_TO_ORDERING, SNAPSHOT).join();
+
+      assertThat(envelope.snapshot()).isEqualTo(SNAPSHOT);
+    }
+
+    @Test
+    @DisplayName("The saved snapshot can be loaded back from the partition")
+    void theSavedSnapshotCanBeLoadedBack() {
+      snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING, APPLIED_UP_TO_ORDERING,
+          SNAPSHOT).join();
+
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+
+      assertThat(result).isPresent();
+      assertThat(result.get().snapshot()).isEqualTo(SNAPSHOT);
+    }
+
+    @Test
+    @DisplayName("The snapshot marker event is not included when loading events")
+    void snapshotMarkerIsNotIncludedInLoadedEvents() {
+      snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING, APPLIED_UP_TO_ORDERING,
+          SNAPSHOT).join();
+
+      final var events = snapshotStore.loadEvents(PARTITION_A).join();
+
+      assertThat(events).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Given multiple saved snapshots")
+  class GivenMultipleSavedSnapshots {
+
+    @Test
+    @DisplayName("Loading the latest snapshot returns the one with the highest ordering")
+    void loadLatestSnapshotReturnsTheMostRecentOne() {
+      snapshotStore.saveSnapshot(PARTITION_A, -1L, 1L, new TestSnapshot("state-v1")).join();
+      final var second = snapshotStore.saveSnapshot(PARTITION_A, 0L, 3L,
+          new TestSnapshot("state-v2")).join();
+
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+
+      assertThat(result).isPresent();
+      assertThat(result.get().ordering()).isEqualTo(second.ordering());
+      assertThat(result.get().snapshot()).isEqualTo(new TestSnapshot("state-v2"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Given saved snapshots in two separate partitions")
+  class GivenSavedSnapshotsInTwoSeparatePartitions {
+
+    @Test
+    @DisplayName("Loading one partition does not return the snapshot from the other partition")
+    void loadingOnePartitionDoesNotReturnSnapshotFromAnother() {
+      snapshotStore.saveSnapshot(PARTITION_A, -1L, 1L, new TestSnapshot("state-a")).join();
+      snapshotStore.saveSnapshot(PARTITION_B, -1L, 2L, new TestSnapshot("state-b")).join();
+
       final var resultA = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
       final var resultB = snapshotStore.loadLatestSnapshot(PARTITION_B).join();
 

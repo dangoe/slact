@@ -51,34 +51,6 @@ public class PostgreSqlDialect implements JdbcDialect {
   }
 
   @Override
-  public @NotNull <S> Optional<SnapshotEnvelope<S>> loadLatestSnapshot(
-      final @NotNull Connection connection, final @NotNull PartitionKey partitionKey)
-      throws SQLException {
-
-    try (final var statement = connection.prepareStatement(
-        "SELECT ordering, event_ordering, timestamp, snapshot FROM snapshots WHERE partition_key = ? ORDER BY ordering DESC LIMIT 1")) {
-
-      statement.setString(1, partitionKey.value());
-
-      try (final var resultSet = statement.executeQuery()) {
-
-        if (resultSet.next()) {
-
-          final var ordering = resultSet.getLong("ordering");
-          final var eventOrdering = resultSet.getLong("event_ordering");
-          final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
-          final var payload = resultSet.getBytes("snapshot");
-          final var snapshot = this.<S>deserialize(payload);
-
-          return Optional.of(new SnapshotEnvelope<>(ordering, eventOrdering, timestamp, snapshot));
-        } else {
-          return Optional.empty();
-        }
-      }
-    }
-  }
-
-  @Override
   public <E> @NotNull List<EventEnvelope<E>> insertEvents(final @NotNull Connection connection,
       final @NotNull PartitionKey partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
       throws SQLException, ConcurrentWriteException {
@@ -112,6 +84,81 @@ public class PostgreSqlDialect implements JdbcDialect {
     return inserted;
   }
 
+  @Override
+  public @NotNull <S> Optional<SnapshotEnvelope<S>> loadLatestSnapshot(
+      final @NotNull Connection connection, final @NotNull PartitionKey partitionKey)
+      throws SQLException {
+
+    try (final var statement = connection.prepareStatement(
+        "SELECT ordering, event_ordering, timestamp, snapshot FROM snapshots WHERE partition_key = ? ORDER BY ordering DESC LIMIT 1")) {
+
+      statement.setString(1, partitionKey.value());
+
+      try (final var resultSet = statement.executeQuery()) {
+
+        if (resultSet.next()) {
+
+          final var ordering = resultSet.getLong("ordering");
+          final var eventOrdering = resultSet.getLong("event_ordering");
+          final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
+          final var payload = resultSet.getBytes("snapshot");
+          final var snapshot = this.<S>deserialize(payload);
+
+          return Optional.of(new SnapshotEnvelope<>(ordering, eventOrdering, timestamp, snapshot));
+        } else {
+          return Optional.empty();
+        }
+      }
+    }
+  }
+
+  @Override
+  public <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
+      final @NotNull PartitionKey partitionKey, final long lastSnapshotOrdering,
+      final long appliedUpToOrdering, final @NotNull S snapshot)
+      throws SQLException {
+
+    final var ordering = lastSnapshotOrdering + 1;
+
+    try (final var statement = connection.prepareStatement(
+        "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, snapshot) VALUES (?,?, ?, ?, ?) RETURNING timestamp")) {
+
+      statement.setString(1, partitionKey.value());
+      statement.setLong(2, ordering);
+      statement.setLong(3, appliedUpToOrdering);
+      statement.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+      statement.setBytes(5, serialize(snapshot));
+
+      try (final var resultSet = statement.executeQuery()) {
+
+        if (resultSet.next()) {
+
+          final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
+
+          return new SnapshotEnvelope<>(ordering, appliedUpToOrdering, timestamp, snapshot);
+        } else {
+          throw new PersistenceException("Failed to insert snapshot: No result returned");
+        }
+      }
+    }
+  }
+
+  @Override
+  public void insertSnapshotMarkerEvent(final @NotNull Connection connection,
+      final @NotNull PartitionKey partitionKey, final long ordering, final long appliedUpToOrdering)
+      throws SQLException {
+
+    try (final var statement = connection.prepareStatement(
+        "INSERT INTO events (partition_key, ordering, timestamp, is_snapshot_marker, snapshot) VALUES (?, ?, ?, TRUE, ?)")) {
+
+      statement.setString(1, partitionKey.value());
+      statement.setLong(2, ordering);
+      statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+      statement.setBytes(4, serialize(new SnapshotMarkerPayload(ordering, appliedUpToOrdering)));
+
+      statement.executeUpdate();
+    }
+  }
 
   private <T> byte[] serialize(final @NotNull T event) {
     try (final var byteArrayOutputStream = new ByteArrayOutputStream(); final var objectOutputStream = new ObjectOutputStream(
