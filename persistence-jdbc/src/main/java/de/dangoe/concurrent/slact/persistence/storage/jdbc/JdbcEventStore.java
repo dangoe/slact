@@ -7,13 +7,11 @@ import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -40,12 +38,12 @@ public class JdbcEventStore<E> implements EventStore<E> {
 
   @Override
   public @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
-      final @NotNull PartitionKey partitionKey) {
+      final @NotNull PartitionKey partitionKey, final long fromOrdering) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
 
       try (final var connection = connectionPool.acquire()) {
-        return dialect.<E>loadEvents(connection, partitionKey);
+        return dialect.<E>loadEvents(connection, partitionKey, fromOrdering);
       } catch (InterruptedException | SQLException e) {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();

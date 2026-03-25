@@ -26,10 +26,13 @@ public final class InMemoryEventStore<E> implements EventStore<E> {
 
   @Override
   public @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
-      final @NotNull PartitionKey partitionKey) {
+      final @NotNull PartitionKey partitionKey, final long fromOrdering) {
 
     return RichFuture.of(CompletableFuture.completedFuture(
-        List.copyOf(store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>()))));
+        List.copyOf(store.getOrDefault(partitionKey.value(), new CopyOnWriteArrayList<>()).stream()
+            .filter(it -> it.ordering() >= fromOrdering)
+            .toList())
+    ));
   }
 
   @Override

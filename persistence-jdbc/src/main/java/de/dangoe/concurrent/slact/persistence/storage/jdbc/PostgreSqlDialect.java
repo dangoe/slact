@@ -26,12 +26,13 @@ public class PostgreSqlDialect implements JdbcDialect {
   @Override
   @SuppressWarnings("unchecked")
   public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey) throws SQLException {
+      final @NotNull PartitionKey partitionKey, final long fromOrdering) throws SQLException {
 
     try (final var statement = connection.prepareStatement(
-        "SELECT ordering, timestamp, payload FROM events WHERE partition_key = ? ORDER BY ordering ASC")) {
+        "SELECT ordering, timestamp, payload FROM events WHERE partition_key = ? AND ordering >= ? ORDER BY ordering ASC")) {
 
       statement.setString(1, partitionKey.value());
+      statement.setLong(2, fromOrdering);
 
       try (final var resultSet = statement.executeQuery()) {
 

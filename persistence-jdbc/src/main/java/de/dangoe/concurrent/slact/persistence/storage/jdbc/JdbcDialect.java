@@ -25,8 +25,29 @@ public interface JdbcDialect {
    * ordered by their natural ordering.
    * @throws SQLException Thrown, if a database error occurs while loading events.
    */
+  default <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
+      @NotNull PartitionKey partitionKey) throws SQLException {
+    return loadEvents(connection, partitionKey, 0);
+  }
+
+
+  /**
+   * Loads all events for the given partition key and an ordering greater or equal to the given
+   * <code>fromOrdering</code> value, ordered by their natural ordering (e.g. insertion order). The
+   * deserializer is used to convert the binary payload back into event objects.
+   *
+   * @param connection   An active JDBC connection.
+   * @param partitionKey The partition key to load events for.
+   * @param fromOrdering The ordering value from which to start loading events. Only events with an
+   *                     ordering value greater than or equal to this value will be included in the
+   *                     returned list.
+   * @param <E>          The event type.
+   * @return A list of event envelopes containing the loaded events and their associated metadata,
+   * ordered by their natural ordering.
+   * @throws SQLException Thrown, if a database error occurs while loading events.
+   */
   <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
-      @NotNull PartitionKey partitionKey) throws SQLException;
+      @NotNull PartitionKey partitionKey, long fromOrdering) throws SQLException;
 
   /**
    * Inserts the given events for the partition and returns their persisted envelopes, including
