@@ -25,7 +25,7 @@ public abstract class PersistentActor<M, E> extends
   protected final void recoverInternal(
       final @NotNull PersistentActorBase.RecoveryData<E> recoveryPayload) {
 
-    // Nothing to do here, as the events are already loaded and can be accessed via the recovery payload.
+    // Nothing to do here, as the events are already loaded and can be accessed via the recovery snapshot.
   }
 
   @Override

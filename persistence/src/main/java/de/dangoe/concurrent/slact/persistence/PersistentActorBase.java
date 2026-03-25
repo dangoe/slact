@@ -89,10 +89,10 @@ abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends E
 
   /**
    * Defines an abstract method that must be implemented by derived classes to perform the recovery
-   * process using the provided recovery payload. This method is called after the recovery data has
+   * process using the provided recovery snapshot. This method is called after the recovery data has
    * been successfully loaded and the events have been stored in the internal list.
    *
-   * @param recoveryPayload The recovery payload containing the events that have been recovered from
+   * @param recoveryPayload The recovery snapshot containing the events that have been recovered from
    *                        the event store.
    */
   protected abstract void recoverInternal(@NotNull R recoveryPayload);

@@ -5,32 +5,28 @@ import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * An interface that combines the capabilities of an event store with snapshot support. This allows
- * for managing both the event stream and the snapshot state of an entity within a single interface,
- * providing a cohesive API for persistence operations that involve both events and snapshots.
+ * An extension of the EventStore interface that adds support for loading snapshots. This interface
+ * defines the contract for an event store that can manage both events and snapshots, allowing for
+ * more efficient recovery of state by loading the latest snapshot and then applying only the events
+ * that occurred after the snapshot was taken.
  *
  * @param <E> The type of domain events that the event store will manage.
- * @param <S> The type of the snapshot payload that will be created and loaded by the snapshot
- *            support.
+ * @param <S> The type of snapshot that the snapshots will contain.
  */
 public interface SnapshotCapableEventStore<E, S> extends EventStore<E> {
 
   // TODO Support saving snapshots as well
 
   /**
-   * Loads the latest snapshot for the given partition key. The returned snapshot envelope may
-   * contain either a snapshot event with the actual snapshot data or a snapshot marker indicating
-   * the presence of a snapshot without the data.
+   * Loads the latest snapshot for the given partition key, if available. The returned future will
+   * complete with an optional containing the snapshot if a snapshot is available, or an empty
+   * optional if no snapshot is available for the given partition key. The future will complete
+   * exceptionally if an error occurs while loading the snapshot.
    *
    * @param key The partition key for which to load the latest snapshot. This key is used to
-   *            identify the specific stream of events from which the snapshot will be loaded.
-   * @return A {@link RichFuture} that, when completed, will contain an <code>Optional</code>
-   * containing a {@link SnapshotEnvelope} representing the latest snapshot for the given partition
-   * key. The snapshot envelope may contain either a {@link SnapshotEnvelope.SnapshotEventEnvelope}
-   * with the actual snapshot data, or a {@link SnapshotEnvelope.SnapshotMarkerEventEnvelope}
-   * pointing to a snapshot stored elsewhere. If no snapshot is available, the returned
-   * <code>Optional</code> will be empty.
+   *            identify the specific
+   * @return A {@link RichFuture} that, when completed, will contain an {@link Optional} with the
+   * latest snapshot for the given partition key, or an empty optional if no snapshot is available.
    */
-  @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
-      @NotNull PartitionKey key);
+  @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(@NotNull PartitionKey key);
 }

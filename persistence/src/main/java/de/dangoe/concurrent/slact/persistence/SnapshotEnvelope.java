@@ -1,51 +1,32 @@
 package de.dangoe.concurrent.slact.persistence;
 
-import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope.SnapshotEventEnvelope;
-import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope.SnapshotMarkerEventEnvelope;
 import java.time.Instant;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Represents an envelope for snapshot-related events in the persistence layer.
+ * A record representing a snapshot of the snapshot state at a specific point in time. It contains
+ * the ordering of the snapshot, the ordering up to which events have been applied, a timestamp
+ * indicating when the snapshot was taken, and the actual snapshot data.
  *
- * @param <S> The type of the snapshot payload contained in the envelope.
+ * @param ordering            The ordering value of the snapshot, which indicates its position in
+ *                            the event stream. This value is used to determine the sequence of
+ *                            snapshots and their relationship to the events that have been applied
+ *                            up to that point.
+ * @param appliedUpToOrdering The ordering value up to which events have been applied to the
+ *                            snapshot state. This indicates the point in the event stream up to
+ *                            which the snapshot reflects the state of the entity.
+ * @param timestamp           The timestamp indicating when the snapshot was taken. This provides
+ *                            temporal context for the snapshot and can be used for auditing or
+ *                            debugging purposes.
+ * @param snapshot            The actual snapshot data representing the state of the entity at the
+ *                            time the snapshot was taken. This is the core content of the snapshot
+ *                            and can be used to restore the state of the entity without needing to
+ *                            replay all events from the beginning of the event stream.
+ * @param <S>                 The type of the snapshot data contained in the snapshot. This allows
+ *                            for flexibility in defining the structure of the snapshot based on the
+ *                            specific requirements of the application or domain model.
  */
-public sealed interface SnapshotEnvelope<S> extends EventLogEntryLike permits SnapshotEventEnvelope,
-    SnapshotMarkerEventEnvelope {
+public record SnapshotEnvelope<S>(long ordering, long appliedUpToOrdering,
+                                  @NotNull Instant timestamp, @NotNull S snapshot) {
 
-  /**
-   * Represents a snapshot event envelope that contains the actual snapshot data. This record is
-   * used to encapsulate a snapshot event, including its ordering, timestamp, and the snapshot
-   * payload itself.
-   *
-   * @param ordering  The ordering of the snapshot event within its partition.
-   * @param timestamp The time the snapshot event was persisted.
-   * @param snapshot  The actual snapshot payload of type <code>S</code> that is being stored in
-   *                  this envelope.
-   * @param <S>       The type of the snapshot payload contained in this envelope.
-   */
-  record SnapshotEventEnvelope<S>(long ordering, @NotNull Instant timestamp,
-                                  @NotNull S snapshot) implements SnapshotEnvelope<S> {
-
-  }
-
-  /**
-   * Represents a snapshot marker event envelope that serves as a marker for the presence of a
-   * snapshot without containing the actual snapshot data. This record is used to indicate that a
-   * snapshot exists at a certain ordering and timestamp, but does not include the snapshot payload
-   * itself.
-   *
-   * @param ordering              The ordering of the snapshot marker event within its partition.
-   * @param timestamp             The time the snapshot marker event was persisted.
-   * @param snapshotEntryOrdering The ordering of the snapshot entry that this marker refers to.
-   *                              This indicates the position of the snapshot in the event stream,
-   *                              allowing for efficient retrieval of the snapshot without needing
-   *                              to load the actual snapshot data.
-   * @param <S>                   The type of the snapshot payload that this marker event refers to,
-   *                              even though it does not contain the actual snapshot data.
-   */
-  record SnapshotMarkerEventEnvelope<S>(long ordering, @NotNull Instant timestamp,
-                                        long snapshotEntryOrdering) implements SnapshotEnvelope<S> {
-
-  }
 }

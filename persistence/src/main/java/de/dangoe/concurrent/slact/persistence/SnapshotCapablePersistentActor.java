@@ -20,7 +20,7 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
     PersistentActorBase<M, E, SnapshotCapableRecoveryData<E, S>, SnapshotCapableEventStore<E, S>> {
 
   public record SnapshotCapableRecoveryData<E, S>(@NotNull List<EventEnvelope<E>> events,
-                                                  @Nullable SnapshotEnvelope<S> latestSnapshot) implements
+                                                  @Nullable SnapshotEnvelope<S> latestSnapshotEnvelope) implements
       RecoveryData<E> {
 
   }
@@ -31,26 +31,24 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   @Override
   protected final RichFuture<SnapshotCapableRecoveryData<E, S>> loadRecoveryData(
       final @NotNull PartitionKey partitionKey) {
+
     final var store = eventStore();
-    return store.loadEvents(partitionKey).thenCompose(
-        events -> store.loadLatestSnapshot(partitionKey).thenApply(
-            latestSnapshot -> new SnapshotCapableRecoveryData<>(events,
-                latestSnapshot.orElse(null))));
+
+    return store.loadLatestSnapshot(partitionKey).thenCompose(
+        maybeLatestSnapshotEnvelope -> maybeLatestSnapshotEnvelope.map(
+                latestSnapshotEnvelope -> store.loadEvents(partitionKey,
+                    latestSnapshotEnvelope.ordering() + 1).thenApply(
+                    events -> new SnapshotCapableRecoveryData<>(events, latestSnapshotEnvelope)))
+            .orElseGet(() -> store.loadEvents(partitionKey)
+                .thenApply(events -> new SnapshotCapableRecoveryData<>(events, null))));
   }
 
   @Override
   protected final void recoverInternal(
       final @NotNull SnapshotCapableRecoveryData<E, S> recoveryPayload) {
 
-    switch (recoveryPayload.latestSnapshot()) {
-      case SnapshotEnvelope.SnapshotEventEnvelope<S> envelope ->
-          this.latestSnapshot = envelope.snapshot();
-      case SnapshotEnvelope.SnapshotMarkerEventEnvelope<S> ignored ->
-          // A marker references a snapshot stored externally; the store implementation is
-          // expected to resolve and return the actual snapshot data. If a marker reaches here,
-          // snapshot state cannot be restored and recovery proceeds from events only.
-          this.latestSnapshot = null;
-      case null -> this.latestSnapshot = null;
+    if (recoveryPayload.latestSnapshotEnvelope() != null) {
+      this.latestSnapshot = recoveryPayload.latestSnapshotEnvelope().snapshot();
     }
   }
 

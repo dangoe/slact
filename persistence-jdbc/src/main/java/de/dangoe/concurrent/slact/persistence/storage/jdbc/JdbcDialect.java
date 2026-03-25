@@ -2,21 +2,19 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Abstracts database-specific SQL for inserting events and retrieving their generated metadata. The
- * SELECT path is standard SQL and does not require a dialect.
- */
 public interface JdbcDialect {
 
   /**
    * Loads all events for the given partition key, ordered by their natural ordering (e.g. insertion
-   * order). The deserializer is used to convert the binary payload back into event objects.
+   * order). The deserializer is used to convert the binary snapshot back into event objects.
    *
    * @param connection   An active JDBC connection.
    * @param partitionKey The partition key to load events for.
@@ -30,11 +28,10 @@ public interface JdbcDialect {
     return loadEvents(connection, partitionKey, 0);
   }
 
-
   /**
    * Loads all events for the given partition key and an ordering greater or equal to the given
    * <code>fromOrdering</code> value, ordered by their natural ordering (e.g. insertion order). The
-   * deserializer is used to convert the binary payload back into event objects.
+   * deserializer is used to convert the binary snapshot back into event objects.
    *
    * @param connection   An active JDBC connection.
    * @param partitionKey The partition key to load events for.
@@ -48,6 +45,19 @@ public interface JdbcDialect {
    */
   <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey, long fromOrdering) throws SQLException;
+
+  /**
+   * Loads the latest snapshot for the given partition key, if available.
+   *
+   * @param connection   An active JDBC connection.
+   * @param partitionKey The partition key to load the snapshot for.
+   * @param <S>          The snapshot type.
+   * @return An optional containing the snapshot envelope if a snapshot is available, or an empty
+   * optional if no snapshot is available for the given partition key.
+   * @throws SQLException Thrown, if a database error occurs while loading the snapshot.
+   */
+  <S> @NotNull Optional<SnapshotEnvelope<S>> loadLatestSnapshot(@NotNull Connection connection,
+      @NotNull PartitionKey partitionKey) throws SQLException;
 
   /**
    * Inserts the given events for the partition and returns their persisted envelopes, including

@@ -22,9 +22,9 @@ import org.jetbrains.annotations.NotNull;
  */
 public class JdbcEventStore<E> implements EventStore<E> {
 
-  private final @NotNull JdbcConnectionPool connectionPool;
-  private final @NotNull ExecutorService executorService;
-  private final @NotNull JdbcDialect dialect;
+  protected final @NotNull JdbcConnectionPool connectionPool;
+  protected final @NotNull ExecutorService executorService;
+  protected final @NotNull JdbcDialect dialect;
 
   public JdbcEventStore(final @NotNull JdbcConnectionPool connectionPool,
       final @NotNull ExecutorService executorService, final @NotNull JdbcDialect dialect) {
