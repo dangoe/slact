@@ -163,10 +163,7 @@ public abstract class EventStoreSpec {
       final var envelopesA = eventStore.appendMultiple(PARTITION_A, -1L,
           List.of(new TestEvent("a1"), new TestEvent("a2"))).join();
 
-      // Use the last ordering of partition A as the baseline for partition B so that
-      // the global ordering PK does not conflict.
-      final long lastOrderingA = envelopesA.getLast().ordering();
-      eventStore.appendMultiple(PARTITION_B, lastOrderingA,
+      eventStore.appendMultiple(PARTITION_B, -1L,
           List.of(new TestEvent("b1"))).join();
 
       final var loadedA = eventStore.loadEvents(PARTITION_A).join();
