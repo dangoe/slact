@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.persistence;
 
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase.RecoveryData;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -34,5 +35,10 @@ public abstract class PersistentActor<M, E> extends
         .orElseThrow(() -> new IllegalStateException(
             "Event store is not available for partition key '%s'".formatted(
                 partitionKey().value())));
+  }
+
+  @Override
+  protected final void persistMultiple(final @NotNull List<E> events) {
+    super.persistMultiple(events);
   }
 }

@@ -26,7 +26,7 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   }
 
   @Nullable
-  private S latestSnapshot;
+  private SnapshotEnvelope<S> latestSnapshot;
 
   @Override
   protected final RichFuture<SnapshotCapableRecoveryData<E, S>> loadRecoveryData(
@@ -48,12 +48,14 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
       final @NotNull SnapshotCapableRecoveryData<E, S> recoveryPayload) {
 
     if (recoveryPayload.latestSnapshotEnvelope() != null) {
-      this.latestSnapshot = recoveryPayload.latestSnapshotEnvelope().snapshot();
+      this.latestSnapshot = recoveryPayload.latestSnapshotEnvelope();
     }
   }
 
+  protected abstract @NotNull SnapshotingStrategy<E, S> snapshotingStrategy();
+
   protected final @NotNull Optional<S> latestSnapshot() {
-    return Optional.ofNullable(latestSnapshot);
+    return Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::snapshot);
   }
 
   @Override
@@ -63,5 +65,15 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
             () -> new IllegalStateException(
                 "Event store is not available for partition key '%s'".formatted(
                     partitionKey().value())));
+  }
+
+  @Override
+  protected final void persistMultiple(final @NotNull List<E> events) {
+
+    if (snapshotingStrategy().shouldSnapshot(events(), latestSnapshot)) {
+      // TODO send snapshot command
+    }
+
+    super.persistMultiple(events);
   }
 }

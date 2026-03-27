@@ -8,7 +8,6 @@ import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -18,10 +17,10 @@ import org.jetbrains.annotations.NotNull;
  * recovering events from an event store and persisting new events, while allowing derived classes
  * to specify their own partition key and post-recovery behavior.
  *
- * @param <M> The type of messages that the actor will process.
- * @param <E> The type of domain events that the actor will persist and recover.
+ * @param <M>  The type of messages that the actor will process.
+ * @param <E>  The type of domain events that the actor will persist and recover.
  * @param <ST> The type of event store that the actor will use for persisting and recovering events.
- *            This type must extend the EventStore interface.
+ *             This type must extend the EventStore interface.
  */
 abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends EventStore<E>> extends
     Actor<M> {
@@ -92,8 +91,8 @@ abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends E
    * process using the provided recovery snapshot. This method is called after the recovery data has
    * been successfully loaded and the events have been stored in the internal list.
    *
-   * @param recoveryPayload The recovery snapshot containing the events that have been recovered from
-   *                        the event store.
+   * @param recoveryPayload The recovery snapshot containing the events that have been recovered
+   *                        from the event store.
    */
   protected abstract void recoverInternal(@NotNull R recoveryPayload);
 
@@ -132,7 +131,7 @@ abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends E
    * @param events The list of events to be persisted. These events will be appended to the event
    *               store and added to the internal list of events if the operation is successful.
    */
-  protected final void persistMultiple(final @NotNull List<E> events) {
+  protected void persistMultiple(final @NotNull List<E> events) {
 
     final var partitionKey = partitionKey();
 
