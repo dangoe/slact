@@ -73,8 +73,8 @@ public class JdbcPersistentActorIT {
   private static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
 
     @Override
-    protected @NotNull PartitionKey partitionKey() {
-      return PartitionKey.of("counter-1");
+    protected @NotNull PartitionKey<Incremented> partitionKey() {
+      return PartitionKey.of(Incremented.class, "counter-1");
     }
 
     @Override
@@ -117,20 +117,20 @@ public class JdbcPersistentActorIT {
       statement.execute("TRUNCATE TABLE events RESTART IDENTITY");
     }
 
-    final var eventStore = new JdbcEventStore<Incremented>(connectionPool, executorService,
+    final var eventStore = new JdbcEventStore(connectionPool, executorService,
         new PostgreSqlDialect());
 
     PersistenceExtensionHolder.getInstance().register(new PersistenceExtension() {
 
       @Override
       @SuppressWarnings("unchecked")
-      public <S> @NotNull Optional<EventStore<S>> resolveStore(final @NotNull PartitionKey key) {
-        return Optional.of((EventStore<S>) eventStore);
+      public <E> @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey<E> key) {
+        return Optional.of(eventStore);
       }
 
       @Override
-      public @NotNull <E, S> Optional<SnapshotCapableEventStore<E, S>> resolveSnapshotCapableStore(
-          @NotNull PartitionKey key) {
+      public @NotNull <E> Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
+          @NotNull PartitionKey<E> key) {
         throw new UnsupportedOperationException(
             "Snapshot capable store is not supported in this test");
       }

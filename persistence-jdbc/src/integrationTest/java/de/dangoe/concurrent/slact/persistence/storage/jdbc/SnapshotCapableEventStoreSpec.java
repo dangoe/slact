@@ -32,16 +32,16 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     private static final long serialVersionUID = 1L;
   }
 
-  private static final PartitionKey PARTITION_A = PartitionKey.of("snapshot-partition-a");
-  private static final PartitionKey PARTITION_B = PartitionKey.of("snapshot-partition-b");
+  private static final PartitionKey<TestEvent> PARTITION_A = PartitionKey.of(TestEvent.class, "snapshot-partition-a");
+  private static final PartitionKey<TestEvent> PARTITION_B = PartitionKey.of(TestEvent.class, "snapshot-partition-b");
 
-  private SnapshotCapableEventStore<TestEvent, TestSnapshot> snapshotStore;
+  private SnapshotCapableEventStore snapshotStore;
 
   /**
    * Creates a fresh {@link SnapshotCapableEventStore} backed by the concrete infrastructure.
    * Called once per test after {@link #cleanDatabase()}.
    */
-  protected abstract @NotNull SnapshotCapableEventStore<TestEvent, TestSnapshot> createSnapshotCapableEventStore();
+  protected abstract @NotNull SnapshotCapableEventStore createSnapshotCapableEventStore();
 
   /**
    * Seeds a snapshot directly into the underlying store (e.g. via a raw SQL insert) without going
@@ -54,7 +54,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
       long appliedUpToOrdering, @NotNull TestSnapshot snapshot) throws Exception;
 
   @Override
-  protected final @NotNull EventStore<TestEvent> createEventStore() {
+  protected final @NotNull EventStore createEventStore() {
     return createSnapshotCapableEventStore();
   }
 
@@ -66,7 +66,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
   @Test
   @DisplayName("Loading the latest snapshot from an empty partition returns an empty optional")
   void loadLatestSnapshotFromEmptyPartitionReturnsEmptyOptional() {
-    final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+    final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
     assertThat(result).isEmpty();
   }
@@ -87,7 +87,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("The snapshot can be loaded back from the partition")
     void theSnapshotCanBeLoadedBack() {
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().snapshot()).isEqualTo(SNAPSHOT);
@@ -96,7 +96,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("The returned envelope has ordering equal to the seeded ordering")
     void theReturnedEnvelopeHasCorrectOrdering() {
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().ordering()).isEqualTo(SNAPSHOT_ORDERING);
@@ -105,7 +105,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("The returned envelope has appliedUpToOrdering equal to the seeded value")
     void theReturnedEnvelopeHasCorrectAppliedUpToOrdering() {
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().appliedUpToOrdering()).isEqualTo(APPLIED_UP_TO_ORDERING);
@@ -114,7 +114,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("The returned envelope has a non-null timestamp")
     void theReturnedEnvelopeHasTimestamp() {
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().timestamp()).isNotNull();
@@ -142,7 +142,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("Loading the latest snapshot returns the one with the highest ordering")
     void loadLatestSnapshotReturnsTheMostRecentOne() {
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().ordering()).isEqualTo(5L);
@@ -163,8 +163,8 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     @Test
     @DisplayName("Loading one partition does not return the snapshot from the other partition")
     void loadingOnePartitionDoesNotReturnSnapshotFromAnother() {
-      final var resultA = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
-      final var resultB = snapshotStore.loadLatestSnapshot(PARTITION_B).join();
+      final var resultA = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
+      final var resultB = snapshotStore.loadLatestSnapshot(PARTITION_B, TestSnapshot.class).join();
 
       assertThat(resultA).isPresent();
       assertThat(resultA.get().snapshot()).isEqualTo(new TestSnapshot("state-a"));
@@ -224,7 +224,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
       snapshotStore.saveSnapshot(PARTITION_A, LAST_SNAPSHOT_ORDERING, APPLIED_UP_TO_ORDERING,
           SNAPSHOT).join();
 
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().snapshot()).isEqualTo(SNAPSHOT);
@@ -253,7 +253,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
       final var second = snapshotStore.saveSnapshot(PARTITION_A, 0L, 3L,
           new TestSnapshot("state-v2")).join();
 
-      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
+      final var result = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
 
       assertThat(result).isPresent();
       assertThat(result.get().ordering()).isEqualTo(second.ordering());
@@ -271,8 +271,8 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
       snapshotStore.saveSnapshot(PARTITION_A, -1L, 1L, new TestSnapshot("state-a")).join();
       snapshotStore.saveSnapshot(PARTITION_B, -1L, 2L, new TestSnapshot("state-b")).join();
 
-      final var resultA = snapshotStore.loadLatestSnapshot(PARTITION_A).join();
-      final var resultB = snapshotStore.loadLatestSnapshot(PARTITION_B).join();
+      final var resultA = snapshotStore.loadLatestSnapshot(PARTITION_A, TestSnapshot.class).join();
+      final var resultB = snapshotStore.loadLatestSnapshot(PARTITION_B, TestSnapshot.class).join();
 
       assertThat(resultA).isPresent();
       assertThat(resultA.get().snapshot()).isEqualTo(new TestSnapshot("state-a"));

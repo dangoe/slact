@@ -17,10 +17,8 @@ import org.jetbrains.annotations.NotNull;
 /**
  * An implementation of the EventStore interface that uses JDBC to persist events in a relational
  * database.
- *
- * @param <E> The type of events that this event store will manage.
  */
-public class JdbcEventStore<E> implements EventStore<E> {
+public class JdbcEventStore implements EventStore {
 
   protected final @NotNull JdbcConnectionPool connectionPool;
   protected final @NotNull ExecutorService executorService;
@@ -37,8 +35,8 @@ public class JdbcEventStore<E> implements EventStore<E> {
   }
 
   @Override
-  public @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
-      final @NotNull PartitionKey partitionKey, final long fromOrdering) {
+  public <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
+      final @NotNull PartitionKey<E> partitionKey, final long fromOrdering) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
 
@@ -57,8 +55,8 @@ public class JdbcEventStore<E> implements EventStore<E> {
   }
 
   @Override
-  public @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
-      final @NotNull PartitionKey partitionKey, final long lastMaxOrdering,
+  public <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
+      final @NotNull PartitionKey<E> partitionKey, final long lastMaxOrdering,
       final @NotNull List<E> events) throws ConcurrentWriteException {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {

@@ -48,8 +48,8 @@ class PostgreSqlJdbcEventStoreIT extends EventStoreSpec {
   }
 
   @Override
-  protected @NotNull EventStore<TestEvent> createEventStore() {
-    return new JdbcEventStore<>(connectionPool, executorService, new PostgreSqlDialect());
+  protected @NotNull EventStore createEventStore() {
+    return new JdbcEventStore(connectionPool, executorService, new PostgreSqlDialect());
   }
 
   @Override

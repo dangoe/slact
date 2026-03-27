@@ -10,15 +10,19 @@ import org.jetbrains.annotations.NotNull;
  * partition key is a non-null, non-blank string that serves as an identifier for grouping related
  * events together.
  *
- * @param value The string value of the partition key. It must not be <code>null</code> or blank.
+ * @param eventType The type of the related events.
+ * @param value     The string value of the partition key. It must not be <code>null</code> or
+ *                  blank.
  */
-public record PartitionKey(@NotNull String value) implements Serializable {
+public record PartitionKey<E>(@NotNull Class<E> eventType, @NotNull String value) implements
+    Serializable {
 
   @Serial
   private static final long serialVersionUID = 1L;
 
   public PartitionKey {
 
+    Objects.requireNonNull(eventType, "Event type must not be null!");
     Objects.requireNonNull(value, "Value must not be null!");
 
     if (value.isBlank()) {
@@ -33,7 +37,9 @@ public record PartitionKey(@NotNull String value) implements Serializable {
    *              or blank.
    * @return A new instance of partition key with the specified value.
    */
-  public static @NotNull PartitionKey of(final @NotNull String value) {
-    return new PartitionKey(value);
+  public static <E> @NotNull PartitionKey<E> of(final @NotNull Class<E> eventType,
+      final @NotNull String value) {
+
+    return new PartitionKey<>(eventType, value);
   }
 }

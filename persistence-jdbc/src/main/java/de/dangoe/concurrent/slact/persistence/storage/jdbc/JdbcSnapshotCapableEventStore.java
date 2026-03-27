@@ -12,8 +12,8 @@ import java.util.concurrent.ExecutorService;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class JdbcSnapshotCapableEventStore<E, S> extends JdbcEventStore<E> implements
-    SnapshotCapableEventStore<E, S> {
+public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
+    SnapshotCapableEventStore {
 
   public JdbcSnapshotCapableEventStore(final @NotNull JdbcConnectionPool connectionPool,
       final @NotNull ExecutorService executorService, final @NotNull JdbcDialect dialect) {
@@ -21,8 +21,8 @@ public class JdbcSnapshotCapableEventStore<E, S> extends JdbcEventStore<E> imple
   }
 
   @Override
-  public @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
-      final @NotNull PartitionKey partitionKey) {
+  public <S> @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
+      final @NotNull PartitionKey<?> partitionKey, final @NotNull Class<S> snapshotType) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
 
@@ -42,8 +42,8 @@ public class JdbcSnapshotCapableEventStore<E, S> extends JdbcEventStore<E> imple
   }
 
   @Override
-  public @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(
-      final @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
+  public <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(
+      final @NotNull PartitionKey<?> partitionKey, @Nullable Long lastSnapshotOrdering,
       final long appliedUpToOrdering, final @NotNull S snapshot) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {

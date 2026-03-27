@@ -1,23 +1,35 @@
 package de.dangoe.concurrent.slact.persistence;
 
-import de.dangoe.concurrent.slact.persistence.PersistentActorBase.RecoveryData;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBaseSpec.Incremented;
+import de.dangoe.concurrent.slact.persistence.SnapshotCapablePersistentActor.SnapshotCapableRecoveryData;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.time.Clock;
+import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-@DisplayName("Given a persistent actor")
+@DisplayName("Given a snapshot capable persistent actor")
 @ExtendWith(SlactTestContainerExtension.class)
-public class PersistentActorTest extends
-    PersistentActorBaseSpec<RecoveryData<Incremented>, EventStore> {
+public class SnapshotCapablePersistentActorTest extends
+    PersistentActorBaseSpec<SnapshotCapableRecoveryData<Incremented, Void>, SnapshotCapableEventStore> {
 
-  protected static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
+  protected static class CounterActor extends
+      SnapshotCapablePersistentActor<CounterMessage, Incremented, Void> {
 
     @Override
     protected @NotNull PartitionKey<Incremented> partitionKey() {
       return PartitionKey.of(Incremented.class, "counter-1");
+    }
+
+    @Override
+    protected @NotNull Class<Void> snapshotType() {
+      return Void.class;
+    }
+
+    @Override
+    protected @NotNull SnapshottingStrategy<Incremented, Void> snapshottingStrategy() {
+      return (events, latestSnapshot) -> Optional.empty();
     }
 
     @Override
@@ -32,8 +44,8 @@ public class PersistentActorTest extends
   }
 
   @Override
-  @NotNull EventStore createEventStore() {
-    return new InMemoryEventStore(Clock.systemUTC());
+  @NotNull SnapshotCapableEventStore createEventStore() {
+    return new SnapshotCapableInMemoryEventStore(Clock.systemUTC());
   }
 
   @Override

@@ -19,7 +19,7 @@ public class PartitionKeyTest {
     @SuppressWarnings("DataFlowIssue")
     @DisplayName("When null value is given")
     void whenNullValueIsGiven() {
-      assertThatThrownBy(() -> new PartitionKey(null))
+      assertThatThrownBy(() -> new PartitionKey<>(String.class, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Value must not be null!");
     }
@@ -27,7 +27,7 @@ public class PartitionKeyTest {
     @Test
     @DisplayName("When blank value is given")
     void whenBlankValueIsGiven() {
-      assertThatThrownBy(() -> new PartitionKey(""))
+      assertThatThrownBy(() -> new PartitionKey<>(String.class, ""))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Value must not be blank!");
     }
@@ -40,7 +40,7 @@ public class PartitionKeyTest {
     @Test
     @DisplayName("When valid value is given")
     void whenValidValueIsGiven() {
-      final var key = new PartitionKey("valid-key");
+      final var key = new PartitionKey<>(String.class, "valid-key");
       assertEquals("valid-key", key.value());
     }
   }

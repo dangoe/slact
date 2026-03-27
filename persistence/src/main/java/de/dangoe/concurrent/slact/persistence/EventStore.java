@@ -8,10 +8,8 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Defines the contract for an event store that allows loading and appending events associated with
  * a specific partition key.
- *
- * @param <E> The type of domain events that the event store will manage.
  */
-public interface EventStore<E> {
+public interface EventStore {
 
   /**
    * Loads the events associated with the given partition key. The returned list of events is
@@ -22,8 +20,8 @@ public interface EventStore<E> {
    * @return A {@link RichFuture}  that, when completed, will contain a list of
    * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
-  default @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
-      @NotNull PartitionKey partitionKey) {
+  default <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
+      final @NotNull PartitionKey<E> partitionKey) {
     return loadEvents(partitionKey, 0);
   }
 
@@ -40,7 +38,7 @@ public interface EventStore<E> {
    * @return A {@link RichFuture}  that, when completed, will contain a list of
    * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
-  @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey,
+  <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey<E> partitionKey,
       long fromOrdering);
 
   /**
@@ -59,8 +57,8 @@ public interface EventStore<E> {
    *                                  maximum ordering value does not match the current maximum
    *                                  ordering in the event store.
    */
-  default @NotNull RichFuture<EventEnvelope<E>> append(final @NotNull PartitionKey partitionKey,
-      long lastMaxOrdering, @NotNull E event) {
+  default <E> @NotNull RichFuture<EventEnvelope<E>> append(
+      final @NotNull PartitionKey<E> partitionKey, long lastMaxOrdering, @NotNull E event) {
 
     return appendMultiple(partitionKey, lastMaxOrdering, List.of(event)).thenApply(List::getFirst);
   }
@@ -82,6 +80,6 @@ public interface EventStore<E> {
    *                                  maximum ordering value does not match the current maximum
    *                                  ordering in the event store.
    */
-  @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(@NotNull PartitionKey partitionKey,
-      long lastMaxOrdering, @NotNull List<E> events);
+  <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
+      @NotNull PartitionKey<E> partitionKey, long lastMaxOrdering, @NotNull List<E> events);
 }

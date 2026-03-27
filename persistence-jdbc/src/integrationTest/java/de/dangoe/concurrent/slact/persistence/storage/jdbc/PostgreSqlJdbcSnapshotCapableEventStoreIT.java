@@ -52,8 +52,8 @@ class PostgreSqlJdbcSnapshotCapableEventStoreIT extends SnapshotCapableEventStor
   }
 
   @Override
-  protected @NotNull SnapshotCapableEventStore<TestEvent, TestSnapshot> createSnapshotCapableEventStore() {
-    return new JdbcSnapshotCapableEventStore<>(connectionPool, executorService,
+  protected @NotNull SnapshotCapableEventStore createSnapshotCapableEventStore() {
+    return new JdbcSnapshotCapableEventStore(connectionPool, executorService,
         new PostgreSqlDialect());
   }
 

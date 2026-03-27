@@ -19,7 +19,12 @@ import org.jetbrains.annotations.Nullable;
  *            efficient recovery without needing to replay all events from the beginning of the
  *            event stream.
  */
-public abstract class SnapshottingStrategy<E, S> {
+@FunctionalInterface
+public interface SnapshottingStrategy<E, S> {
+
+  record CreatedSnapshot<S>(long appliedUpToOrdering, @NotNull S snapshot) {
+
+  }
 
   /**
    * Evaluates the given list of events and the latest snapshot to determine whether a new snapshot
@@ -31,26 +36,6 @@ public abstract class SnapshottingStrategy<E, S> {
    * the provided events and the latest snapshot, or an empty optional if no snapshot should be
    * created at this time.
    */
-  public @NotNull Optional<S> tryCreateSnapshot(@NotNull List<EventEnvelope<E>> events,
-      @Nullable SnapshotEnvelope<S> latestSnapshot) {
-
-    if (!events.isEmpty()) {
-      return tryCreateSnapshotInternal(events, latestSnapshot);
-    } else {
-      return Optional.empty();
-    }
-  }
-
-  /**
-   * Evaluates the given list of events and the latest snapshot to determine whether a new snapshot
-   * should be created. This method is only called if the list of events is not empty.
-   *
-   * @param events         The non-empty list of events.
-   * @param latestSnapshot The latest snapshot, if available.
-   * @return An optional containing the new snapshot state if a snapshot should be created based on
-   * * the provided events and the latest snapshot, or an empty optional if no snapshot should be *
-   * created at this time.
-   */
-  protected abstract @NotNull Optional<S> tryCreateSnapshotInternal(
-      @NotNull List<EventEnvelope<E>> events, @Nullable SnapshotEnvelope<S> latestSnapshot);
+  @NotNull Optional<CreatedSnapshot<S>> tryCreateSnapshot(@NotNull List<EventEnvelope<E>> events,
+      @Nullable SnapshotEnvelope<S> latestSnapshot);
 }

@@ -27,16 +27,16 @@ public abstract class EventStoreSpec {
     private static final long serialVersionUID = 1L;
   }
 
-  private static final PartitionKey PARTITION_A = PartitionKey.of("partition-a");
-  private static final PartitionKey PARTITION_B = PartitionKey.of("partition-b");
+  private static final PartitionKey<TestEvent> PARTITION_A = PartitionKey.of(TestEvent.class, "partition-a");
+  private static final PartitionKey<TestEvent> PARTITION_B = PartitionKey.of(TestEvent.class, "partition-b");
 
-  private EventStore<TestEvent> eventStore;
+  private EventStore eventStore;
 
   /**
    * Creates a fresh {@link EventStore} instance backed by the concrete infrastructure. Called once
    * per test after {@link #cleanDatabase()}.
    */
-  protected abstract @NotNull EventStore<TestEvent> createEventStore();
+  protected abstract @NotNull EventStore createEventStore();
 
   /**
    * Resets the database to a clean state before each test so that ordering counters and stored

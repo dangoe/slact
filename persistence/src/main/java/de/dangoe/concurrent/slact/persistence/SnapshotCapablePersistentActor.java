@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
  * @param <S> The type of snapshot state that the actor will manage.
  */
 public abstract class SnapshotCapablePersistentActor<M, E, S> extends
-    PersistentActorBase<M, E, SnapshotCapableRecoveryData<E, S>, SnapshotCapableEventStore<E, S>> {
+    PersistentActorBase<M, E, SnapshotCapableRecoveryData<E, S>, SnapshotCapableEventStore> {
 
   public record SnapshotCapableRecoveryData<E, S>(@NotNull List<EventEnvelope<E>> events,
                                                   @Nullable SnapshotEnvelope<S> latestSnapshotEnvelope) implements
@@ -30,14 +30,14 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
 
   @Override
   protected final RichFuture<SnapshotCapableRecoveryData<E, S>> loadRecoveryData(
-      final @NotNull PartitionKey partitionKey) {
+      final @NotNull PartitionKey<E> partitionKey) {
 
     final var store = eventStore();
 
-    return store.loadLatestSnapshot(partitionKey).thenCompose(
+    return store.loadLatestSnapshot(partitionKey, snapshotType()).thenCompose(
         maybeLatestSnapshotEnvelope -> maybeLatestSnapshotEnvelope.map(
                 latestSnapshotEnvelope -> store.loadEvents(partitionKey,
-                    latestSnapshotEnvelope.ordering() + 1).thenApply(
+                    latestSnapshotEnvelope.appliedUpToOrdering() + 1).thenApply(
                     events -> new SnapshotCapableRecoveryData<>(events, latestSnapshotEnvelope)))
             .orElseGet(() -> store.loadEvents(partitionKey)
                 .thenApply(events -> new SnapshotCapableRecoveryData<>(events, null))));
@@ -55,19 +55,27 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   @Override
   protected final @NotNull List<EventEnvelope<E>> events() {
     return super.events().stream().filter(eventEnvelope -> latestSnapshot == null
-        || eventEnvelope.ordering() > latestSnapshot.ordering()).toList();
+        || eventEnvelope.ordering() > latestSnapshot.appliedUpToOrdering()).toList();
   }
 
-  protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
+  /**
+   * Returns the class of the snapshot type. This is used when loading the latest snapshot from the
+   * event store so that the snapshot data can be deserialized into the correct type.
+   *
+   * @return The class of the snapshot type {@code S}.
+   */
+  protected abstract @NotNull Class<S> snapshotType();
+
+    protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
 
   protected final @NotNull Optional<S> latestSnapshot() {
     return Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::snapshot);
   }
 
   @Override
-  protected final @NotNull SnapshotCapableEventStore<E, S> eventStore() {
+  protected final @NotNull SnapshotCapableEventStore eventStore() {
     return PersistenceExtensionHolder.getInstance().require()
-        .<E, S>resolveSnapshotCapableStore(partitionKey()).orElseThrow(
+        .resolveSnapshotCapableStore(partitionKey()).orElseThrow(
             () -> new IllegalStateException(
                 "Event store is not available for partition key '%s'".formatted(
                     partitionKey().value())));
@@ -76,13 +84,13 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   @Override
   protected final void persistMultiple(final @NotNull List<E> events) {
 
+    super.persistMultiple(events);
+
     final var currentEvents = events();
 
     snapshottingStrategy().tryCreateSnapshot(currentEvents, latestSnapshot).ifPresent(
-        s -> this.latestSnapshot = eventStore().saveSnapshot(partitionKey(),
+        createdSnapshot -> this.latestSnapshot = eventStore().saveSnapshot(partitionKey(),
             Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::ordering).orElse(null),
-            currentEvents.getLast().ordering(), s).join());
-
-    super.persistMultiple(events);
+            createdSnapshot.appliedUpToOrdering(), createdSnapshot.snapshot()).join());
   }
 }

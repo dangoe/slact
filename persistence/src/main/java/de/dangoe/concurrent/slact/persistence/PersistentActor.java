@@ -15,10 +15,11 @@ import org.jetbrains.annotations.NotNull;
  * @param <E> The type of domain events that the actor will persist and recover.
  */
 public abstract class PersistentActor<M, E> extends
-    PersistentActorBase<M, E, RecoveryData<E>, EventStore<E>> {
+    PersistentActorBase<M, E, RecoveryData<E>, EventStore> {
 
   @Override
-  protected final RichFuture<RecoveryData<E>> loadRecoveryData(@NotNull PartitionKey partitionKey) {
+  protected final RichFuture<RecoveryData<E>> loadRecoveryData(
+      final @NotNull PartitionKey<E> partitionKey) {
     return eventStore().loadEvents(partitionKey).thenApply(it -> () -> it);
   }
 
@@ -35,8 +36,8 @@ public abstract class PersistentActor<M, E> extends
   }
 
   @Override
-  protected final @NotNull EventStore<E> eventStore() {
-    return PersistenceExtensionHolder.getInstance().require().<E>resolveStore(partitionKey())
+  protected final @NotNull EventStore eventStore() {
+    return PersistenceExtensionHolder.getInstance().require().resolveStore(partitionKey())
         .orElseThrow(() -> new IllegalStateException(
             "Event store is not available for partition key '%s'".formatted(
                 partitionKey().value())));
