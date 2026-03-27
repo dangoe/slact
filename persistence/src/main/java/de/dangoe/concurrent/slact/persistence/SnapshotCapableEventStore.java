@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.persistence;
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * An extension of the EventStore interface that adds support for loading snapshots. This interface
@@ -58,5 +59,5 @@ public interface SnapshotCapableEventStore<E, S> extends EventStore<E> {
    * an error occurs while saving the snapshot.
    */
   @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(@NotNull PartitionKey key,
-      long lastSnapshotOrdering, long appliedUpToOrdering, @NotNull S snapshot);
+      @Nullable Long lastSnapshotOrdering, long appliedUpToOrdering, @NotNull S snapshot);
 }

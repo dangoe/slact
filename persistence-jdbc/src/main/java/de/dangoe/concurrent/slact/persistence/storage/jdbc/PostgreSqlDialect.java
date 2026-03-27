@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 // TODO Allow to provide suitable serde mechanisms instead of relying on Java's built-in serialization, which is not recommended for production use due to performance and security concerns.
 public class PostgreSqlDialect implements JdbcDialect {
@@ -114,11 +115,10 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, final long lastSnapshotOrdering,
-      final long appliedUpToOrdering, final @NotNull S snapshot)
-      throws SQLException {
+      final @NotNull PartitionKey partitionKey, final @Nullable Long lastSnapshotOrdering,
+      final long appliedUpToOrdering, final @NotNull S snapshot) throws SQLException {
 
-    final var ordering = lastSnapshotOrdering + 1;
+    final var ordering = (lastSnapshotOrdering != null ? lastSnapshotOrdering : 0) + 1;
 
     try (final var statement = connection.prepareStatement(
         "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, snapshot) VALUES (?,?, ?, ?, ?) RETURNING timestamp")) {

@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class JdbcSnapshotCapableEventStore<E, S> extends JdbcEventStore<E> implements
     SnapshotCapableEventStore<E, S> {
@@ -42,7 +43,7 @@ public class JdbcSnapshotCapableEventStore<E, S> extends JdbcEventStore<E> imple
 
   @Override
   public @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(
-      final @NotNull PartitionKey partitionKey, final long lastSnapshotOrdering,
+      final @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
       final long appliedUpToOrdering, final @NotNull S snapshot) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {

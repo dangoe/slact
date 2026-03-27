@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public interface JdbcDialect {
 
@@ -83,9 +84,8 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while inserting the snapshot.
    */
   <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
-      @NotNull PartitionKey partitionKey, long lastSnapshotOrdering, long appliedUpToOrdering,
-      @NotNull S snapshot)
-      throws SQLException;
+      @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
+      long appliedUpToOrdering, @NotNull S snapshot) throws SQLException;
 
   /**
    * Inserts a snapshot marker event for the given partition key. This is used to indicate that a

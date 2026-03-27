@@ -30,6 +30,11 @@ public abstract class PersistentActor<M, E> extends
   }
 
   @Override
+  protected final @NotNull List<EventEnvelope<E>> events() {
+    return super.events();
+  }
+
+  @Override
   protected final @NotNull EventStore<E> eventStore() {
     return PersistenceExtensionHolder.getInstance().require().<E>resolveStore(partitionKey())
         .orElseThrow(() -> new IllegalStateException(

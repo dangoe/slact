@@ -170,7 +170,7 @@ abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends E
    * @return An unmodifiable list of EventEnvelope objects representing the recovered events,
    * ordered by their ordering values.
    */
-  protected final @NotNull List<EventEnvelope<E>> events() {
+  protected @NotNull List<EventEnvelope<E>> events() {
     return Collections.unmodifiableList(events);
   }
 

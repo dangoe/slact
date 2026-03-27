@@ -52,7 +52,13 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
     }
   }
 
-  protected abstract @NotNull SnapshotingStrategy<E, S> snapshotingStrategy();
+  @Override
+  protected final @NotNull List<EventEnvelope<E>> events() {
+    return super.events().stream().filter(eventEnvelope -> latestSnapshot == null
+        || eventEnvelope.ordering() > latestSnapshot.ordering()).toList();
+  }
+
+  protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
 
   protected final @NotNull Optional<S> latestSnapshot() {
     return Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::snapshot);
@@ -70,9 +76,12 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   @Override
   protected final void persistMultiple(final @NotNull List<E> events) {
 
-    if (snapshotingStrategy().shouldSnapshot(events(), latestSnapshot)) {
-      // TODO send snapshot command
-    }
+    final var currentEvents = events();
+
+    snapshottingStrategy().tryCreateSnapshot(currentEvents, latestSnapshot).ifPresent(
+        s -> this.latestSnapshot = eventStore().saveSnapshot(partitionKey(),
+            Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::ordering).orElse(null),
+            currentEvents.getLast().ordering(), s).join());
 
     super.persistMultiple(events);
   }
