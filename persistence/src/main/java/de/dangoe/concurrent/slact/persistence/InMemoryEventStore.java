@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class InMemoryEventStore implements EventStore {
 
-  private record StoreKey(@NotNull Class<? extends PartitionKey<?>> partitionKeyType,
+  private record StoreKey(@NotNull Class<?> partitionKeyType,
                           @NotNull String value) {
 
   }

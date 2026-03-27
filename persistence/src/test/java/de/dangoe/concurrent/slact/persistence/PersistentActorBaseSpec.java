@@ -46,17 +46,18 @@ public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented
   @BeforeEach
   void setUp() {
 
+    final var store = createEventStore();
     PersistenceExtensionHolder.getInstance().register(new PersistenceExtension() {
 
       @Override
       public <E> @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey<E> key) {
-        return Optional.of(createEventStore());
+        return Optional.of(store);
       }
 
       @Override
       public @NotNull <E> Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
           final @NotNull PartitionKey<E> key) {
-        return Optional.of((SnapshotCapableEventStore) createEventStore());
+        return Optional.of((SnapshotCapableEventStore) store);
       }
     });
   }

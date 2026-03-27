@@ -14,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
 public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implements
     SnapshotCapableEventStore {
 
-  private record SnapshotStoreKey(@NotNull Class<? extends PartitionKey<?>> partitionKeyType,
+  private record SnapshotStoreKey(@NotNull Class<?> partitionKeyType,
                                    @NotNull String value) {
 
   }
