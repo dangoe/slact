@@ -14,7 +14,12 @@ import org.jetbrains.annotations.Nullable;
 public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implements
     SnapshotCapableEventStore {
 
-  private final @NotNull ConcurrentHashMap<String, SnapshotEnvelope<?>> snapshots = new ConcurrentHashMap<>();
+  private record SnapshotStoreKey(@NotNull Class<? extends PartitionKey<?>> partitionKeyType,
+                                   @NotNull String value) {
+
+  }
+
+  private final @NotNull ConcurrentHashMap<SnapshotStoreKey, SnapshotEnvelope<?>> snapshots = new ConcurrentHashMap<>();
 
   public SnapshotCapableInMemoryEventStore(final @NotNull Clock clock) {
     super(clock);
@@ -26,7 +31,9 @@ public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implem
       final @NotNull PartitionKey<?> partitionKey, final @NotNull Class<S> snapshotType) {
 
     return RichFuture.of(CompletableFuture.completedFuture(
-        Optional.ofNullable((SnapshotEnvelope<S>) snapshots.get(partitionKey.value()))));
+        Optional.ofNullable(
+            (SnapshotEnvelope<S>) snapshots.get(
+                new SnapshotStoreKey(partitionKey.getClass(), partitionKey.value())))));
   }
 
   @Override
@@ -34,7 +41,10 @@ public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implem
       final @NotNull PartitionKey<?> partitionKey, final @Nullable Long lastSnapshotOrdering,
       long appliedUpToOrdering, final @NotNull S snapshot) {
 
-    final var existingSnapshot = this.snapshots.get(partitionKey.value());
+    final var snapshotStoreKey = new SnapshotStoreKey(partitionKey.getClass(),
+        partitionKey.value());
+
+    final var existingSnapshot = this.snapshots.get(snapshotStoreKey);
     final var lastOrdering = existingSnapshot != null ? existingSnapshot.ordering() : 0;
 
     if (lastSnapshotOrdering != null && lastOrdering > lastSnapshotOrdering) {
@@ -46,7 +56,7 @@ public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implem
     final var addedSnapshotEnvelope = new SnapshotEnvelope<>(orderingCounter.getAndIncrement(),
         appliedUpToOrdering, Instant.now(clock), snapshot);
 
-    this.snapshots.put(partitionKey.value(), addedSnapshotEnvelope);
+    this.snapshots.put(snapshotStoreKey, addedSnapshotEnvelope);
 
     return RichFuture.of(CompletableFuture.completedFuture(addedSnapshotEnvelope));
   }

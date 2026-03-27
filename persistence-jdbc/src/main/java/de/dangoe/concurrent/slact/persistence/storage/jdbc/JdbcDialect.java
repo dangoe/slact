@@ -29,7 +29,7 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while loading events.
    */
   <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
-      @NotNull PartitionKey partitionKey, long fromOrdering) throws SQLException;
+      @NotNull PartitionKey<?> partitionKey, long fromOrdering) throws SQLException;
 
   /**
    * Inserts the given events for the partition and returns their persisted envelopes, including
@@ -48,7 +48,7 @@ public interface JdbcDialect {
    *                                  maximum ordering in the event store.
    */
   <E> @NotNull List<EventEnvelope<E>> insertEvents(@NotNull Connection connection,
-      @NotNull PartitionKey partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
+      @NotNull PartitionKey<?> partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
       throws SQLException, ConcurrentWriteException;
 
   /**
@@ -62,7 +62,7 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while loading the snapshot.
    */
   <S> @NotNull Optional<SnapshotEnvelope<S>> loadLatestSnapshot(@NotNull Connection connection,
-      @NotNull PartitionKey partitionKey) throws SQLException;
+      @NotNull PartitionKey<?> partitionKey) throws SQLException;
 
   /**
    * Inserts a new snapshot for the given partition key. The snapshot will be associated with the
@@ -84,7 +84,7 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while inserting the snapshot.
    */
   <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
-      @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
+      @NotNull PartitionKey<?> partitionKey, @Nullable Long lastSnapshotOrdering,
       long appliedUpToOrdering, @NotNull S snapshot) throws SQLException;
 
   /**
@@ -104,6 +104,6 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while inserting the snapshot marker
    *                      event.
    */
-  void insertSnapshotMarkerEvent(@NotNull Connection connection, @NotNull PartitionKey partitionKey,
+  void insertSnapshotMarkerEvent(@NotNull Connection connection, @NotNull PartitionKey<?> partitionKey,
       long ordering, long appliedUpToOrdering) throws SQLException;
 }

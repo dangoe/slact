@@ -24,7 +24,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, final long fromOrdering) throws SQLException {
+      final @NotNull PartitionKey<?> partitionKey, final long fromOrdering) throws SQLException {
 
     try (final var statement = connection.prepareStatement(
         "SELECT ordering, timestamp, snapshot FROM events WHERE partition_key = ? AND ordering >= ? AND is_snapshot_marker = FALSE ORDER BY ordering ASC")) {
@@ -53,7 +53,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <E> @NotNull List<EventEnvelope<E>> insertEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
+      final @NotNull PartitionKey<?> partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
       throws SQLException, ConcurrentWriteException {
 
     final var inserted = new ArrayList<EventEnvelope<E>>();
@@ -87,7 +87,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public @NotNull <S> Optional<SnapshotEnvelope<S>> loadLatestSnapshot(
-      final @NotNull Connection connection, final @NotNull PartitionKey partitionKey)
+      final @NotNull Connection connection, final @NotNull PartitionKey<?> partitionKey)
       throws SQLException {
 
     try (final var statement = connection.prepareStatement(
@@ -115,7 +115,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, final @Nullable Long lastSnapshotOrdering,
+      final @NotNull PartitionKey<?> partitionKey, final @Nullable Long lastSnapshotOrdering,
       final long appliedUpToOrdering, final @NotNull S snapshot) throws SQLException {
 
     final var ordering = (lastSnapshotOrdering != null ? lastSnapshotOrdering : 0) + 1;
@@ -145,7 +145,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public void insertSnapshotMarkerEvent(final @NotNull Connection connection,
-      final @NotNull PartitionKey partitionKey, final long ordering, final long appliedUpToOrdering)
+      final @NotNull PartitionKey<?> partitionKey, final long ordering, final long appliedUpToOrdering)
       throws SQLException {
 
     try (final var statement = connection.prepareStatement(

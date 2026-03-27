@@ -3,7 +3,9 @@ package de.dangoe.concurrent.slact.persistence;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase.RecoveryData;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBaseSpec.Incremented;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import java.io.Serial;
 import java.time.Clock;
+import java.util.Objects;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,11 +15,29 @@ import org.junit.jupiter.api.extension.ExtendWith;
 public class PersistentActorTest extends
     PersistentActorBaseSpec<RecoveryData<Incremented>, EventStore> {
 
+  private record CounterPartitionKey(@NotNull String value) implements PartitionKey<Incremented> {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    CounterPartitionKey {
+      Objects.requireNonNull(value, "Value must not be null!");
+      if (value.isBlank()) {
+        throw new IllegalArgumentException("Value must not be blank!");
+      }
+    }
+
+    @Override
+    public Class<Incremented> eventType() {
+      return Incremented.class;
+    }
+  }
+
   protected static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
 
     @Override
     protected @NotNull PartitionKey<Incremented> partitionKey() {
-      return PartitionKey.of(Incremented.class, "counter-1");
+      return new CounterPartitionKey("counter-1");
     }
 
     @Override
@@ -49,3 +69,4 @@ public class PersistentActorTest extends
     };
   }
 }
+

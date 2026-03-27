@@ -70,11 +70,22 @@ public class JdbcPersistentActorIT {
     private static final long serialVersionUID = 1L;
   }
 
+  private record CounterPartitionKey(@NotNull String value) implements PartitionKey<Incremented> {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public Class<Incremented> eventType() {
+      return Incremented.class;
+    }
+  }
+
   private static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
 
     @Override
     protected @NotNull PartitionKey<Incremented> partitionKey() {
-      return PartitionKey.of(Incremented.class, "counter-1");
+      return new CounterPartitionKey("counter-1");
     }
 
     @Override

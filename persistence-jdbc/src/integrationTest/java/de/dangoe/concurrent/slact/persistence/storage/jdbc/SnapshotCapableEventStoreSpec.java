@@ -32,8 +32,19 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     private static final long serialVersionUID = 1L;
   }
 
-  private static final PartitionKey<TestEvent> PARTITION_A = PartitionKey.of(TestEvent.class, "snapshot-partition-a");
-  private static final PartitionKey<TestEvent> PARTITION_B = PartitionKey.of(TestEvent.class, "snapshot-partition-b");
+  private record TestEventPartitionKey(@NotNull String value) implements PartitionKey<TestEvent> {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public Class<TestEvent> eventType() {
+      return TestEvent.class;
+    }
+  }
+
+  private static final PartitionKey<TestEvent> PARTITION_A = new TestEventPartitionKey("snapshot-partition-a");
+  private static final PartitionKey<TestEvent> PARTITION_B = new TestEventPartitionKey("snapshot-partition-b");
 
   private SnapshotCapableEventStore snapshotStore;
 

@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 public final class SaveFailedException extends PersistenceException {
 
-  public SaveFailedException(final @NotNull PartitionKey partitionKey,
+  public SaveFailedException(final @NotNull PartitionKey<?> partitionKey,
       final @NotNull Throwable cause) {
 
     super("Saving state failed for partition key '%s'.".formatted(partitionKey.value()), cause);

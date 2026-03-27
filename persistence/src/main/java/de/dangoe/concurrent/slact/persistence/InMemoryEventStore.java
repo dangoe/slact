@@ -13,13 +13,14 @@ import org.jetbrains.annotations.NotNull;
 
 public class InMemoryEventStore implements EventStore {
 
-  private record StoreKey<E>(@NotNull Class<E> eventType, @NotNull String partitionKey) {
+  private record StoreKey(@NotNull Class<? extends PartitionKey<?>> partitionKeyType,
+                          @NotNull String value) {
 
   }
 
   protected final @NotNull Clock clock;
 
-  private final @NotNull ConcurrentHashMap<StoreKey<?>, CopyOnWriteArrayList<EventEnvelope<?>>> events = new ConcurrentHashMap<>();
+  private final @NotNull ConcurrentHashMap<StoreKey, CopyOnWriteArrayList<EventEnvelope<?>>> events = new ConcurrentHashMap<>();
 
   public InMemoryEventStore(final @NotNull Clock clock) {
     this.clock = clock;
@@ -31,7 +32,7 @@ public class InMemoryEventStore implements EventStore {
       final @NotNull PartitionKey<E> partitionKey, final long fromOrdering) {
 
     return RichFuture.of(CompletableFuture.completedFuture(List.copyOf(
-        events.getOrDefault(new StoreKey<>(partitionKey.eventType(), partitionKey.value()),
+        events.getOrDefault(new StoreKey(partitionKey.getClass(), partitionKey.value()),
                 new CopyOnWriteArrayList<>()).stream().filter(it -> it.ordering() >= fromOrdering)
             .map(it -> (EventEnvelope<E>) it).toList())));
   }
@@ -41,7 +42,7 @@ public class InMemoryEventStore implements EventStore {
       final @NotNull PartitionKey<E> partitionKey, final long lastMaxOrdering,
       final @NotNull List<E> events) throws ConcurrentWriteException {
 
-    final var storeKey = new StoreKey<>(partitionKey.eventType(), partitionKey.value());
+    final var storeKey = new StoreKey(partitionKey.getClass(), partitionKey.value());
 
     final var lastOrdering = this.events.getOrDefault(storeKey, new CopyOnWriteArrayList<>())
         .stream().mapToLong(EventEnvelope::ordering).max().orElse(-1L);

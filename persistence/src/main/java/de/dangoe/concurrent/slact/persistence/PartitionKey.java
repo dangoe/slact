@@ -1,45 +1,34 @@
 package de.dangoe.concurrent.slact.persistence;
 
-import java.io.Serial;
 import java.io.Serializable;
-import java.util.Objects;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Represents a partition key used to identify a specific partition in the event store. The
- * partition key is a non-null, non-blank string that serves as an identifier for grouping related
- * events together.
+ * Identifies a specific event stream in the event store. Each actor type defines its own concrete
+ * implementation of this interface (typically as a record), making the implementation class itself
+ * the stream-type discriminator. Combined with {@link #value()} (the instance identifier), this
+ * uniquely identifies an event stream across all actor types — even when multiple actor types share
+ * the same event type.
  *
- * @param eventType The type of the related events.
- * @param value     The string value of the partition key. It must not be <code>null</code> or
- *                  blank.
+ * <p>Implementations are responsible for validating that {@link #value()} is non-null and
+ * non-blank.
+ *
+ * @param <E> The type of events stored in the stream identified by this partition key.
  */
-public record PartitionKey<E>(@NotNull Class<E> eventType, @NotNull String value) implements
-    Serializable {
-
-  @Serial
-  private static final long serialVersionUID = 1L;
-
-  public PartitionKey {
-
-    Objects.requireNonNull(eventType, "Event type must not be null!");
-    Objects.requireNonNull(value, "Value must not be null!");
-
-    if (value.isBlank()) {
-      throw new IllegalArgumentException("Value must not be blank!");
-    }
-  }
+public interface PartitionKey<E> extends Serializable {
 
   /**
-   * Creates a new partition key instance with the given string value.
+   * Returns the class of the event type stored in this event stream.
    *
-   * @param value The string value to be used as the partition key. It must not be <code>null</code>
-   *              or blank.
-   * @return A new instance of partition key with the specified value.
+   * @return The event type class; never {@code null}.
    */
-  public static <E> @NotNull PartitionKey<E> of(final @NotNull Class<E> eventType,
-      final @NotNull String value) {
+  @NotNull Class<E> eventType();
 
-    return new PartitionKey<>(eventType, value);
-  }
+  /**
+   * Returns the instance identifier for this event stream.
+   *
+   * @return A non-null, non-blank string that uniquely identifies the stream instance within its
+   * stream type.
+   */
+  @NotNull String value();
 }
