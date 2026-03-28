@@ -12,7 +12,6 @@ import de.dangoe.concurrent.slact.core.SlactContainer;
 import de.dangoe.concurrent.slact.core.exception.ActorRegistrationException;
 import de.dangoe.concurrent.slact.core.internal.MailboxItem.StopActorCommand;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
@@ -58,6 +57,8 @@ public final class DefaultSlactContainer implements SlactContainer {
   }
 
   private static final Logger logger = LoggerFactory.getLogger(DefaultSlactContainer.class);
+
+  private static final long SHUTDOWN_TIMEOUT_SECONDS = 60;
 
   private final @NotNull UUID id;
 
@@ -108,15 +109,12 @@ public final class DefaultSlactContainer implements SlactContainer {
     try {
       final var eventualResult = stop(rootActor);
 
-      final var start = Instant.now();
-
-      while (!eventualResult.isDone() && !eventualResult.isCancelled()) {
-
-        Thread.sleep(10);
-
-        if (start.isAfter(start.plusSeconds(60))) {
-          break;
-        }
+      try {
+        eventualResult.get(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      } catch (final TimeoutException e) {
+        logger.warn("Container shutdown did not complete within {} seconds.", SHUTDOWN_TIMEOUT_SECONDS);
+      } catch (final ExecutionException e) {
+        logger.warn("Container shutdown failed.", e);
       }
     } finally {
       this.stopping.compareAndExchange(true, false);

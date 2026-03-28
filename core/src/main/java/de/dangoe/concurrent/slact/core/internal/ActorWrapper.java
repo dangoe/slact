@@ -327,8 +327,23 @@ final class ActorWrapper<M> implements ActorHandle<M> {
 
       ActorWrapper.this.delegate.onStop();
 
-      // TODO Check for unprocessed mailbox items
-      ActorWrapper.this.mailboxItems.clear();
+      // Drain and cancel all pending response-request futures except the stop request itself,
+      // so callers are not blocked indefinitely when the actor is stopped.
+      MailboxItem pendingItem;
+      while ((pendingItem = ActorWrapper.this.mailboxItems.poll()) != null) {
+        if (pendingItem instanceof MessageWithResponseRequest<?, ?> pendingRequest) {
+          pendingRequest.futureInternal().cancel(false);
+        }
+      }
+
+      // All entries in messagesWithResponseRequest are only modified from within the actor's
+      // single-threaded processing context, so no concurrent modification can occur here.
+      ActorWrapper.this.messagesWithResponseRequest.forEach((senderPath, pendingRequest) -> {
+        if (!senderPath.equals(this.stopRequestOrigin)) {
+          pendingRequest.futureInternal().cancel(false);
+        }
+      });
+
       ActorWrapper.this.stopped.set(true);
 
       if (logger.isDebugEnabled()) {
@@ -429,9 +444,11 @@ final class ActorWrapper<M> implements ActorHandle<M> {
       final var sender = this.actorHandleResolver.resolve(item.sender());
 
       if (sender.isEmpty()) {
-        logger.warn("Failed to resolve sender handle for message '{}'.", item);
-        break;
+        logger.warn("Failed to resolve sender handle for message '{}'. Skipping.", item);
+        item = mailboxItems.poll();
+        continue;
       } else if (this.stopped.get()) {
+        mailboxProcessingActive.set(false);
         return;
       }
 

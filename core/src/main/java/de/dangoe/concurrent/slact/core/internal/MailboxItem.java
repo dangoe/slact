@@ -1,9 +1,9 @@
 package de.dangoe.concurrent.slact.core.internal;
 
 import de.dangoe.concurrent.slact.core.ActorPath;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -174,13 +174,15 @@ public abstract class MailboxItem {
     }
   }
 
-  private final String id;
+  private static final AtomicLong idSequence = new AtomicLong(0);
+
+  private final long id;
 
   private final ActorPath sender;
 
   protected MailboxItem(final @NotNull ActorPath sender) {
     super();
-    this.id = UUID.randomUUID().toString();
+    this.id = idSequence.getAndIncrement();
     this.sender = sender;
   }
 
@@ -189,7 +191,7 @@ public abstract class MailboxItem {
    *
    * @return The item id.
    */
-  public final @NotNull String id() {
+  public final long id() {
     return this.id;
   }
 
