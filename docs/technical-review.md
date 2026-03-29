@@ -30,20 +30,31 @@ the findings require architectural changes; all can be addressed incrementally.
 
 ## 3. Performance Issues
 
-### P-1 · `UUID.randomUUID()` per `MailboxItem` (fixed)
+### P-1 · Snowflake ID per `MailboxItem` (fixed)
 
-Every `MailboxItem` construction called `UUID.randomUUID()`, which uses a
-`SecureRandom` internally — contended and slow under high message rates. Replaced with a
-static `AtomicLong` sequence counter (`getAndIncrement()`), which is a single CAS on a
-cache-hot cache line.
+Every `MailboxItem` construction previously called `UUID.randomUUID()`, which uses a
+`SecureRandom` internally — contended and slow under high message rates. This was first
+replaced with a static `AtomicLong` sequence counter, then upgraded to a **Snowflake ID**
+generator (`SnowflakeIdGenerator` inside `MailboxItem`).
 
-**Impact:** Significant improvement at high message rates (millions of messages/sec).
-The `id` type changed from `String` to `long`, which also cuts per-item allocation by
-roughly 64 bytes (UUID string object + char array).
+The Snowflake layout packs 64 bits as follows:
 
-> **Follow-up:** The sequential `long` ID wraps around after ~9 × 10¹⁸ messages. For a
-> library this is practically infinite, but if the ID is ever used for deduplication
-> across container restarts a monotonic-clock timestamp or a composite ID would be needed.
+```
+| 0 (sign) | 41-bit ms timestamp | 10-bit worker ID | 12-bit sequence |
+```
+
+- **Time-ordered** — IDs increase monotonically, which makes log traces and message
+  ordering analysis trivial.
+- **Process-unique** — The 10-bit worker ID is derived from the OS PID, so IDs from two
+  JVM processes sharing a log aggregator never collide.
+- **No wrap-around** — 41 bits of milliseconds = ~69 years from the custom epoch
+  (2020-01-01). The `AtomicLong` counter reset to 0 on every JVM restart.
+- **Fast** — `SnowflakeIdGenerator.next()` is a single `synchronized` call that touches
+  one instance's state. Under normal throughput (≪4,096 messages/ms) it is equivalent to a
+  volatile read + increment. The 4,096/ms limit per process is a practical ceiling well
+  beyond typical actor workloads.
+- **No heap allocation** — ID is a primitive `long`, same as before. Per-item allocation
+  is approximately 64 bytes smaller than the original UUID string.
 
 ### P-2 · Millisecond precision in `ScheduledExecutor` (fixed)
 
@@ -411,7 +422,8 @@ Items are grouped by effort and impact.
 | ID | Task |
 |----|------|
 | B-1 … B-4 | ✅ **Fixed in this PR** |
-| P-1, P-2 | ✅ **Fixed in this PR** |
+| P-1 | ✅ **Fixed in this PR** (UUID → Snowflake ID) |
+| P-2 | ✅ **Fixed in this PR** (ms → ns scheduling precision) |
 | A-3 | Replace random UUID default actor name with a short counter-based name |
 | D-8 | Make `DefaultSlactContainer.shutdown()` idempotent |
 | P-7 | Replace full-scan `max(ordering)` in `InMemoryEventStore` with a per-partition counter |
