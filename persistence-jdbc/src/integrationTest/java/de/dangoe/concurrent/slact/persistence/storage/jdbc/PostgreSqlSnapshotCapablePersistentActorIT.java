@@ -20,7 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 @DisplayName("Given a snapshot capable persistent actor backed by a JDBC event store")
-public class JdbcSnapshotCapablePersistentActorIT extends SnapshotCapablePersistentActorSpec {
+public class PostgreSqlSnapshotCapablePersistentActorIT extends SnapshotCapablePersistentActorSpec {
 
   @Container
   static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");

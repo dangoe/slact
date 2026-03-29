@@ -21,7 +21,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-class PostgreSqlJdbcSnapshotCapableEventStoreIT extends SnapshotCapableEventStoreSpec {
+class PostgreSqlSnapshotCapableEventStoreIT extends SnapshotCapableEventStoreSpec {
 
   @Container
   static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");

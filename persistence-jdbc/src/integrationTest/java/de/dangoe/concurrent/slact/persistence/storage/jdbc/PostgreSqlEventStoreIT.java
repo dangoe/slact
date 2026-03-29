@@ -17,7 +17,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-class PostgreSqlJdbcEventStoreIT extends EventStoreSpec {
+class PostgreSqlEventStoreIT extends EventStoreSpec {
 
   @Container
   static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");

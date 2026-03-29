@@ -20,7 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 @DisplayName("Given a persistent actor backed by a JDBC event store")
-public class JdbcPersistentActorIT extends PersistentActorSpec {
+public class PostgreSqlPersistentActorIT extends PersistentActorSpec {
 
   @Container
   static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");
