@@ -47,7 +47,12 @@ For each todo assigned to you:
 - If you discover a pre-existing bug directly caused by or tightly coupled to your change, fix it and document why.
 
 ### 4. Build & test
-- Run the build: `./gradlew build` (or the module-scoped variant from the skill extension).
+- Run unit tests: `./gradlew build` (or the module-scoped variant from the skill extension).
+- If the change touches any module with integration tests (e.g. `persistence-jdbc`), also run:
+  ```bash
+  ./gradlew :persistence-jdbc:integrationTest
+  ```
+  Integration tests require Docker. If Docker is unavailable, document this in the commit message — do **not** skip silently.
 - If tests fail, fix the issue before proceeding.
 - Do **not** suppress or skip tests to make the build green.
 

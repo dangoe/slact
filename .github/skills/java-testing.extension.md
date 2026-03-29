@@ -100,6 +100,19 @@ class JdbcEventStoreIT {
 }
 ```
 
+## Pre-Commit Verification
+
+Before committing, always run both unit tests and integration tests for any module touched by the change:
+
+```bash
+./gradlew test                               # all unit tests (all modules)
+./gradlew :persistence-jdbc:integrationTest  # integration tests — requires Docker
+```
+
+> If Docker is unavailable in the current environment, document this clearly in the commit message and ensure CI will catch integration test failures.
+
+The `integrationTest` task is wired into the `check` lifecycle via the `slact.integration-test-lib` plugin, so `./gradlew check` runs both unit and integration tests for all applicable modules.
+
 ## Performance Tests
 
 Performance tests live in `core` and are **opt-in**:
