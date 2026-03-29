@@ -1,4 +1,4 @@
-package de.dangoe.concurrent.slact.persistence.storage.jdbc;
+package de.dangoe.concurrent.slact.persistence.testkit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,8 +15,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Abstract specification for the {@link SnapshotCapableEventStore} contract. Extends
- * {@link EventStoreSpec} so that all event-store behavioural tests are inherited and re-run for
- * every {@link JdbcDialect} implementation that supports snapshots.
+ * {@link EventStoreSpec} so that all event-store behavioural tests are inherited.
  *
  * <p>Subclasses provide the concrete infrastructure via
  * {@link #createSnapshotCapableEventStore()}. Read-path tests use raw SQL via

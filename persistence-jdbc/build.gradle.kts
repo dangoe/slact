@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.hikaricp)
 
     testImplementation(project(":testkit"))
+    testImplementation(project(":persistence-testkit"))
     testImplementation(libs.awaitility)
     testImplementation(libs.logback.classic)
 

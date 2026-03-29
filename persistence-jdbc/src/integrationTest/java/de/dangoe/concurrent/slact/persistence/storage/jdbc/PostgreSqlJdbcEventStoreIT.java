@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import de.dangoe.concurrent.slact.persistence.EventStore;
+import de.dangoe.concurrent.slact.persistence.testkit.EventStoreSpec;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.persistence.storage.jdbc;
 import com.zaxxer.hikari.HikariConfig;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
+import de.dangoe.concurrent.slact.persistence.testkit.SnapshotCapableEventStoreSpec;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.sql.SQLException;

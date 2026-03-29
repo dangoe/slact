@@ -1,4 +1,4 @@
-package de.dangoe.concurrent.slact.persistence.storage.jdbc;
+package de.dangoe.concurrent.slact.persistence.testkit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,13 +15,12 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Abstract specification for the {@link EventStore} contract. Subclasses provide the concrete
- * infrastructure (database, connection pool, etc.) via the two template methods. This allows the
- * same behavioural tests to be reused for every {@link JdbcDialect} implementation.
+ * infrastructure (database, connection pool, etc.) via the two template methods.
  */
 @DisplayName("Event store")
 public abstract class EventStoreSpec {
 
-  protected record TestEvent(String value) implements Serializable {
+  public record TestEvent(String value) implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -33,13 +32,15 @@ public abstract class EventStoreSpec {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public Class<TestEvent> eventType() {
+    public @NotNull Class<TestEvent> eventType() {
       return TestEvent.class;
     }
   }
 
-  private static final PartitionKey<TestEvent> PARTITION_A = new TestEventPartitionKey("partition-a");
-  private static final PartitionKey<TestEvent> PARTITION_B = new TestEventPartitionKey("partition-b");
+  private static final PartitionKey<TestEvent> PARTITION_A = new TestEventPartitionKey(
+      "partition-a");
+  private static final PartitionKey<TestEvent> PARTITION_B = new TestEventPartitionKey(
+      "partition-b");
 
   private EventStore eventStore;
 
