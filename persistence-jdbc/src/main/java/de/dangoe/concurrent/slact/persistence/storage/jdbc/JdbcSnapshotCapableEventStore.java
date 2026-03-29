@@ -5,6 +5,7 @@ import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
 import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
+import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -68,10 +69,11 @@ public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
-        throw new PersistenceException(
-            "Failed to save snapshot for partition key '%s'".formatted(partitionKey.value()), e);
+        throw e instanceof SQLException sqle
+            ? dialect.exceptionTranslator().translate(partitionKey, sqle)
+            : new SaveFailedException(partitionKey, e);
       }
-    });
+    }, this.executorService);
 
     return RichFuture.of(eventualResult);
   }

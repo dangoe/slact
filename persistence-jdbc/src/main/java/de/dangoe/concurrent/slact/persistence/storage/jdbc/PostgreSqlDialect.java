@@ -5,6 +5,7 @@ import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
+import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,6 +22,8 @@ import org.jetbrains.annotations.Nullable;
 
 // TODO Allow to provide suitable serde mechanisms instead of relying on Java's built-in serialization, which is not recommended for production use due to performance and security concerns.
 public class PostgreSqlDialect implements JdbcDialect {
+
+  private static final String UNIQUE_VIOLATION_SQLSTATE = "23505";
 
   @Override
   public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,
@@ -79,6 +82,11 @@ public class PostgreSqlDialect implements JdbcDialect {
         }
 
         ordering++;
+      } catch (final SQLException e) {
+        if (UNIQUE_VIOLATION_SQLSTATE.equals(e.getSQLState())) {
+          throw new ConcurrentWriteException(partitionKey);
+        }
+        throw e;
       }
     }
 
@@ -116,7 +124,8 @@ public class PostgreSqlDialect implements JdbcDialect {
   @Override
   public <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
       final @NotNull PartitionKey<?> partitionKey, final @Nullable Long lastSnapshotOrdering,
-      final long appliedUpToOrdering, final @NotNull S snapshot) throws SQLException {
+      final long appliedUpToOrdering, final @NotNull S snapshot)
+      throws SQLException, ConcurrentWriteException {
 
     final var ordering = (lastSnapshotOrdering != null ? lastSnapshotOrdering : 0) + 1;
 
@@ -140,7 +149,19 @@ public class PostgreSqlDialect implements JdbcDialect {
           throw new PersistenceException("Failed to insert snapshot: No result returned");
         }
       }
+    } catch (final SQLException e) {
+      if (UNIQUE_VIOLATION_SQLSTATE.equals(e.getSQLState())) {
+        throw new ConcurrentWriteException(partitionKey);
+      }
+      throw e;
     }
+  }
+
+  @Override
+  public @NotNull JdbcExceptionTranslator exceptionTranslator() {
+    return (partitionKey, cause) -> UNIQUE_VIOLATION_SQLSTATE.equals(cause.getSQLState())
+        ? new ConcurrentWriteException(partitionKey)
+        : new SaveFailedException(partitionKey, cause);
   }
 
   private <T> byte[] serialize(final @NotNull T event) {

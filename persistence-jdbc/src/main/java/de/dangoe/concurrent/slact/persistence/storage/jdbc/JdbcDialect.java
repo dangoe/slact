@@ -4,6 +4,7 @@ import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
+import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -85,5 +86,16 @@ public interface JdbcDialect {
    */
   <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
       @NotNull PartitionKey<?> partitionKey, @Nullable Long lastSnapshotOrdering,
-      long appliedUpToOrdering, @NotNull S snapshot) throws SQLException;
+      long appliedUpToOrdering, @NotNull S snapshot) throws SQLException, ConcurrentWriteException;
+
+  /**
+   * Returns a {@link JdbcExceptionTranslator} that maps vendor-specific {@link SQLException}
+   * instances to the appropriate {@link de.dangoe.concurrent.slact.persistence.exception.PersistenceException}
+   * subtype. The default implementation always returns {@link SaveFailedException}.
+   *
+   * @return A translator for this dialect.
+   */
+  default @NotNull JdbcExceptionTranslator exceptionTranslator() {
+    return (partitionKey, cause) -> new SaveFailedException(partitionKey, cause);
+  }
 }

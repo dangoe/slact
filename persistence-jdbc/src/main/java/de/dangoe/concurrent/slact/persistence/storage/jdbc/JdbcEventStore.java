@@ -81,7 +81,9 @@ public class JdbcEventStore implements EventStore {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
-        throw new SaveFailedException(partitionKey, e);
+        throw e instanceof SQLException sqle
+            ? dialect.exceptionTranslator().translate(partitionKey, sqle)
+            : new SaveFailedException(partitionKey, e);
       }
     }, this.executorService);
 
