@@ -9,12 +9,12 @@ import de.dangoe.concurrent.slact.persistence.PersistenceExtension;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtensionHolder;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase.RecoveryData;
-import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
 import de.dangoe.concurrent.slact.persistence.testkit.PersistentActorBaseSpec.Incremented;
 import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
-import java.util.Optional;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(SlactTestContainerExtension.class)
-public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST extends EventStore> {
+abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST extends EventStore> {
 
   public sealed interface CounterMessage permits CounterMessage.CurrentCount,
       CounterMessage.GetCount, CounterMessage.Increment {
@@ -44,27 +44,26 @@ public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented
     }
   }
 
-  public record Incremented() {
+  public record Incremented() implements Serializable {
 
+    @Serial
+    private static final long serialVersionUID = 1L;
+  }
+
+  record CounterPartitionKey(@NotNull String value) implements PartitionKey<Incremented> {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public @NotNull Class<Incremented> eventType() {
+      return Incremented.class;
+    }
   }
 
   @BeforeEach
   void setUp() {
-
-    final var store = createEventStore();
-    PersistenceExtensionHolder.getInstance().register(new PersistenceExtension() {
-
-      @Override
-      public <E> @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey<E> key) {
-        return Optional.of(store);
-      }
-
-      @Override
-      public @NotNull <E> Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
-          final @NotNull PartitionKey<E> key) {
-        return Optional.of((SnapshotCapableEventStore) store);
-      }
-    });
+    PersistenceExtensionHolder.getInstance().register(createPersistenceExtension(createEventStore()));
   }
 
   @AfterEach
@@ -72,10 +71,12 @@ public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented
     PersistenceExtensionHolder.getInstance().clear();
   }
 
+  protected abstract @NotNull PersistenceExtension createPersistenceExtension(@NotNull ST store);
+
   protected abstract @NotNull PersistentActorBase<CounterMessage, Incremented, R, ST> createSut(
       @NotNull Runnable afterRecoveryHook);
 
-  protected abstract @NotNull EventStore createEventStore();
+  protected abstract @NotNull ST createEventStore();
 
   @Nested
   @DisplayName("When events are persisted and the actor is restarted")
