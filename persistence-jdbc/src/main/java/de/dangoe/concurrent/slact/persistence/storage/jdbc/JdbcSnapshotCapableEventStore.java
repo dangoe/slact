@@ -54,8 +54,6 @@ public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
 
           final var result = dialect.insertSnapshot(connection, partitionKey, lastSnapshotOrdering,
               appliedUpToOrdering, snapshot);
-          dialect.insertSnapshotMarkerEvent(connection, partitionKey, result.ordering(),
-              appliedUpToOrdering);
 
           connection.commit();
 

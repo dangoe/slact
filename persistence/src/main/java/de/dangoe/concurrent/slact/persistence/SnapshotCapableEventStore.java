@@ -61,5 +61,6 @@ public interface SnapshotCapableEventStore extends EventStore {
    * an error occurs while saving the snapshot.
    */
   <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(@NotNull PartitionKey<?> partitionKey,
-      @Nullable Long lastSnapshotOrdering, long appliedUpToOrdering, @NotNull S snapshot);
+      @Nullable Long lastSnapshotOrdering,
+      long appliedUpToOrdering, @NotNull S snapshot);
 }

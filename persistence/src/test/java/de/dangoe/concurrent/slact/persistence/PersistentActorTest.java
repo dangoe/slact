@@ -1,7 +1,8 @@
 package de.dangoe.concurrent.slact.persistence;
 
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase.RecoveryData;
-import de.dangoe.concurrent.slact.persistence.PersistentActorBaseSpec.Incremented;
+import de.dangoe.concurrent.slact.persistence.testkit.PersistentActorBaseSpec;
+import de.dangoe.concurrent.slact.persistence.testkit.PersistentActorBaseSpec.Incremented;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.io.Serial;
 import java.time.Clock;
@@ -28,7 +29,7 @@ public class PersistentActorTest extends
     }
 
     @Override
-    public Class<Incremented> eventType() {
+    public @NotNull Class<Incremented> eventType() {
       return Incremented.class;
     }
   }
@@ -52,12 +53,12 @@ public class PersistentActorTest extends
   }
 
   @Override
-  @NotNull EventStore createEventStore() {
+  protected @NotNull EventStore createEventStore() {
     return new InMemoryEventStore(Clock.systemUTC());
   }
 
   @Override
-  @NotNull CounterActor createSut(final @NotNull Runnable afterRecoveryHook) {
+  protected @NotNull CounterActor createSut(final @NotNull Runnable afterRecoveryHook) {
 
     return new CounterActor() {
 

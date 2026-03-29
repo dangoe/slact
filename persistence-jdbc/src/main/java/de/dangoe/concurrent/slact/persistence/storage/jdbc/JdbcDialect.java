@@ -86,24 +86,4 @@ public interface JdbcDialect {
   <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
       @NotNull PartitionKey<?> partitionKey, @Nullable Long lastSnapshotOrdering,
       long appliedUpToOrdering, @NotNull S snapshot) throws SQLException;
-
-  /**
-   * Inserts a snapshot marker event for the given partition key. This is used to indicate that a
-   * snapshot has been taken up to the given ordering value, without actually storing the snapshot
-   * data. This can be useful for tracking the progress of snapshotting and for optimizing event
-   * loading by allowing the system to skip events that have already been applied to a snapshot.
-   *
-   * @param connection          An active JDBC connection.
-   * @param partitionKey        The partition key to insert the snapshot marker event for.
-   * @param ordering            The ordering value associated with the snapshot marker event,
-   *                            indicating up to which events have been applied to the snapshot
-   *                            state.
-   * @param appliedUpToOrdering The ordering value up to which events have been applied to the
-   *                            snapshot state, which can be used for tracking the progress of
-   *                            snapshotting and optimizing event loading.
-   * @throws SQLException Thrown, if a database error occurs while inserting the snapshot marker
-   *                      event.
-   */
-  void insertSnapshotMarkerEvent(@NotNull Connection connection, @NotNull PartitionKey<?> partitionKey,
-      long ordering, long appliedUpToOrdering) throws SQLException;
 }

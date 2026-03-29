@@ -1,14 +1,19 @@
-package de.dangoe.concurrent.slact.persistence;
+package de.dangoe.concurrent.slact.persistence.testkit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import de.dangoe.concurrent.slact.persistence.EventStore;
+import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.PersistenceExtension;
+import de.dangoe.concurrent.slact.persistence.PersistenceExtensionHolder;
+import de.dangoe.concurrent.slact.persistence.PersistentActorBase;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase.RecoveryData;
-import de.dangoe.concurrent.slact.persistence.PersistentActorBaseSpec.Incremented;
+import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
+import de.dangoe.concurrent.slact.persistence.testkit.PersistentActorBaseSpec.Incremented;
 import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
-import java.time.Clock;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(SlactTestContainerExtension.class)
 public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST extends EventStore> {
 
-  protected sealed interface CounterMessage permits CounterMessage.CurrentCount,
+  public sealed interface CounterMessage permits CounterMessage.CurrentCount,
       CounterMessage.GetCount, CounterMessage.Increment {
 
     record Increment() implements PersistentActorBaseSpec.CounterMessage {
@@ -39,7 +44,7 @@ public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented
     }
   }
 
-  protected record Incremented() {
+  public record Incremented() {
 
   }
 
@@ -67,10 +72,10 @@ public abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented
     PersistenceExtensionHolder.getInstance().clear();
   }
 
-  abstract @NotNull PersistentActorBase<CounterMessage, Incremented, R, ST> createSut(
+  protected abstract @NotNull PersistentActorBase<CounterMessage, Incremented, R, ST> createSut(
       @NotNull Runnable afterRecoveryHook);
 
-  abstract @NotNull EventStore createEventStore();
+  protected abstract @NotNull EventStore createEventStore();
 
   @Nested
   @DisplayName("When events are persisted and the actor is restarted")

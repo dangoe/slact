@@ -22,22 +22,10 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: snapshot
+                  name: payload
                   type: BYTEA
                   constraints:
                     nullable: false
-              - column:
-                  name: is_snapshot_marker
-                  type: BOOLEAN
-                  defaultValueBoolean: false
-                  constraints:
-                    nullable: false
-        - createIndex:
-            indexName: idx_events_partition_key
-            tableName: events
-            columns:
-              - column:
-                  name: partition_key
         - addPrimaryKey:
             tableName: events
             columnNames: partition_key, ordering
@@ -66,7 +54,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: snapshot
+                  name: payload
                   type: BYTEA
                   constraints:
                     nullable: false
@@ -74,9 +62,3 @@ databaseChangeLog:
             tableName: snapshots
             columnNames: partition_key, ordering
             constraintName: pk_snapshots
-        - createIndex:
-            indexName: idx_snapshots_partition_key
-            tableName: snapshots
-            columns:
-              - column:
-                  name: partition_key

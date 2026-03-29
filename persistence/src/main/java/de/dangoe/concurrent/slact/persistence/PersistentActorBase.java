@@ -22,11 +22,12 @@ import org.jetbrains.annotations.NotNull;
  * @param <ST> The type of event store that the actor will use for persisting and recovering events.
  *             This type must extend the EventStore interface.
  */
-abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends EventStore> extends
+// TODO Reduce visibility or hide via suitable module export rules
+public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends EventStore> extends
     Actor<M> {
 
   @FunctionalInterface
-  protected interface RecoveryData<E> {
+  public interface RecoveryData<E> {
 
     @NotNull List<EventEnvelope<E>> events();
   }

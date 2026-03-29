@@ -69,7 +69,7 @@ class PostgreSqlJdbcSnapshotCapableEventStoreIT extends SnapshotCapableEventStor
   }
 
   @Override
-  protected void seedSnapshot(final @NotNull PartitionKey key, final long ordering,
+  protected void seedSnapshot(final @NotNull PartitionKey<?> key, final long ordering,
       final long appliedUpToOrdering, final @NotNull TestSnapshot snapshot) throws Exception {
     final byte[] snapshotPayload;
     try (final var baos = new ByteArrayOutputStream();
@@ -78,26 +78,11 @@ class PostgreSqlJdbcSnapshotCapableEventStoreIT extends SnapshotCapableEventStor
       snapshotPayload = baos.toByteArray();
     }
 
-    final byte[] markerPayload;
-    try (final var baos = new ByteArrayOutputStream();
-        final var oos = new ObjectOutputStream(baos)) {
-      oos.writeObject(new SnapshotMarkerPayload(ordering, appliedUpToOrdering));
-      markerPayload = baos.toByteArray();
-    }
-
     try (final var connection = connectionPool.acquire()) {
       connection.setAutoCommit(false);
       try {
         try (final var stmt = connection.prepareStatement(
-            "INSERT INTO events (partition_key, ordering, timestamp, snapshot, is_snapshot_marker) VALUES (?, ?, ?, ?, TRUE)")) {
-          stmt.setString(1, key.value());
-          stmt.setLong(2, ordering);
-          stmt.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
-          stmt.setBytes(4, markerPayload);
-          stmt.executeUpdate();
-        }
-        try (final var stmt = connection.prepareStatement(
-            "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, snapshot) VALUES (?, ?, ?, ?, ?)")) {
+            "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, payload) VALUES (?, ?, ?, ?, ?)")) {
           stmt.setString(1, key.value());
           stmt.setLong(2, ordering);
           stmt.setLong(3, appliedUpToOrdering);

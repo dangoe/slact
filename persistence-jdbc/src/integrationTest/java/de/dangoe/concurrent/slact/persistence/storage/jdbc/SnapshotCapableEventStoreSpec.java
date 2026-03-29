@@ -38,7 +38,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public Class<TestEvent> eventType() {
+    public @NotNull Class<TestEvent> eventType() {
       return TestEvent.class;
     }
   }
@@ -61,7 +61,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
    * insert the corresponding snapshot marker event into the {@code events} table so that the
    * marker-filter contract of {@link EventStore#loadEvents} can be verified.
    */
-  protected abstract void seedSnapshot(@NotNull PartitionKey key, long ordering,
+  protected abstract void seedSnapshot(@NotNull PartitionKey<?> key, long ordering,
       long appliedUpToOrdering, @NotNull TestSnapshot snapshot) throws Exception;
 
   @Override

@@ -1,7 +1,8 @@
 package de.dangoe.concurrent.slact.persistence;
 
-import de.dangoe.concurrent.slact.persistence.PersistentActorBaseSpec.Incremented;
 import de.dangoe.concurrent.slact.persistence.SnapshotCapablePersistentActor.SnapshotCapableRecoveryData;
+import de.dangoe.concurrent.slact.persistence.testkit.PersistentActorBaseSpec;
+import de.dangoe.concurrent.slact.persistence.testkit.PersistentActorBaseSpec.Incremented;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
 import java.io.Serial;
 import java.time.Clock;
@@ -29,7 +30,7 @@ public class SnapshotCapablePersistentActorTest extends
     }
 
     @Override
-    public Class<Incremented> eventType() {
+    public @NotNull Class<Incremented> eventType() {
       return Incremented.class;
     }
   }
@@ -64,12 +65,12 @@ public class SnapshotCapablePersistentActorTest extends
   }
 
   @Override
-  @NotNull SnapshotCapableEventStore createEventStore() {
+  protected @NotNull SnapshotCapableEventStore createEventStore() {
     return new SnapshotCapableInMemoryEventStore(Clock.systemUTC());
   }
 
   @Override
-  @NotNull CounterActor createSut(final @NotNull Runnable afterRecoveryHook) {
+  protected @NotNull CounterActor createSut(final @NotNull Runnable afterRecoveryHook) {
 
     return new CounterActor() {
 

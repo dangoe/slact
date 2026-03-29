@@ -14,8 +14,7 @@ import org.jetbrains.annotations.Nullable;
 public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implements
     SnapshotCapableEventStore {
 
-  private record SnapshotStoreKey(@NotNull Class<?> partitionKeyType,
-                                   @NotNull String value) {
+  private record SnapshotStoreKey(@NotNull Class<?> partitionKeyType, @NotNull String value) {
 
   }
 
@@ -30,10 +29,9 @@ public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implem
   public <S> @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
       final @NotNull PartitionKey<?> partitionKey, final @NotNull Class<S> snapshotType) {
 
-    return RichFuture.of(CompletableFuture.completedFuture(
-        Optional.ofNullable(
-            (SnapshotEnvelope<S>) snapshots.get(
-                new SnapshotStoreKey(partitionKey.getClass(), partitionKey.value())))));
+    return RichFuture.of(CompletableFuture.completedFuture(Optional.ofNullable(
+        (SnapshotEnvelope<S>) snapshots.get(
+            new SnapshotStoreKey(partitionKey.getClass(), partitionKey.value())))));
   }
 
   @Override

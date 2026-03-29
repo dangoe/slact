@@ -27,7 +27,7 @@ public class PostgreSqlDialect implements JdbcDialect {
       final @NotNull PartitionKey<?> partitionKey, final long fromOrdering) throws SQLException {
 
     try (final var statement = connection.prepareStatement(
-        "SELECT ordering, timestamp, snapshot FROM events WHERE partition_key = ? AND ordering >= ? AND is_snapshot_marker = FALSE ORDER BY ordering ASC")) {
+        "SELECT ordering, timestamp, payload FROM events WHERE partition_key = ? AND ordering >= ? ORDER BY ordering ASC")) {
 
       statement.setString(1, partitionKey.value());
       statement.setLong(2, fromOrdering);
@@ -40,7 +40,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
           final var ordering = resultSet.getLong("ordering");
           final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
-          final var payload = resultSet.getBytes("snapshot");
+          final var payload = resultSet.getBytes("payload");
           final var event = this.<E>deserialize(payload);
 
           events.add(new EventEnvelope<>(ordering, timestamp, event));
@@ -53,8 +53,8 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <E> @NotNull List<EventEnvelope<E>> insertEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey<?> partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
-      throws SQLException, ConcurrentWriteException {
+      final @NotNull PartitionKey<?> partitionKey, long lastMaxOrdering,
+      final @NotNull List<E> events) throws SQLException, ConcurrentWriteException {
 
     final var inserted = new ArrayList<EventEnvelope<E>>();
 
@@ -63,7 +63,7 @@ public class PostgreSqlDialect implements JdbcDialect {
     for (final var event : events) {
 
       try (final var statement = connection.prepareStatement(
-          "INSERT INTO events (partition_key, ordering, timestamp, snapshot) VALUES (?, ?, ?, ?) RETURNING timestamp")) {
+          "INSERT INTO events (partition_key, ordering, timestamp, payload) VALUES (?, ?, ?, ?) RETURNING timestamp")) {
 
         statement.setString(1, partitionKey.value());
         statement.setLong(2, ordering);
@@ -91,7 +91,7 @@ public class PostgreSqlDialect implements JdbcDialect {
       throws SQLException {
 
     try (final var statement = connection.prepareStatement(
-        "SELECT ordering, event_ordering, timestamp, snapshot FROM snapshots WHERE partition_key = ? ORDER BY ordering DESC LIMIT 1")) {
+        "SELECT ordering, event_ordering, timestamp, payload FROM snapshots WHERE partition_key = ? ORDER BY ordering DESC LIMIT 1")) {
 
       statement.setString(1, partitionKey.value());
 
@@ -102,7 +102,7 @@ public class PostgreSqlDialect implements JdbcDialect {
           final var ordering = resultSet.getLong("ordering");
           final var eventOrdering = resultSet.getLong("event_ordering");
           final var timestamp = resultSet.getTimestamp("timestamp").toInstant();
-          final var payload = resultSet.getBytes("snapshot");
+          final var payload = resultSet.getBytes("payload");
           final var snapshot = this.<S>deserialize(payload);
 
           return Optional.of(new SnapshotEnvelope<>(ordering, eventOrdering, timestamp, snapshot));
@@ -121,7 +121,7 @@ public class PostgreSqlDialect implements JdbcDialect {
     final var ordering = (lastSnapshotOrdering != null ? lastSnapshotOrdering : 0) + 1;
 
     try (final var statement = connection.prepareStatement(
-        "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, snapshot) VALUES (?,?, ?, ?, ?) RETURNING timestamp")) {
+        "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, payload) VALUES (?,?, ?, ?, ?) RETURNING timestamp")) {
 
       statement.setString(1, partitionKey.value());
       statement.setLong(2, ordering);
@@ -140,23 +140,6 @@ public class PostgreSqlDialect implements JdbcDialect {
           throw new PersistenceException("Failed to insert snapshot: No result returned");
         }
       }
-    }
-  }
-
-  @Override
-  public void insertSnapshotMarkerEvent(final @NotNull Connection connection,
-      final @NotNull PartitionKey<?> partitionKey, final long ordering, final long appliedUpToOrdering)
-      throws SQLException {
-
-    try (final var statement = connection.prepareStatement(
-        "INSERT INTO events (partition_key, ordering, timestamp, is_snapshot_marker, snapshot) VALUES (?, ?, ?, TRUE, ?)")) {
-
-      statement.setString(1, partitionKey.value());
-      statement.setLong(2, ordering);
-      statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
-      statement.setBytes(4, serialize(new SnapshotMarkerPayload(ordering, appliedUpToOrdering)));
-
-      statement.executeUpdate();
     }
   }
 
