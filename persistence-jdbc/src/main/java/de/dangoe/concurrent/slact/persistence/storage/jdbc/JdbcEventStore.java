@@ -4,7 +4,6 @@ import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
-import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.sql.SQLException;
@@ -57,7 +56,7 @@ public class JdbcEventStore implements EventStore {
   @Override
   public <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
       final @NotNull PartitionKey partitionKey, final long lastMaxOrdering,
-      final @NotNull List<E> events) throws ConcurrentWriteException {
+      final @NotNull List<E> events) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
 

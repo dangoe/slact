@@ -85,7 +85,7 @@ public interface JdbcDialect {
    * such as ordering and timestamp.
    * @throws SQLException Thrown, if a database error occurs while inserting the snapshot.
    */
-  <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
+  <S> @NotNull SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
       long appliedUpToOrdering, @NotNull S snapshot) throws SQLException, ConcurrentWriteException;
 
