@@ -16,15 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/**
- * Abstract specification for the {@link SnapshotCapableEventStore} contract. Extends
- * {@link EventStoreSpec} so that all event-store behavioural tests are inherited.
- *
- * <p>Subclasses provide the concrete infrastructure via
- * {@link #createSnapshotCapableEventStore()}. Read-path tests use raw SQL via
- * {@link #seedSnapshot(PartitionKey, long, long, TestSnapshot)}; write-path tests exercise
- * {@code saveSnapshot} directly.
- */
 @DisplayName("Snapshot-capable event store")
 public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
 
@@ -34,25 +25,14 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
     private static final long serialVersionUID = 1L;
   }
 
-  private record TestEventPartitionKey(@NotNull String value) implements PartitionKey<TestEvent> {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-
-    @Override
-    public @NotNull Class<TestEvent> eventType() {
-      return TestEvent.class;
-    }
-  }
-
-  private static final PartitionKey<TestEvent> PARTITION_A = new TestEventPartitionKey("snapshot-partition-a");
-  private static final PartitionKey<TestEvent> PARTITION_B = new TestEventPartitionKey("snapshot-partition-b");
+  private static final PartitionKey PARTITION_A = new PartitionKey("test", "snapshot-partition-a");
+  private static final PartitionKey PARTITION_B = new PartitionKey("test", "snapshot-partition-b");
 
   private SnapshotCapableEventStore snapshotStore;
 
   /**
-   * Creates a fresh {@link SnapshotCapableEventStore} backed by the concrete infrastructure.
-   * Called once per test after {@link #cleanDatabase()}.
+   * Creates a fresh {@link SnapshotCapableEventStore} backed by the concrete infrastructure. Called
+   * once per test after {@link #cleanDatabase()}.
    */
   protected abstract @NotNull SnapshotCapableEventStore createSnapshotCapableEventStore();
 
@@ -63,7 +43,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
    * insert the corresponding snapshot marker event into the {@code events} table so that the
    * marker-filter contract of {@link EventStore#loadEvents} can be verified.
    */
-  protected abstract void seedSnapshot(@NotNull PartitionKey<?> key, long ordering,
+  protected abstract void seedSnapshot(@NotNull PartitionKey key, long ordering,
       long appliedUpToOrdering, @NotNull TestSnapshot snapshot) throws Exception;
 
   @Override
@@ -72,7 +52,7 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
   }
 
   @BeforeEach
-  final void setUpSnapshotStore() throws Exception {
+  final void setUpSnapshotStore() {
     snapshotStore = createSnapshotCapableEventStore();
   }
 
@@ -305,7 +285,8 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
       snapshotStore.saveSnapshot(PARTITION_A, null, 1L, new TestSnapshot("state-v1")).join();
 
       final var thrown = catchThrowable(
-          () -> snapshotStore.saveSnapshot(PARTITION_A, 0L, 2L, new TestSnapshot("state-v2")).join());
+          () -> snapshotStore.saveSnapshot(PARTITION_A, 0L, 2L, new TestSnapshot("state-v2"))
+              .join());
       final Throwable actual = thrown instanceof CompletionException ce ? ce.getCause() : thrown;
       assertThat(actual).isInstanceOf(ConcurrentWriteException.class);
     }

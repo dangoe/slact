@@ -28,7 +28,7 @@ public interface SnapshotCapableEventStore extends EventStore {
    * latest snapshot for the given partition key, or an empty optional if no snapshot is available.
    */
   <S> @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
-      @NotNull PartitionKey<?> partitionKey, @NotNull Class<S> snapshotType);
+      @NotNull PartitionKey partitionKey, @NotNull Class<S> snapshotType);
 
   /**
    * Saves a snapshot for the given partition key. The returned future will complete with the
@@ -60,7 +60,6 @@ public interface SnapshotCapableEventStore extends EventStore {
    * with the saved snapshot and its associated metadata. The future will complete exceptionally if
    * an error occurs while saving the snapshot.
    */
-  <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(@NotNull PartitionKey<?> partitionKey,
-      @Nullable Long lastSnapshotOrdering,
-      long appliedUpToOrdering, @NotNull S snapshot);
+  <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(@NotNull PartitionKey partitionKey,
+      @Nullable Long lastSnapshotOrdering, long appliedUpToOrdering, @NotNull S snapshot);
 }

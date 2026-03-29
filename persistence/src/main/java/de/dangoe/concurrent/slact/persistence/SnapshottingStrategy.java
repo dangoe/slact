@@ -14,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * @param <E> The type of domain events that the snapshotting strategy will evaluate to determine
  *            when to create a snapshot.
- * @param <S> The type of snapshot state that the snapshotting strategy will manage. This type
+ * @param <S> The type of snapshot state that the snapshotting strategy will manage. This actorType
  *            represents the state of the entity at a specific point in time and can be used for
  *            efficient recovery without needing to replay all events from the beginning of the
  *            event stream.

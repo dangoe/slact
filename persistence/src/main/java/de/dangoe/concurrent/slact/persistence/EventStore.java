@@ -21,7 +21,7 @@ public interface EventStore {
    * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
   default <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
-      final @NotNull PartitionKey<E> partitionKey) {
+      final @NotNull PartitionKey partitionKey) {
     return loadEvents(partitionKey, 0);
   }
 
@@ -38,7 +38,7 @@ public interface EventStore {
    * @return A {@link RichFuture}  that, when completed, will contain a list of
    * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
-  <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey<E> partitionKey,
+  <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey,
       long fromOrdering);
 
   /**
@@ -58,7 +58,7 @@ public interface EventStore {
    *                                  ordering in the event store.
    */
   default <E> @NotNull RichFuture<EventEnvelope<E>> append(
-      final @NotNull PartitionKey<E> partitionKey, long lastMaxOrdering, @NotNull E event) {
+      final @NotNull PartitionKey partitionKey, long lastMaxOrdering, @NotNull E event) {
 
     return appendMultiple(partitionKey, lastMaxOrdering, List.of(event)).thenApply(List::getFirst);
   }
@@ -81,5 +81,5 @@ public interface EventStore {
    *                                  ordering in the event store.
    */
   <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
-      @NotNull PartitionKey<E> partitionKey, long lastMaxOrdering, @NotNull List<E> events);
+      @NotNull PartitionKey partitionKey, long lastMaxOrdering, @NotNull List<E> events);
 }

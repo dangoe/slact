@@ -19,8 +19,8 @@ public abstract class PersistentActor<M, E> extends
 
   @Override
   protected final RichFuture<RecoveryData<E>> loadRecoveryData(
-      final @NotNull PartitionKey<E> partitionKey) {
-    return eventStore().loadEvents(partitionKey).thenApply(it -> () -> it);
+      final @NotNull PartitionKey partitionKey) {
+    return eventStore().<E>loadEvents(partitionKey).thenApply(it -> () -> it);
   }
 
   @Override
@@ -39,8 +39,7 @@ public abstract class PersistentActor<M, E> extends
   protected final @NotNull EventStore eventStore() {
     return PersistenceExtensionHolder.getInstance().require().resolveStore(partitionKey())
         .orElseThrow(() -> new IllegalStateException(
-            "Event store is not available for partition key '%s'".formatted(
-                partitionKey().value())));
+            "Event store is not available for partition key '%s'".formatted(partitionKey().raw())));
   }
 
   @Override

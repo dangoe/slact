@@ -15,13 +15,13 @@ import org.jetbrains.annotations.NotNull;
 public interface JdbcExceptionTranslator {
 
   /**
-   * Translates the given {@link SQLException} to a {@link PersistenceException} appropriate for
-   * the dialect.
+   * Translates the given {@link SQLException} to a {@link PersistenceException} appropriate for the
+   * dialect.
    *
    * @param partitionKey The partition key involved in the failed operation.
    * @param cause        The SQL exception to translate.
    * @return A {@link PersistenceException} (or subtype) representing the failure.
    */
-  @NotNull PersistenceException translate(@NotNull PartitionKey<?> partitionKey,
+  @NotNull PersistenceException translate(@NotNull PartitionKey partitionKey,
       @NotNull SQLException cause);
 }

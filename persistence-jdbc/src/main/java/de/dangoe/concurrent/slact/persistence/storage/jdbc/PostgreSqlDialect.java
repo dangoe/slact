@@ -27,12 +27,12 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey<?> partitionKey, final long fromOrdering) throws SQLException {
+      final @NotNull PartitionKey partitionKey, final long fromOrdering) throws SQLException {
 
     try (final var statement = connection.prepareStatement(
         "SELECT ordering, timestamp, payload FROM events WHERE partition_key = ? AND ordering >= ? ORDER BY ordering ASC")) {
 
-      statement.setString(1, partitionKey.value());
+      statement.setString(1, partitionKey.raw());
       statement.setLong(2, fromOrdering);
 
       try (final var resultSet = statement.executeQuery()) {
@@ -56,8 +56,8 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <E> @NotNull List<EventEnvelope<E>> insertEvents(final @NotNull Connection connection,
-      final @NotNull PartitionKey<?> partitionKey, long lastMaxOrdering,
-      final @NotNull List<E> events) throws SQLException, ConcurrentWriteException {
+      final @NotNull PartitionKey partitionKey, long lastMaxOrdering, final @NotNull List<E> events)
+      throws SQLException, ConcurrentWriteException {
 
     final var inserted = new ArrayList<EventEnvelope<E>>();
 
@@ -68,7 +68,7 @@ public class PostgreSqlDialect implements JdbcDialect {
       try (final var statement = connection.prepareStatement(
           "INSERT INTO events (partition_key, ordering, timestamp, payload) VALUES (?, ?, ?, ?) RETURNING timestamp")) {
 
-        statement.setString(1, partitionKey.value());
+        statement.setString(1, partitionKey.raw());
         statement.setLong(2, ordering);
         statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
         statement.setBytes(4, serialize(event));
@@ -95,13 +95,13 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public @NotNull <S> Optional<SnapshotEnvelope<S>> loadLatestSnapshot(
-      final @NotNull Connection connection, final @NotNull PartitionKey<?> partitionKey)
+      final @NotNull Connection connection, final @NotNull PartitionKey partitionKey)
       throws SQLException {
 
     try (final var statement = connection.prepareStatement(
         "SELECT ordering, event_ordering, timestamp, payload FROM snapshots WHERE partition_key = ? ORDER BY ordering DESC LIMIT 1")) {
 
-      statement.setString(1, partitionKey.value());
+      statement.setString(1, partitionKey.raw());
 
       try (final var resultSet = statement.executeQuery()) {
 
@@ -123,7 +123,7 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   @Override
   public <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
-      final @NotNull PartitionKey<?> partitionKey, final @Nullable Long lastSnapshotOrdering,
+      final @NotNull PartitionKey partitionKey, final @Nullable Long lastSnapshotOrdering,
       final long appliedUpToOrdering, final @NotNull S snapshot)
       throws SQLException, ConcurrentWriteException {
 
@@ -132,7 +132,7 @@ public class PostgreSqlDialect implements JdbcDialect {
     try (final var statement = connection.prepareStatement(
         "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, payload) VALUES (?,?, ?, ?, ?) RETURNING timestamp")) {
 
-      statement.setString(1, partitionKey.value());
+      statement.setString(1, partitionKey.raw());
       statement.setLong(2, ordering);
       statement.setLong(3, appliedUpToOrdering);
       statement.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
@@ -160,8 +160,7 @@ public class PostgreSqlDialect implements JdbcDialect {
   @Override
   public @NotNull JdbcExceptionTranslator exceptionTranslator() {
     return (partitionKey, cause) -> UNIQUE_VIOLATION_SQLSTATE.equals(cause.getSQLState())
-        ? new ConcurrentWriteException(partitionKey)
-        : new SaveFailedException(partitionKey, cause);
+        ? new ConcurrentWriteException(partitionKey) : new SaveFailedException(partitionKey, cause);
   }
 
   private <T> byte[] serialize(final @NotNull T event) {

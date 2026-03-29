@@ -30,16 +30,16 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
 
   @Override
   protected final RichFuture<SnapshotCapableRecoveryData<E, S>> loadRecoveryData(
-      final @NotNull PartitionKey<E> partitionKey) {
+      final @NotNull PartitionKey partitionKey) {
 
     final var store = eventStore();
 
     return store.loadLatestSnapshot(partitionKey, snapshotType()).thenCompose(
         maybeLatestSnapshotEnvelope -> maybeLatestSnapshotEnvelope.map(
-                latestSnapshotEnvelope -> store.loadEvents(partitionKey,
+                latestSnapshotEnvelope -> store.<E>loadEvents(partitionKey,
                     latestSnapshotEnvelope.appliedUpToOrdering() + 1).thenApply(
                     events -> new SnapshotCapableRecoveryData<>(events, latestSnapshotEnvelope)))
-            .orElseGet(() -> store.loadEvents(partitionKey)
+            .orElseGet(() -> store.<E>loadEvents(partitionKey)
                 .thenApply(events -> new SnapshotCapableRecoveryData<>(events, null))));
   }
 
@@ -59,14 +59,14 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   }
 
   /**
-   * Returns the class of the snapshot type. This is used when loading the latest snapshot from the
-   * event store so that the snapshot data can be deserialized into the correct type.
+   * Returns the class of the snapshot actorType. This is used when loading the latest snapshot from
+   * the event store so that the snapshot data can be deserialized into the correct actorType.
    *
-   * @return The class of the snapshot type {@code S}.
+   * @return The class of the snapshot actorType {@code S}.
    */
   protected abstract @NotNull Class<S> snapshotType();
 
-    protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
+  protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
 
   protected final @NotNull Optional<S> latestSnapshot() {
     return Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::snapshot);
@@ -75,10 +75,8 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   @Override
   protected final @NotNull SnapshotCapableEventStore eventStore() {
     return PersistenceExtensionHolder.getInstance().require()
-        .resolveSnapshotCapableStore(partitionKey()).orElseThrow(
-            () -> new IllegalStateException(
-                "Event store is not available for partition key '%s'".formatted(
-                    partitionKey().value())));
+        .resolveSnapshotCapableStore(partitionKey()).orElseThrow(() -> new IllegalStateException(
+            "Event store is not available for partition key '%s'".formatted(partitionKey().raw())));
   }
 
   @Override

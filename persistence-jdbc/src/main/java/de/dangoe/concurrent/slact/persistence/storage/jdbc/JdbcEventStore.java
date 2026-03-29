@@ -36,7 +36,7 @@ public class JdbcEventStore implements EventStore {
 
   @Override
   public <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
-      final @NotNull PartitionKey<E> partitionKey, final long fromOrdering) {
+      final @NotNull PartitionKey partitionKey, final long fromOrdering) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
 
@@ -47,7 +47,7 @@ public class JdbcEventStore implements EventStore {
           Thread.currentThread().interrupt();
         }
         throw new PersistenceException(
-            "Failed to load events for partition key '%s'".formatted(partitionKey.value()), e);
+            "Failed to load events for partition key '%s'".formatted(partitionKey.raw()), e);
       }
     }, this.executorService);
 
@@ -56,7 +56,7 @@ public class JdbcEventStore implements EventStore {
 
   @Override
   public <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
-      final @NotNull PartitionKey<E> partitionKey, final long lastMaxOrdering,
+      final @NotNull PartitionKey partitionKey, final long lastMaxOrdering,
       final @NotNull List<E> events) throws ConcurrentWriteException {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
@@ -81,9 +81,8 @@ public class JdbcEventStore implements EventStore {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
-        throw e instanceof SQLException sqle
-            ? dialect.exceptionTranslator().translate(partitionKey, sqle)
-            : new SaveFailedException(partitionKey, e);
+        throw e instanceof SQLException sqle ? dialect.exceptionTranslator()
+            .translate(partitionKey, sqle) : new SaveFailedException(partitionKey, e);
       }
     }, this.executorService);
 

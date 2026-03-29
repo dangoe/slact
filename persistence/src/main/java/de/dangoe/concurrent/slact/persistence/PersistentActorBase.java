@@ -36,7 +36,7 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
 
   }
 
-  private record RecoveryFailureMessage(@NotNull PartitionKey<?> partitionKey,
+  private record RecoveryFailureMessage(@NotNull PartitionKey partitionKey,
                                         @NotNull Throwable cause) {
 
   }
@@ -80,7 +80,7 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
       behaveAsDefault();
       afterRecovery();
 
-    } else if (message instanceof RecoveryFailureMessage(PartitionKey<?> id, Throwable cause)) {
+    } else if (message instanceof RecoveryFailureMessage(PartitionKey id, Throwable cause)) {
       throw new RecoveryFailedException(id, cause);
     } else {
       reject(message);
@@ -105,7 +105,7 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
    * @return A RichFuture that, when completed, will contain the recovery data of type R, which
    * includes the list of events to be recovered for the actor.
    */
-  protected abstract RichFuture<R> loadRecoveryData(@NotNull PartitionKey<E> partitionKey);
+  protected abstract RichFuture<R> loadRecoveryData(@NotNull PartitionKey partitionKey);
 
   protected abstract @NotNull ST eventStore();
 
@@ -152,7 +152,7 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
    * @return The partition key for this actor, which is used to load and persist events in the event
    * store.
    */
-  protected abstract @NotNull PartitionKey<E> partitionKey();
+  protected abstract @NotNull PartitionKey partitionKey();
 
   /**
    * Defines a hook method that is called after the recovery process is complete and the actor has

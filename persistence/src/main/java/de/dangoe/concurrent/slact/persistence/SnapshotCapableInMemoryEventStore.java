@@ -27,20 +27,20 @@ public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implem
   @Override
   @SuppressWarnings("unchecked")
   public <S> @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
-      final @NotNull PartitionKey<?> partitionKey, final @NotNull Class<S> snapshotType) {
+      final @NotNull PartitionKey partitionKey, final @NotNull Class<S> snapshotType) {
 
     return RichFuture.of(CompletableFuture.completedFuture(Optional.ofNullable(
         (SnapshotEnvelope<S>) snapshots.get(
-            new SnapshotStoreKey(partitionKey.getClass(), partitionKey.value())))));
+            new SnapshotStoreKey(partitionKey.getClass(), partitionKey.raw())))));
   }
 
   @Override
   public <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(
-      final @NotNull PartitionKey<?> partitionKey, final @Nullable Long lastSnapshotOrdering,
+      final @NotNull PartitionKey partitionKey, final @Nullable Long lastSnapshotOrdering,
       long appliedUpToOrdering, final @NotNull S snapshot) {
 
     final var snapshotStoreKey = new SnapshotStoreKey(partitionKey.getClass(),
-        partitionKey.value());
+        partitionKey.raw());
 
     final var existingSnapshot = this.snapshots.get(snapshotStoreKey);
     final var lastOrdering = existingSnapshot != null ? existingSnapshot.ordering() : 0;

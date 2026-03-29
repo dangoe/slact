@@ -4,6 +4,7 @@ import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
+import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -30,7 +31,7 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while loading events.
    */
   <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
-      @NotNull PartitionKey<?> partitionKey, long fromOrdering) throws SQLException;
+      @NotNull PartitionKey partitionKey, long fromOrdering) throws SQLException;
 
   /**
    * Inserts the given events for the partition and returns their persisted envelopes, including
@@ -49,7 +50,7 @@ public interface JdbcDialect {
    *                                  maximum ordering in the event store.
    */
   <E> @NotNull List<EventEnvelope<E>> insertEvents(@NotNull Connection connection,
-      @NotNull PartitionKey<?> partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
+      @NotNull PartitionKey partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
       throws SQLException, ConcurrentWriteException;
 
   /**
@@ -63,7 +64,7 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while loading the snapshot.
    */
   <S> @NotNull Optional<SnapshotEnvelope<S>> loadLatestSnapshot(@NotNull Connection connection,
-      @NotNull PartitionKey<?> partitionKey) throws SQLException;
+      @NotNull PartitionKey partitionKey) throws SQLException;
 
   /**
    * Inserts a new snapshot for the given partition key. The snapshot will be associated with the
@@ -85,17 +86,19 @@ public interface JdbcDialect {
    * @throws SQLException Thrown, if a database error occurs while inserting the snapshot.
    */
   <S> SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
-      @NotNull PartitionKey<?> partitionKey, @Nullable Long lastSnapshotOrdering,
+      @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
       long appliedUpToOrdering, @NotNull S snapshot) throws SQLException, ConcurrentWriteException;
 
   /**
    * Returns a {@link JdbcExceptionTranslator} that maps vendor-specific {@link SQLException}
-   * instances to the appropriate {@link de.dangoe.concurrent.slact.persistence.exception.PersistenceException}
-   * subtype. The default implementation always returns {@link SaveFailedException}.
+   * instances to the appropriate {@link PersistenceException} subtype. The default implementation
+   * always returns {@link SaveFailedException}.
    *
    * @return A translator for this dialect.
    */
   default @NotNull JdbcExceptionTranslator exceptionTranslator() {
-    return (partitionKey, cause) -> new SaveFailedException(partitionKey, cause);
+    return (partitionKey, cause) -> new PersistenceException(
+        "Failed to execute database operation for partition key '%s'.".formatted(partitionKey),
+        cause);
   }
 }

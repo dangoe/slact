@@ -50,20 +50,10 @@ abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST e
     private static final long serialVersionUID = 1L;
   }
 
-  record CounterPartitionKey(@NotNull String value) implements PartitionKey<Incremented> {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-
-    @Override
-    public @NotNull Class<Incremented> eventType() {
-      return Incremented.class;
-    }
-  }
-
   @BeforeEach
   void setUp() {
-    PersistenceExtensionHolder.getInstance().register(createPersistenceExtension(createEventStore()));
+    PersistenceExtensionHolder.getInstance()
+        .register(createPersistenceExtension(createEventStore()));
   }
 
   @AfterEach
@@ -146,9 +136,8 @@ abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST e
 
       assertThat(recoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
-      final var count = container.requestResponseTo(
-              (CounterMessage) new CounterMessage.GetCount()).ofType(CounterMessage.CurrentCount.class)
-          .from(counter);
+      final var count = container.requestResponseTo((CounterMessage) new CounterMessage.GetCount())
+          .ofType(CounterMessage.CurrentCount.class).from(counter);
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(count::isDone);
       assertThat(count.get()).isEqualTo(new CounterMessage.CurrentCount(0));

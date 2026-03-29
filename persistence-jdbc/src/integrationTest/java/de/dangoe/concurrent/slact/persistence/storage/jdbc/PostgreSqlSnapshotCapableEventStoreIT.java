@@ -70,7 +70,7 @@ class PostgreSqlSnapshotCapableEventStoreIT extends SnapshotCapableEventStoreSpe
   }
 
   @Override
-  protected void seedSnapshot(final @NotNull PartitionKey<?> key, final long ordering,
+  protected void seedSnapshot(final @NotNull PartitionKey key, final long ordering,
       final long appliedUpToOrdering, final @NotNull TestSnapshot snapshot) throws Exception {
     final byte[] snapshotPayload;
     try (final var baos = new ByteArrayOutputStream();
@@ -84,7 +84,7 @@ class PostgreSqlSnapshotCapableEventStoreIT extends SnapshotCapableEventStoreSpe
       try {
         try (final var stmt = connection.prepareStatement(
             "INSERT INTO snapshots (partition_key, ordering, event_ordering, timestamp, payload) VALUES (?, ?, ?, ?, ?)")) {
-          stmt.setString(1, key.value());
+          stmt.setString(1, key.raw());
           stmt.setLong(2, ordering);
           stmt.setLong(3, appliedUpToOrdering);
           stmt.setTimestamp(4, new Timestamp(System.currentTimeMillis()));

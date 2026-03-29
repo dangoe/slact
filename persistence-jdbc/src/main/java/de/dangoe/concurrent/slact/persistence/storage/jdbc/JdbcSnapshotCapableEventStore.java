@@ -23,7 +23,7 @@ public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
 
   @Override
   public <S> @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
-      final @NotNull PartitionKey<?> partitionKey, final @NotNull Class<S> snapshotType) {
+      final @NotNull PartitionKey partitionKey, final @NotNull Class<S> snapshotType) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
 
@@ -34,7 +34,7 @@ public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
           Thread.currentThread().interrupt();
         }
         throw new PersistenceException(
-            "Failed to load latest snapshot for partition key '%s'".formatted(partitionKey.value()),
+            "Failed to load latest snapshot for partition key '%s'".formatted(partitionKey.raw()),
             e);
       }
     }, this.executorService);
@@ -44,7 +44,7 @@ public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
 
   @Override
   public <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(
-      final @NotNull PartitionKey<?> partitionKey, @Nullable Long lastSnapshotOrdering,
+      final @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
       final long appliedUpToOrdering, final @NotNull S snapshot) {
 
     final var eventualResult = CompletableFuture.supplyAsync(() -> {
@@ -69,9 +69,8 @@ public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
-        throw e instanceof SQLException sqle
-            ? dialect.exceptionTranslator().translate(partitionKey, sqle)
-            : new SaveFailedException(partitionKey, e);
+        throw e instanceof SQLException sqle ? dialect.exceptionTranslator()
+            .translate(partitionKey, sqle) : new SaveFailedException(partitionKey, e);
       }
     }, this.executorService);
 

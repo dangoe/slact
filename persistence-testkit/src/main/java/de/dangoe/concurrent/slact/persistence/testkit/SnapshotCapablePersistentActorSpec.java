@@ -28,8 +28,8 @@ public abstract class SnapshotCapablePersistentActorSpec extends
       SnapshotCapablePersistentActor<CounterMessage, Incremented, Void> {
 
     @Override
-    protected @NotNull PartitionKey<Incremented> partitionKey() {
-      return new CounterPartitionKey("counter-1");
+    protected @NotNull PartitionKey partitionKey() {
+      return new PartitionKey("counter", "counter-1");
     }
 
     @Override
@@ -56,16 +56,17 @@ public abstract class SnapshotCapablePersistentActorSpec extends
   @Override
   protected final @NotNull PersistenceExtension createPersistenceExtension(
       final @NotNull SnapshotCapableEventStore store) {
+
     return new PersistenceExtension() {
 
       @Override
-      public <E> @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey<E> key) {
+      public @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey key) {
         return Optional.of(store);
       }
 
       @Override
-      public @NotNull <E> Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
-          final @NotNull PartitionKey<E> key) {
+      public @NotNull Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
+          final @NotNull PartitionKey partitionKey) {
         return Optional.of(store);
       }
     };
@@ -74,6 +75,7 @@ public abstract class SnapshotCapablePersistentActorSpec extends
   @Override
   protected final @NotNull PersistentActorBase<CounterMessage, Incremented, SnapshotCapableRecoveryData<Incremented, Void>, SnapshotCapableEventStore> createSut(
       final @NotNull Runnable afterRecoveryHook) {
+
     return new CounterActor() {
 
       @Override
@@ -91,12 +93,12 @@ public abstract class SnapshotCapablePersistentActorSpec extends
   @DisplayName("When an actual snapshotting strategy is used")
   class WhenAnActualSnapshottingStrategyIsUsed {
 
-    protected class SnapshotCounterActor extends
+    protected static class SnapshotCounterActor extends
         SnapshotCapablePersistentActor<CounterMessage, Incremented, Integer> {
 
       @Override
-      protected @NotNull PartitionKey<Incremented> partitionKey() {
-        return new CounterPartitionKey("snapshot-counter-1");
+      protected @NotNull PartitionKey partitionKey() {
+        return new PartitionKey("counter", "snapshot-counter-1");
       }
 
       @Override
@@ -109,9 +111,9 @@ public abstract class SnapshotCapablePersistentActorSpec extends
         return (events, latestSnapshot) -> {
           if (events.size() >= 3) {
             final int baseCount = latestSnapshot != null ? latestSnapshot.snapshot() : 0;
-            return Optional.of(new SnapshottingStrategy.CreatedSnapshot<>(
-                events.getLast().ordering(),
-                baseCount + events.size()));
+            return Optional.of(
+                new SnapshottingStrategy.CreatedSnapshot<>(events.getLast().ordering(),
+                    baseCount + events.size()));
           }
           return Optional.empty();
         };
@@ -121,8 +123,8 @@ public abstract class SnapshotCapablePersistentActorSpec extends
       public void onMessage(final @NotNull CounterMessage message) {
         switch (message) {
           case CounterMessage.Increment() -> persist(new Incremented());
-          case CounterMessage.GetCount() -> respondWith(new CounterMessage.CurrentCount(
-              latestSnapshot().orElse(0) + events().size()));
+          case CounterMessage.GetCount() -> respondWith(
+              new CounterMessage.CurrentCount(latestSnapshot().orElse(0) + events().size()));
           case CounterMessage.CurrentCount ignored -> reject(message);
         }
       }
@@ -130,18 +132,17 @@ public abstract class SnapshotCapablePersistentActorSpec extends
 
     @Test
     @DisplayName("A snapshot is saved and the actor recovers correctly from it")
-    void snapshotIsSavedAndActorRecoversCorrectlyFromIt(
-        final @NotNull SlactTestContainer container) throws Exception {
+    void snapshotIsSavedAndActorRecoversCorrectlyFromIt(final @NotNull SlactTestContainer container)
+        throws Exception {
 
       final var firstRecoveryLatch = new CountDownLatch(1);
-      final var actorV1 = container.spawn("snapshot-counter-v1",
-          () -> new SnapshotCounterActor() {
-            @Override
-            protected void afterRecovery() {
-              super.afterRecovery();
-              firstRecoveryLatch.countDown();
-            }
-          });
+      final var actorV1 = container.spawn("snapshot-counter-v1", () -> new SnapshotCounterActor() {
+        @Override
+        protected void afterRecovery() {
+          super.afterRecovery();
+          firstRecoveryLatch.countDown();
+        }
+      });
       assertThat(firstRecoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
       container.send((CounterMessage) new CounterMessage.Increment()).to(actorV1);
@@ -151,14 +152,13 @@ public abstract class SnapshotCapablePersistentActorSpec extends
       container.stop(actorV1).get(5, TimeUnit.SECONDS);
 
       final var secondRecoveryLatch = new CountDownLatch(1);
-      final var actorV2 = container.spawn("snapshot-counter-v2",
-          () -> new SnapshotCounterActor() {
-            @Override
-            protected void afterRecovery() {
-              super.afterRecovery();
-              secondRecoveryLatch.countDown();
-            }
-          });
+      final var actorV2 = container.spawn("snapshot-counter-v2", () -> new SnapshotCounterActor() {
+        @Override
+        protected void afterRecovery() {
+          super.afterRecovery();
+          secondRecoveryLatch.countDown();
+        }
+      });
       assertThat(secondRecoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
       final var countAfterRecovery = container.requestResponseTo(
@@ -175,14 +175,13 @@ public abstract class SnapshotCapablePersistentActorSpec extends
         final @NotNull SlactTestContainer container) throws Exception {
 
       final var firstRecoveryLatch = new CountDownLatch(1);
-      final var actorV1 = container.spawn("snapshot-counter-v1b",
-          () -> new SnapshotCounterActor() {
-            @Override
-            protected void afterRecovery() {
-              super.afterRecovery();
-              firstRecoveryLatch.countDown();
-            }
-          });
+      final var actorV1 = container.spawn("snapshot-counter-v1b", () -> new SnapshotCounterActor() {
+        @Override
+        protected void afterRecovery() {
+          super.afterRecovery();
+          firstRecoveryLatch.countDown();
+        }
+      });
       assertThat(firstRecoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
       container.send((CounterMessage) new CounterMessage.Increment()).to(actorV1);
@@ -194,14 +193,13 @@ public abstract class SnapshotCapablePersistentActorSpec extends
       container.stop(actorV1).get(5, TimeUnit.SECONDS);
 
       final var secondRecoveryLatch = new CountDownLatch(1);
-      final var actorV2 = container.spawn("snapshot-counter-v2b",
-          () -> new SnapshotCounterActor() {
-            @Override
-            protected void afterRecovery() {
-              super.afterRecovery();
-              secondRecoveryLatch.countDown();
-            }
-          });
+      final var actorV2 = container.spawn("snapshot-counter-v2b", () -> new SnapshotCounterActor() {
+        @Override
+        protected void afterRecovery() {
+          super.afterRecovery();
+          secondRecoveryLatch.countDown();
+        }
+      });
       assertThat(secondRecoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
 
       final var countAfterRecovery = container.requestResponseTo(

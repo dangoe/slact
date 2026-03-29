@@ -10,14 +10,14 @@ import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class PersistentActorSpec
-    extends PersistentActorBaseSpec<RecoveryData<PersistentActorBaseSpec.Incremented>, EventStore> {
+public abstract class PersistentActorSpec extends
+    PersistentActorBaseSpec<RecoveryData<PersistentActorBaseSpec.Incremented>, EventStore> {
 
   protected static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
 
     @Override
-    protected @NotNull PartitionKey<Incremented> partitionKey() {
-      return new CounterPartitionKey("counter-1");
+    protected @NotNull PartitionKey partitionKey() {
+      return new PartitionKey("counter", "counter-1");
     }
 
     @Override
@@ -34,16 +34,17 @@ public abstract class PersistentActorSpec
   @Override
   protected final @NotNull PersistenceExtension createPersistenceExtension(
       final @NotNull EventStore store) {
+
     return new PersistenceExtension() {
 
       @Override
-      public <E> @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey<E> key) {
+      public @NotNull Optional<EventStore> resolveStore(final @NotNull PartitionKey partitionKey) {
         return Optional.of(store);
       }
 
       @Override
-      public @NotNull <E> Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
-          final @NotNull PartitionKey<E> key) {
+      public @NotNull Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
+          final @NotNull PartitionKey partitionKey) {
         throw new UnsupportedOperationException("Snapshot capable store is not supported");
       }
     };

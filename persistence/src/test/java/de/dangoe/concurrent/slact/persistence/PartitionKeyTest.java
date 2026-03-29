@@ -13,24 +13,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Partition key")
 public class PartitionKeyTest {
 
-  private record TestPartitionKey(@NotNull String value) implements PartitionKey<String> {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-
-    TestPartitionKey {
-      Objects.requireNonNull(value, "Value must not be null!");
-      if (value.isBlank()) {
-        throw new IllegalArgumentException("Value must not be blank!");
-      }
-    }
-
-    @Override
-    public Class<String> eventType() {
-      return String.class;
-    }
-  }
-
   @Nested
   @DisplayName("Should not be instantiable with invalid values")
   class ShouldNotBeInstantiable {
@@ -39,17 +21,17 @@ public class PartitionKeyTest {
     @SuppressWarnings("DataFlowIssue")
     @DisplayName("When null value is given")
     void whenNullValueIsGiven() {
-      assertThatThrownBy(() -> new TestPartitionKey(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Value must not be null!");
+      assertThatThrownBy(() -> new PartitionKey("test", null)).isInstanceOf(
+          IllegalArgumentException.class).hasMessageContaining(
+          "Entity ID must be a non-null, non-empty string containing only letters, digits, underscores, or hyphens.");
     }
 
     @Test
     @DisplayName("When blank value is given")
     void whenBlankValueIsGiven() {
-      assertThatThrownBy(() -> new TestPartitionKey(""))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Value must not be blank!");
+      assertThatThrownBy(() -> new PartitionKey("test", "")).isInstanceOf(
+          IllegalArgumentException.class).hasMessageContaining(
+          "Entity ID must be a non-null, non-empty string containing only letters, digits, underscores, or hyphens.");
     }
   }
 
@@ -60,8 +42,8 @@ public class PartitionKeyTest {
     @Test
     @DisplayName("When valid value is given")
     void whenValidValueIsGiven() {
-      final var key = new TestPartitionKey("valid-key");
-      assertEquals("valid-key", key.value());
+      final var key = new PartitionKey("test", "valid-key");
+      assertEquals("test#valid-key", key.raw());
     }
   }
 }

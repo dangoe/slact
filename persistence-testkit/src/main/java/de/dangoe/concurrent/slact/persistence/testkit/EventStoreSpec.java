@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.persistence.testkit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import de.dangoe.concurrent.slact.persistence.EventEnvelope;
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
@@ -29,21 +30,8 @@ public abstract class EventStoreSpec {
     private static final long serialVersionUID = 1L;
   }
 
-  private record TestEventPartitionKey(@NotNull String value) implements PartitionKey<TestEvent> {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-
-    @Override
-    public @NotNull Class<TestEvent> eventType() {
-      return TestEvent.class;
-    }
-  }
-
-  private static final PartitionKey<TestEvent> PARTITION_A = new TestEventPartitionKey(
-      "partition-a");
-  private static final PartitionKey<TestEvent> PARTITION_B = new TestEventPartitionKey(
-      "partition-b");
+  private static final PartitionKey PARTITION_A = new PartitionKey("test", "partition-a");
+  private static final PartitionKey PARTITION_B = new PartitionKey("test", "partition-b");
 
   private EventStore eventStore;
 
@@ -112,22 +100,19 @@ public abstract class EventStoreSpec {
   @DisplayName("Given multiple appended events")
   class GivenMultipleAppendedEvents {
 
-    private static final List<TestEvent> EVENTS = List.of(
-        new TestEvent("first"),
-        new TestEvent("second"),
-        new TestEvent("third")
-    );
+    private static final List<TestEvent> EVENTS = List.of(new TestEvent("first"),
+        new TestEvent("second"), new TestEvent("third"));
 
     @Test
     @DisplayName("All events are loaded back in insertion order")
     void allEventsAreLoadedInInsertionOrder() {
       eventStore.appendMultiple(PARTITION_A, -1L, EVENTS).join();
 
-      final var loaded = eventStore.loadEvents(PARTITION_A).join();
+      final var loaded = eventStore.<TestEvent>loadEvents(PARTITION_A).join();
 
       assertThat(loaded).hasSize(3);
-      assertThat(loaded.stream().map(e -> e.event().value()).toList())
-          .containsExactly("first", "second", "third");
+      assertThat(loaded.stream().map(e -> e.event().value()).toList()).containsExactly("first",
+          "second", "third");
     }
 
     @Test
@@ -137,12 +122,8 @@ public abstract class EventStoreSpec {
       final var envelopes = eventStore.appendMultiple(PARTITION_A, lastMaxOrdering, EVENTS).join();
 
       assertThat(envelopes).hasSize(3);
-      assertThat(envelopes.stream().mapToLong(e -> e.ordering()).toArray())
-          .containsExactly(
-              lastMaxOrdering + 1,
-              lastMaxOrdering + 2,
-              lastMaxOrdering + 3
-          );
+      assertThat(envelopes.stream().mapToLong(EventEnvelope::ordering).toArray()).containsExactly(
+          lastMaxOrdering + 1, lastMaxOrdering + 2, lastMaxOrdering + 3);
     }
 
     @Test
@@ -161,18 +142,14 @@ public abstract class EventStoreSpec {
     @Test
     @DisplayName("Only events with ordering greater than or equal to fromOrdering are returned")
     void onlyEventsAtOrAfterFromOrderingAreReturned() {
-      final var envelopes = eventStore.appendMultiple(PARTITION_A, -1L, List.of(
-          new TestEvent("e0"),
-          new TestEvent("e1"),
-          new TestEvent("e2")
-      )).join();
+      final var envelopes = eventStore.appendMultiple(PARTITION_A, -1L,
+          List.of(new TestEvent("e0"), new TestEvent("e1"), new TestEvent("e2"))).join();
 
       final long secondOrdering = envelopes.get(1).ordering();
-      final var loaded = eventStore.loadEvents(PARTITION_A, secondOrdering).join();
+      final var loaded = eventStore.<TestEvent>loadEvents(PARTITION_A, secondOrdering).join();
 
       assertThat(loaded).hasSize(2);
-      assertThat(loaded.stream().map(e -> e.event().value()).toList())
-          .containsExactly("e1", "e2");
+      assertThat(loaded.stream().map(e -> e.event().value()).toList()).containsExactly("e1", "e2");
     }
 
     @Test
@@ -193,18 +170,16 @@ public abstract class EventStoreSpec {
     @Test
     @DisplayName("Loading one partition does not return events from the other partition")
     void loadingOnePartitionDoesNotReturnEventsFromAnother() {
-      final var envelopesA = eventStore.appendMultiple(PARTITION_A, -1L,
-          List.of(new TestEvent("a1"), new TestEvent("a2"))).join();
 
-      eventStore.appendMultiple(PARTITION_B, -1L,
-          List.of(new TestEvent("b1"))).join();
+      eventStore.appendMultiple(PARTITION_A, -1L, List.of(new TestEvent("a1"), new TestEvent("a2")))
+          .join();
+      eventStore.appendMultiple(PARTITION_B, -1L, List.of(new TestEvent("b1"))).join();
 
-      final var loadedA = eventStore.loadEvents(PARTITION_A).join();
-      final var loadedB = eventStore.loadEvents(PARTITION_B).join();
+      final var loadedA = eventStore.<TestEvent>loadEvents(PARTITION_A).join();
+      final var loadedB = eventStore.<TestEvent>loadEvents(PARTITION_B).join();
 
       assertThat(loadedA).hasSize(2);
-      assertThat(loadedA.stream().map(e -> e.event().value()).toList())
-          .containsExactly("a1", "a2");
+      assertThat(loadedA.stream().map(e -> e.event().value()).toList()).containsExactly("a1", "a2");
 
       assertThat(loadedB).hasSize(1);
       assertThat(loadedB.getFirst().event().value()).isEqualTo("b1");

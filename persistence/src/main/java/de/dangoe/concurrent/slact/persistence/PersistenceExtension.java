@@ -12,12 +12,11 @@ public interface PersistenceExtension {
   /**
    * Resolves an event store for the given partition key.
    *
-   * @param key The partition key for which to resolve the event store.
-   * @param <E> The type of domain events that the resolved EventStore will manage.
+   * @param partitionKey The partition key for which to resolve the event store.
    * @return An <code>Optional</code> containing the resolved {@link EventStore} if available, or an
    * empty <code>Optional</code> if no store is found for the given partition key.
    */
-  <E> @NotNull Optional<EventStore> resolveStore(@NotNull PartitionKey<E> key);
+  @NotNull Optional<EventStore> resolveStore(@NotNull PartitionKey partitionKey);
 
 
   /**
@@ -28,12 +27,11 @@ public interface PersistenceExtension {
    * {@link SnapshotCapableEventStore} if a suitable store is found for the given partition key, or
    * it will be empty if no such store is available.
    *
-   * @param key The partition key for which to resolve the snapshot-capable event store.
-   * @param <E> The type of domain events that the resolved SnapshotCapableEventStore will manage.
+   * @param partitionKey The partition key for which to resolve the snapshot-capable event store.
    * @return An <code>Optional</code> containing the resolved {@link SnapshotCapableEventStore} if
    * available, or an empty <code>Optional</code> if no snapshot-capable store is found for the
    * given partition key.
    */
-  <E> @NotNull Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
-      @NotNull PartitionKey<E> key);
+  @NotNull Optional<SnapshotCapableEventStore> resolveSnapshotCapableStore(
+      @NotNull PartitionKey partitionKey);
 }
