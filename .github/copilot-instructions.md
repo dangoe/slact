@@ -1,27 +1,15 @@
-# Copilot Instructions for slact
+# Copilot Instructions
 
-## General Information
+## Agent Workflow
 
-This repository is a Java project using Gradle and the actor model. It is organized into modules (`core`, `testkit`, `build-logic`).
+This is a Java/Gradle project. Use the following agents for development tasks:
 
-### Build, Test, and Lint
+| Task | Agent | Command |
+|------|-------|---------|
+| Plan a feature, bug fix, or refactor | **Planner** | `/agent planner` |
+| Run the full plan → implement → test → review workflow | **Task Workflow Orchestrator** | `/agent task-workflow-orchestrator` |
+| Implement a feature or fix from an existing plan | **Developer** | `/agent developer` |
+| Write, fix, or improve tests | **Software testing expert (Java)** | `/agent testing-expert` |
+| Review staged or committed changes | **Reviewer** | `/agent reviewer` |
 
-- Build all modules: `./gradlew build`
-- Run all tests: `./gradlew test`
-- Run tests for a specific module: `./gradlew :core:test`, `./gradlew :testkit:test`
-- Run a single test class: `./gradlew :core:test --tests "<TestClassName>"`
-- Run a single test method: `./gradlew :core:test --tests "<TestClassName>.<methodName>"`
-- Enable performance tests: `PERF_TEST=true ./gradlew :core:test --tests "*ActorPerformanceTest"`
-
-### High-Level Architecture
-
-- Modular structure: `core` (main library), `testkit` (testing utilities), `build-logic` (Gradle convention plugins)
-- Java module system is used for explicit package exports
-- Actor model: actors communicate via typed message passing and hierarchical supervision
-
-### Agent Integration
-
-- Use AGENTS.md to define custom agent roles for Copilot CLI sub-agent chains
-- Use `/agent`, `/fleet`, and `/tasks` commands to orchestrate agent workflows
-
-For detailed coding conventions and project-specific style, see CODING_STYLE.md.
+All agents load project-specific context automatically from `.github/skills/*.extension.md` alongside the base skill guidelines.

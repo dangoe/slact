@@ -11,6 +11,17 @@
 - Hierarchical actor supervision: spawn child actors via context
 
 ## Testing
+
+### Test Types and Source Sets
+- **Unit tests**: live in `src/test/java`, class names end with `*Test` (e.g. `ActorBehaviorTest`)
+  - Run with `./gradlew test`
+  - Applied via the `slact.use-junit5-lib` convention plugin
+- **Integration tests**: live in `src/integrationTest/java`, class names end with `*IT` (e.g. `JdbcPersistentActorIT`)
+  - Run with `./gradlew integrationTest`
+  - Applied via the `slact.integration-test-lib` convention plugin
+  - Use when external infrastructure (databases, containers, etc.) is required
+
+### Test Style
 - Use JUnit 5 with `SlactTestContainerExtension` for actor tests
 - Group tests with nested classes for scenario clarity
 - Cover lifecycle hooks, message flows, edge cases, and domain invariants

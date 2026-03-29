@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":core"))
 
     testImplementation(project(":testkit"))
+    testImplementation(project(":persistence-testkit"))
     testImplementation(libs.awaitility)
     testImplementation(libs.logback.classic)
 }

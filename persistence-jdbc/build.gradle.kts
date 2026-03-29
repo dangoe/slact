@@ -2,6 +2,7 @@ plugins {
     `java-library`
     id("slact.java-lib")
     id("slact.use-junit5-lib")
+    id("slact.integration-test-lib")
 }
 
 tasks.withType<JavaCompile> {
@@ -16,10 +17,12 @@ dependencies {
     implementation(libs.hikaricp)
 
     testImplementation(project(":testkit"))
+    testImplementation(project(":persistence-testkit"))
     testImplementation(libs.awaitility)
     testImplementation(libs.logback.classic)
-    testImplementation(libs.testcontainers.junit.jupiter)
-    testImplementation(libs.testcontainers.postgresql)
-    testImplementation(libs.liquibase.core)
-    testRuntimeOnly(libs.postgresql)
+
+    integrationTestImplementation(libs.testcontainers.junit.jupiter)
+    integrationTestImplementation(libs.testcontainers.postgresql)
+    integrationTestImplementation(libs.liquibase.core)
+    integrationTestRuntimeOnly(libs.postgresql)
 }

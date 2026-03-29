@@ -8,10 +8,8 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Defines the contract for an event store that allows loading and appending events associated with
  * a specific partition key.
- *
- * @param <E> The type of events that the event store will manage.
  */
-public interface EventStore<E> {
+public interface EventStore {
 
   /**
    * Loads the events associated with the given partition key. The returned list of events is
@@ -22,7 +20,26 @@ public interface EventStore<E> {
    * @return A {@link RichFuture}  that, when completed, will contain a list of
    * {@link EventEnvelope} objects representing the events associated with the given partition key.
    */
-  @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey);
+  default <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
+      final @NotNull PartitionKey partitionKey) {
+    return loadEvents(partitionKey, 0);
+  }
+
+  /**
+   * Loads the events associated with the given partition key and an ordering greater or equal to
+   * the given <code>fromOrdering</code> value. The returned list of events is ordered by their
+   * ordering value, ensuring that the sequence of events is maintained.
+   *
+   * @param partitionKey The partition key for which to load the events. This key is used to
+   *                     identify the specific stream of events to retrieve.
+   * @param fromOrdering The ordering value from which to start loading events. Only events with an
+   *                     ordering value greater than or equal to this value will be included in the
+   *                     returned list.
+   * @return A {@link RichFuture}  that, when completed, will contain a list of
+   * {@link EventEnvelope} objects representing the events associated with the given partition key.
+   */
+  <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey,
+      long fromOrdering);
 
   /**
    * Appends a single event to the event store for the specified partition key.
@@ -36,12 +53,12 @@ public interface EventStore<E> {
    *                        data of type <code>E</code> that will be stored.
    * @return A {@link RichFuture} that, when completed, will contain an {@link EventEnvelope}
    * representing the appended event, including its ordering and timestamp.
-   * @throws ConcurrentWriteException Thrown if a concurrency conflict is detected, i.e., if the
-   *                                  last known maximum ordering value does not match the current
-   *                                  maximum ordering in the event store.
+   * @throws ConcurrentWriteException if a concurrency conflict is detected, i.e., if the last known
+   *                                  maximum ordering value does not match the current maximum
+   *                                  ordering in the event store.
    */
-  default @NotNull RichFuture<EventEnvelope<E>> append(final @NotNull PartitionKey partitionKey,
-      long lastMaxOrdering, @NotNull E event) throws ConcurrentWriteException {
+  default <E> @NotNull RichFuture<EventEnvelope<E>> append(
+      final @NotNull PartitionKey partitionKey, long lastMaxOrdering, @NotNull E event) {
 
     return appendMultiple(partitionKey, lastMaxOrdering, List.of(event)).thenApply(List::getFirst);
   }
@@ -59,10 +76,10 @@ public interface EventStore<E> {
    *                        actual event data of type <code>E</code> that will be stored.
    * @return A {@link RichFuture} that, when completed, will contain a list of {@link EventEnvelope}
    * objects representing the appended events, including their ordering and timestamps.
-   * @throws ConcurrentWriteException Thrown if a concurrency conflict is detected, i.e., if the
-   *                                  last known maximum ordering value does not match the current
-   *                                  maximum ordering in the event store.
+   * @throws ConcurrentWriteException if a concurrency conflict is detected, i.e., if the last known
+   *                                  maximum ordering value does not match the current maximum
+   *                                  ordering in the event store.
    */
-  @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(@NotNull PartitionKey partitionKey,
-      long lastMaxOrdering, @NotNull List<E> events) throws ConcurrentWriteException;
+  <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
+      @NotNull PartitionKey partitionKey, long lastMaxOrdering, @NotNull List<E> events);
 }

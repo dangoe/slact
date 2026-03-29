@@ -1,9 +1,0 @@
-databaseChangeLog:
-  - changeSet:
-      id: 0002
-      author: Daniel Götten
-      changes:
-        - modifyDataType:
-            tableName: events
-            columnName: ordering
-            newDataType: BIGINT

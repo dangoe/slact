@@ -9,6 +9,9 @@ public interface RichFuture<T> extends Future<T> {
 
   <S> @NotNull RichFuture<S> thenApply(final @NotNull Function<? super T, ? extends S> mapper);
 
+  <S> @NotNull RichFuture<S> thenCompose(
+      final @NotNull Function<? super T, ? extends RichFuture<S>> mapper);
+
   @NotNull RichFuture<T> exceptionally(final @NotNull Function<Throwable, ? extends T> fn);
 
   T join();

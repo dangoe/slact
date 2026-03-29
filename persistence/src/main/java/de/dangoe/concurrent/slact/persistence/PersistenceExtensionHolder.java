@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.persistence;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,7 +16,7 @@ public final class PersistenceExtensionHolder {
 
   private static final @NotNull PersistenceExtensionHolder instance = new PersistenceExtensionHolder();
 
-  private @Nullable PersistenceExtension extension;
+  private final @NotNull AtomicReference<@Nullable PersistenceExtension> extensionRef = new AtomicReference<>();
 
   private PersistenceExtensionHolder() {
     // Private constructor to prevent external instantiation.
@@ -35,12 +36,10 @@ public final class PersistenceExtensionHolder {
 
     Objects.requireNonNull(extension, "Extension to be set must not be null!");
 
-    if (this.extension != null) {
+    if (!extensionRef.compareAndSet(null, extension)) {
       throw new PersistenceException(
           "A persistence extension is already registered. Call clear() first.");
     }
-
-    this.extension = extension;
   }
 
   /**
@@ -49,7 +48,7 @@ public final class PersistenceExtensionHolder {
    * <code>register</code> method.
    */
   public void clear() {
-    this.extension = null;
+    extensionRef.set(null);
   }
 
   /**
@@ -59,22 +58,28 @@ public final class PersistenceExtensionHolder {
    * <code>Optional</code> if no extension is currently registered.
    */
   public @NotNull Optional<PersistenceExtension> get() {
-    return Optional.ofNullable(extension);
+    return Optional.ofNullable(extensionRef.get());
   }
 
   /**
    * Retrieves the currently registered persistence extension, throwing an exception if no extension
    * is registered.
    *
+   * <p>Intentionally package-private: persistent actors within this package call this on every
+   * message dispatch, so the method is kept internal to avoid leaking the "require or throw"
+   * contract into the public API. External callers should use {@link #get()} instead.
+   *
    * @return The registered persistence extension.
-   * @throws PersistenceException Thrown if no persistence extension is registered.
+   * @throws PersistenceException if no persistence extension is registered.
    */
   @NotNull PersistenceExtension require() {
 
-    if (extension == null) {
+    final var ext = extensionRef.get();
+
+    if (ext == null) {
       throw new PersistenceException("No persistence extension registered.");
     }
 
-    return extension;
+    return ext;
   }
 }
