@@ -52,8 +52,8 @@ public interface ScheduledExecutor extends AutoCloseable {
       public @NotNull Cancellable scheduleOnce(final @NotNull Runnable command,
           final @NotNull Duration initialDelay) {
 
-        final var scheduledFuture = this.delegate.schedule(command, initialDelay.toMillis(),
-            TimeUnit.MILLISECONDS);
+        final var scheduledFuture = this.delegate.schedule(command, initialDelay.toNanos(),
+            TimeUnit.NANOSECONDS);
 
         return () -> scheduledFuture.cancel(true);
       }
@@ -64,7 +64,7 @@ public interface ScheduledExecutor extends AutoCloseable {
           final @NotNull Duration period) {
 
         final var scheduledFuture = this.delegate.scheduleAtFixedRate(command,
-            initialDelay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
+            initialDelay.toNanos(), period.toNanos(), TimeUnit.NANOSECONDS);
 
         return () -> scheduledFuture.cancel(true);
       }
