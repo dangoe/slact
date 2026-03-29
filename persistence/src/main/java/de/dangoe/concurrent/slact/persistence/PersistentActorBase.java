@@ -117,7 +117,7 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
    * @param event The event to be persisted. This event will be appended to the event store and
    *              added to the internal list of events if the operation is successful.
    */
-  protected final void persist(final E event) {
+  protected final void persist(final @NotNull E event) {
     persistMultiple(List.of(event));
   }
 

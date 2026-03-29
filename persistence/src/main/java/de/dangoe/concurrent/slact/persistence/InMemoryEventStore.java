@@ -13,8 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class InMemoryEventStore implements EventStore {
 
-  private record StoreKey(@NotNull Class<?> partitionKeyType,
-                          @NotNull String value) {
+  private record StoreKey(@NotNull String raw) {
 
   }
 
@@ -32,7 +31,7 @@ public class InMemoryEventStore implements EventStore {
       final @NotNull PartitionKey partitionKey, final long fromOrdering) {
 
     return RichFuture.of(CompletableFuture.completedFuture(List.copyOf(
-        events.getOrDefault(new StoreKey(partitionKey.getClass(), partitionKey.raw()),
+        events.getOrDefault(new StoreKey(partitionKey.raw()),
                 new CopyOnWriteArrayList<>()).stream().filter(it -> it.ordering() >= fromOrdering)
             .map(it -> (EventEnvelope<E>) it).toList())));
   }
@@ -42,7 +41,7 @@ public class InMemoryEventStore implements EventStore {
       final @NotNull PartitionKey partitionKey, final long lastMaxOrdering,
       final @NotNull List<E> events) throws ConcurrentWriteException {
 
-    final var storeKey = new StoreKey(partitionKey.getClass(), partitionKey.raw());
+    final var storeKey = new StoreKey(partitionKey.raw());
 
     final var lastOrdering = this.events.getOrDefault(storeKey, new CopyOnWriteArrayList<>())
         .stream().mapToLong(EventEnvelope::ordering).max().orElse(-1L);
