@@ -1,12 +1,15 @@
 package de.dangoe.concurrent.slact.persistence.testkit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
+import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.concurrent.CompletionException;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -289,6 +292,22 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
 
       assertThat(resultB).isPresent();
       assertThat(resultB.get().snapshot()).isEqualTo(new TestSnapshot("state-b"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Given a concurrent snapshot write attempt")
+  class GivenAConcurrentSnapshotWriteAttempt {
+
+    @Test
+    @DisplayName("Saving a snapshot with a stale lastSnapshotOrdering throws ConcurrentWriteException")
+    void savingSnapshotWithStaleOrderingThrowsConcurrentWriteException() {
+      snapshotStore.saveSnapshot(PARTITION_A, null, 1L, new TestSnapshot("state-v1")).join();
+
+      final var thrown = catchThrowable(
+          () -> snapshotStore.saveSnapshot(PARTITION_A, 0L, 2L, new TestSnapshot("state-v2")).join());
+      final Throwable actual = thrown instanceof CompletionException ce ? ce.getCause() : thrown;
+      assertThat(actual).isInstanceOf(ConcurrentWriteException.class);
     }
   }
 }

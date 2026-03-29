@@ -130,4 +130,28 @@ abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST e
       assertThat(countAfterMoreIncrements.get()).isEqualTo(new CounterMessage.CurrentCount(5));
     }
   }
+
+  @Nested
+  @DisplayName("When the actor starts with an empty event store")
+  class WhenActorStartsWithEmptyEventStore {
+
+    @Test
+    @DisplayName("Then the actor starts with zero events and responds to messages normally")
+    void thenActorStartsWithNoEventsAndRespondsNormally(final @NotNull SlactTestContainer container)
+        throws Exception {
+
+      final var recoveryLatch = new CountDownLatch(1);
+      final var counter = container.spawn("fresh-counter",
+          () -> createSut(recoveryLatch::countDown));
+
+      assertThat(recoveryLatch.await(5, TimeUnit.SECONDS)).isTrue();
+
+      final var count = container.requestResponseTo(
+              (CounterMessage) new CounterMessage.GetCount()).ofType(CounterMessage.CurrentCount.class)
+          .from(counter);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(count::isDone);
+      assertThat(count.get()).isEqualTo(new CounterMessage.CurrentCount(0));
+    }
+  }
 }

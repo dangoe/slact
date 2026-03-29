@@ -1,12 +1,15 @@
 package de.dangoe.concurrent.slact.persistence.testkit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import de.dangoe.concurrent.slact.persistence.EventStore;
 import de.dangoe.concurrent.slact.persistence.PartitionKey;
+import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -141,6 +144,14 @@ public abstract class EventStoreSpec {
               lastMaxOrdering + 3
           );
     }
+
+    @Test
+    @DisplayName("Appending an empty list returns an empty list")
+    void appendingAnEmptyListReturnsAnEmptyList() {
+      final var result = eventStore.appendMultiple(PARTITION_A, -1L, List.of()).join();
+
+      assertThat(result).isEmpty();
+    }
   }
 
   @Nested
@@ -162,6 +173,16 @@ public abstract class EventStoreSpec {
       assertThat(loaded).hasSize(2);
       assertThat(loaded.stream().map(e -> e.event().value()).toList())
           .containsExactly("e1", "e2");
+    }
+
+    @Test
+    @DisplayName("Loading events with a fromOrdering beyond all stored events returns an empty list")
+    void loadEventsWithFromOrderingBeyondAllEventsReturnsEmptyList() {
+      final var envelope = eventStore.append(PARTITION_A, -1L, new TestEvent("only")).join();
+
+      final var loaded = eventStore.loadEvents(PARTITION_A, envelope.ordering() + 1).join();
+
+      assertThat(loaded).isEmpty();
     }
   }
 
@@ -187,6 +208,22 @@ public abstract class EventStoreSpec {
 
       assertThat(loadedB).hasSize(1);
       assertThat(loadedB.getFirst().event().value()).isEqualTo("b1");
+    }
+  }
+
+  @Nested
+  @DisplayName("Given a concurrent write attempt")
+  class GivenAConcurrentWriteAttempt {
+
+    @Test
+    @DisplayName("Appending with a stale lastMaxOrdering throws ConcurrentWriteException")
+    void appendingWithStaleOrderingThrowsConcurrentWriteException() {
+      eventStore.append(PARTITION_A, -1L, new TestEvent("first")).join();
+
+      final var thrown = catchThrowable(
+          () -> eventStore.append(PARTITION_A, -1L, new TestEvent("concurrent")).join());
+      final Throwable actual = thrown instanceof CompletionException ce ? ce.getCause() : thrown;
+      assertThat(actual).isInstanceOf(ConcurrentWriteException.class);
     }
   }
 }
