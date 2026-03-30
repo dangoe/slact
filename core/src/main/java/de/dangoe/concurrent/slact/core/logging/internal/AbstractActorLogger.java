@@ -20,8 +20,8 @@ public abstract class AbstractActorLogger implements ActorLogger {
   /**
    * Constructs an AbstractActorLogger.
    *
-   * @param containerId The container UUID.
-   * @param actorPath   The actor path.
+   * @param containerId the container UUID.
+   * @param actorPath   the actor path.
    */
   protected AbstractActorLogger(final @NotNull UUID containerId,
       final @NotNull ActorPath actorPath) {
@@ -35,7 +35,7 @@ public abstract class AbstractActorLogger implements ActorLogger {
   /**
    * Returns the container UUID.
    *
-   * @return The container UUID.
+   * @return the container UUID.
    */
   @Override
   public final @NotNull UUID containerId() {
@@ -45,7 +45,7 @@ public abstract class AbstractActorLogger implements ActorLogger {
   /**
    * Returns the actor path.
    *
-   * @return The actor path.
+   * @return the actor path.
    */
   @Override
   public final @NotNull ActorPath actorPath() {
@@ -55,9 +55,9 @@ public abstract class AbstractActorLogger implements ActorLogger {
   /**
    * Renders a formatted log message.
    *
-   * @param template The message template.
-   * @param args     Arguments for the template.
-   * @return The rendered message.
+   * @param template the message template.
+   * @param args     arguments for the template.
+   * @return the rendered message.
    */
   protected final @NotNull String render(final @NotNull String template,
       final @NotNull Object... args) {

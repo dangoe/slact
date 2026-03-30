@@ -8,6 +8,10 @@ import org.jetbrains.annotations.NotNull;
  */
 public class MessageRejectedException extends SlactException {
 
+  /**
+   * @param actor   the actor that was unable to handle the message.
+   * @param message the message that was rejected.
+   */
   public MessageRejectedException(final @NotNull ActorHandle<?> actor,
       final @NotNull Object message) {
     super("Actor '%s' was not able to handle '%s'.".formatted(actor.path(), message));

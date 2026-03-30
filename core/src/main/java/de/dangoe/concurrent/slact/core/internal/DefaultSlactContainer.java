@@ -111,7 +111,8 @@ public final class DefaultSlactContainer implements SlactContainer {
       try {
         eventualResult.get(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       } catch (final TimeoutException e) {
-        logger.warn("Container shutdown did not complete within {} seconds.", SHUTDOWN_TIMEOUT_SECONDS);
+        logger.warn("Container shutdown did not complete within {} seconds.",
+            SHUTDOWN_TIMEOUT_SECONDS);
       } catch (final ExecutionException e) {
         logger.warn("Container shutdown failed.", e);
       }

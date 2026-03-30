@@ -5,14 +5,14 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Receives messages for an actor or message handler.
  *
- * @param <M> The type of messages to receive.
+ * @param <M> the type of messages to receive.
  */
 public interface MessageReceiver<M> {
 
   /**
    * Handles an incoming message.
    *
-   * @param message The message to handle.
+   * @param message the message to handle.
    */
   void onMessage(@NotNull M message);
 }

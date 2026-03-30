@@ -15,7 +15,7 @@ public interface SlactContainer extends ActorRuntime, AutoCloseable {
   /**
    * Checks if the container is stopped.
    *
-   * @return true if stopped, false otherwise.
+   * @return {@code true} if stopped, {@code false} otherwise.
    */
   boolean isStopped();
 }

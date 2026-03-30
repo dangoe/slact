@@ -11,10 +11,10 @@ public interface ActorSpawner {
   /**
    * Spawns an actor with a random name.
    *
-   * @param actorCreator The actor creator.
-   * @param <A>          The actor type.
-   * @param <M>          The message type.
-   * @return The actor handle.
+   * @param actorCreator the actor creator.
+   * @param <A>          the actor type.
+   * @param <M>          the message type.
+   * @return the actor handle.
    */
   default @NotNull <A extends Actor<M>, M> ActorHandle<M> spawn(
       final @NotNull ActorCreator<A, M> actorCreator) {
@@ -24,11 +24,11 @@ public interface ActorSpawner {
   /**
    * Spawns an actor with the given name.
    *
-   * @param name         The actor name.
-   * @param actorCreator The actor creator.
-   * @param <A>          The actor type.
-   * @param <M>          The message type.
-   * @return The actor handle.
+   * @param name         the actor name.
+   * @param actorCreator the actor creator.
+   * @param <A>          the actor type.
+   * @param <M>          the message type.
+   * @return the actor handle.
    */
   @NotNull
   <A extends Actor<M>, M> ActorHandle<M> spawn(@NotNull String name,

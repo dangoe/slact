@@ -13,7 +13,7 @@ public abstract class MailboxItem {
   /**
    * Message wrapper for mailbox items.
    *
-   * @param <M> The message type.
+   * @param <M> the message type.
    */
   public static abstract class WrappedMessage<M> extends MailboxItem {
 
@@ -22,8 +22,8 @@ public abstract class MailboxItem {
     /**
      * Constructs a wrapped message.
      *
-     * @param message The message.
-     * @param sender  The sender's actor path.
+     * @param message the message.
+     * @param sender  the sender's actor path.
      */
     protected WrappedMessage(final @NotNull M message, final @NotNull ActorPath sender) {
       super(sender);
@@ -33,7 +33,7 @@ public abstract class MailboxItem {
     /**
      * Returns the wrapped message.
      *
-     * @return The message.
+     * @return the message.
      */
     public final @NotNull M message() {
       return this.message;
@@ -43,15 +43,15 @@ public abstract class MailboxItem {
   /**
    * Fire-and-forget message for mailbox items.
    *
-   * @param <M> The message type.
+   * @param <M> the message type.
    */
   public static final class FireAndForgetMessage<M> extends WrappedMessage<M> {
 
     /**
      * Constructs a fire-and-forget message.
      *
-     * @param message The message.
-     * @param sender  The sender's actor path.
+     * @param message the message.
+     * @param sender  the sender's actor path.
      */
     public FireAndForgetMessage(final @NotNull M message, final @NotNull ActorPath sender) {
       super(message, sender);
@@ -61,7 +61,7 @@ public abstract class MailboxItem {
   /**
    * Message with response request for mailbox items.
    *
-   * @param <M> The message type.
+   * @param <M> the message type.
    * @param <R> The response type.
    */
   public static final class MessageWithResponseRequest<M, R> extends WrappedMessage<M> {
@@ -71,8 +71,8 @@ public abstract class MailboxItem {
     /**
      * Constructs a message with response request.
      *
-     * @param message The message.
-     * @param sender  The sender's actor path.
+     * @param message the message.
+     * @param sender  the sender's actor path.
      */
     public MessageWithResponseRequest(final @NotNull M message, final @NotNull ActorPath sender) {
       super(message, sender);
@@ -82,7 +82,7 @@ public abstract class MailboxItem {
     /**
      * Returns the future for the response.
      *
-     * @return The response future.
+     * @return the response future.
      */
     public @NotNull Future<R> future() {
       return future;
@@ -91,7 +91,7 @@ public abstract class MailboxItem {
     /**
      * Returns the internal future for the response.
      *
-     * @return The internal response future.
+     * @return the internal response future.
      */
     @NotNull CompletableFuture<R> futureInternal() {
       return future;
@@ -106,7 +106,7 @@ public abstract class MailboxItem {
     /**
      * Constructs a lifecycle control message.
      *
-     * @param sender The sender's actor path.
+     * @param sender the sender's actor path.
      */
     public LifecycleControlMessage(final @NotNull ActorPath sender) {
       super(sender);
@@ -121,7 +121,7 @@ public abstract class MailboxItem {
     /**
      * Constructs a complete start actor command.
      *
-     * @param sender The sender's actor path.
+     * @param sender the sender's actor path.
      */
     public CompleteStartActorCommand(final @NotNull ActorPath sender) {
       super(sender);
@@ -136,7 +136,7 @@ public abstract class MailboxItem {
     /**
      * Constructs a stop actor command.
      *
-     * @param sender The sender's actor path.
+     * @param sender the sender's actor path.
      */
     public StopActorCommand(final @NotNull ActorPath sender) {
       super(sender);
@@ -151,7 +151,7 @@ public abstract class MailboxItem {
     /**
      * Constructs a try-complete stop actor command.
      *
-     * @param sender The sender's actor path.
+     * @param sender the sender's actor path.
      */
     public TryCompleteStopActorCommand(final @NotNull ActorPath sender) {
       super(sender);
@@ -166,7 +166,7 @@ public abstract class MailboxItem {
     /**
      * Constructs an actor stopped event.
      *
-     * @param sender The sender's actor path.
+     * @param sender the sender's actor path.
      */
     public ActorStoppedEvent(final @NotNull ActorPath sender) {
       super(sender);
@@ -242,7 +242,7 @@ public abstract class MailboxItem {
   /**
    * Returns the unique identifier for this mailbox item.
    *
-   * @return The item id.
+   * @return the item id.
    */
   public final long id() {
     return this.id;
@@ -251,7 +251,7 @@ public abstract class MailboxItem {
   /**
    * Returns the sender's actor path for this mailbox item.
    *
-   * @return The sender's actor path.
+   * @return the sender's actor path.
    */
   public final @NotNull ActorPath sender() {
     return sender;

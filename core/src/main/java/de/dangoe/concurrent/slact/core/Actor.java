@@ -7,11 +7,21 @@ import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Base class for actors.
- * <p>
- * Actors process messages, manage their own state, and interact with other actors. Subclasses
- * should implement {@link MessageReceiver#onMessage(Object)} to define message handling.
- * </p>
+ * Base class for actors in the slact actor system. Actors process messages sequentially, manage
+ * their own state, and communicate via message passing. Subclasses implement
+ * {@link MessageReceiver#onMessage(Object)} and may switch behaviour at runtime:
+ * <pre>{@code
+ * public class GreeterActor extends Actor<String> {
+ *     @Override
+ *     public void onMessage(String message) {
+ *         if (message.equals("stop")) {
+ *             behaveAs(m -> {}); // ignore further messages
+ *         } else {
+ *             send("Hello, " + message + "!").to(sender());
+ *         }
+ *     }
+ * }
+ * }</pre>
  *
  * @param <M> The type of messages this actor can receive.
  */
@@ -41,7 +51,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
    * Receives a message and delegates to the current behaviour. Throws
    * {@link MessageRejectedException} if the message type is invalid.
    *
-   * @param message The message to process.
+   * @param message the message to process.
    */
   public final void receiveMessage(final @NotNull M message) {
     try {
@@ -54,7 +64,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Returns the current actor context.
    *
-   * @return The actor context for this actor instance.
+   * @return the actor context for this actor instance.
    */
   @SuppressWarnings("unchecked")
   protected final ActorContext<M> context() {
@@ -67,7 +77,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Changes the actor's behaviour to the given message receiver.
    *
-   * @param behaviour The new behaviour.
+   * @param behaviour the new behaviour.
    */
   protected final void behaveAs(final @NotNull MessageReceiver<M> behaviour) {
     this.behaviour = behaviour;
@@ -83,7 +93,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Rejects the given message, throwing a {@link MessageRejectedException}.
    *
-   * @param message The message to reject.
+   * @param message the message to reject.
    */
   protected final void reject(final @NotNull M message) {
     throw new MessageRejectedException(self(), message);
@@ -92,7 +102,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Returns the parent actor handle.
    *
-   * @return The parent actor handle.
+   * @return the parent actor handle.
    */
   @SuppressWarnings("unchecked")
   protected final @NotNull <M1> ActorHandle<M1> parent() {
@@ -102,7 +112,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Returns the handle for this actor.
    *
-   * @return The actor's own handle.
+   * @return the actor's own handle.
    */
   protected final @NotNull ActorHandle<M> self() {
     return context().self();
@@ -111,7 +121,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Returns the sender actor handle.
    *
-   * @return The sender actor handle.
+   * @return the sender actor handle.
    */
   @SuppressWarnings("unchecked")
   protected final <M1> @NotNull ActorHandle<M1> sender() {
@@ -121,7 +131,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Sends a reply to the sender of the received message.
    *
-   * @param message The message to be replied with.
+   * @param message the message to be replied with.
    */
   protected final void respondWith(final @NotNull Object message) {
     context().respondWith(message);
@@ -130,9 +140,9 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Sends a message to another actor.
    *
-   * @param message The message to send.
-   * @param <M1>    The type of the message.
-   * @return An operation to specify the target actor.
+   * @param message the message to send.
+   * @param <M1>    the type of the message.
+   * @return an operation to specify the target actor.
    */
   protected final <M1> @NotNull SendMessageOp<M1> send(final @NotNull M1 message) {
     return context().send(message);
@@ -141,9 +151,9 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Forwards a message to another actor.
    *
-   * @param message The message to forward.
-   * @param <M1>    The type of the message.
-   * @return An operation to specify the target actor.
+   * @param message the message to forward.
+   * @param <M1>    the type of the message.
+   * @return an operation to specify the target actor.
    */
   protected final <M1> @NotNull SendMessageOp<M1> forward(final @NotNull M1 message) {
     return context().forward(message);
@@ -152,8 +162,8 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Pipes a future message to another actor.
    *
-   * @param eventualMessage The future message.
-   * @return An operation to specify the target actor.
+   * @param eventualMessage the future message.
+   * @return an operation to specify the target actor.
    */
   protected final @NotNull FuturePipeOp<M> pipeFuture(final @NotNull Future<M> eventualMessage) {
     return context().pipeFuture(eventualMessage);
