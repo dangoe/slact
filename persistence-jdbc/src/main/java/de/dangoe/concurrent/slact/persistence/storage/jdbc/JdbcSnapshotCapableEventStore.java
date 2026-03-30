@@ -13,9 +13,19 @@ import java.util.concurrent.ExecutorService;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * {@link JdbcEventStore} extension that additionally supports loading and saving snapshots.
+ */
 public class JdbcSnapshotCapableEventStore extends JdbcEventStore implements
     SnapshotCapableEventStore {
 
+  /**
+   * Creates a new JDBC-backed snapshot-capable event store.
+   *
+   * @param connectionPool  the pool from which JDBC connections are acquired.
+   * @param executorService the executor used to run async database operations.
+   * @param dialect         the dialect used to translate between domain objects and SQL.
+   */
   public JdbcSnapshotCapableEventStore(final @NotNull JdbcConnectionPool connectionPool,
       final @NotNull ExecutorService executorService, final @NotNull JdbcDialect dialect) {
     super(connectionPool, executorService, dialect);

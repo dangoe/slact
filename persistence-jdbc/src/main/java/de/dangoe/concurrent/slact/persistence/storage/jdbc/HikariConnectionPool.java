@@ -14,6 +14,11 @@ public class HikariConnectionPool implements JdbcConnectionPool {
 
   private final @NotNull HikariDataSource dataSource;
 
+  /**
+   * Creates a HikariCP-backed connection pool.
+   *
+   * @param config HikariCP configuration used to create the underlying data source
+   */
   public HikariConnectionPool(final @NotNull HikariConfig config) {
     this.dataSource = new HikariDataSource(config);
   }

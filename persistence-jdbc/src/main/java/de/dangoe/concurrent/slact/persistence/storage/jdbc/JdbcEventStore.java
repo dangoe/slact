@@ -23,6 +23,13 @@ public class JdbcEventStore implements EventStore {
   protected final @NotNull ExecutorService executorService;
   protected final @NotNull JdbcDialect dialect;
 
+  /**
+   * Creates a new JDBC-backed event store.
+   *
+   * @param connectionPool  the pool from which JDBC connections are acquired.
+   * @param executorService the executor used to run async database operations.
+   * @param dialect         the dialect used to translate between domain objects and SQL.
+   */
   public JdbcEventStore(final @NotNull JdbcConnectionPool connectionPool,
       final @NotNull ExecutorService executorService, final @NotNull JdbcDialect dialect) {
 
