@@ -10,6 +10,10 @@ import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Abstract specification for the {@link de.dangoe.concurrent.slact.persistence.PersistentActor}
+ * contract against a plain {@link de.dangoe.concurrent.slact.persistence.EventStore}.
+ */
 public abstract class PersistentActorSpec extends
     PersistentActorBaseSpec<RecoveryData<PersistentActorBaseSpec.Incremented>, EventStore> {
 

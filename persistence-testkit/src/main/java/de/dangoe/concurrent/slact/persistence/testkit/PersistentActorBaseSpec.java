@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import de.dangoe.concurrent.slact.persistence.EventStore;
-import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtension;
 import de.dangoe.concurrent.slact.persistence.PersistenceExtensionHolder;
 import de.dangoe.concurrent.slact.persistence.PersistentActorBase;
@@ -61,11 +60,30 @@ abstract class PersistentActorBaseSpec<R extends RecoveryData<Incremented>, ST e
     PersistenceExtensionHolder.getInstance().clear();
   }
 
+  /**
+   * Creates the {@link de.dangoe.concurrent.slact.persistence.PersistenceExtension} to register
+   * before each test, wrapping the given store.
+   *
+   * @param store the event store to wrap in the extension.
+   * @return a configured {@link de.dangoe.concurrent.slact.persistence.PersistenceExtension}.
+   */
   protected abstract @NotNull PersistenceExtension createPersistenceExtension(@NotNull ST store);
 
+  /**
+   * Creates the actor under test; the hook is invoked from {@code afterRecovery()} so tests can
+   * await full recovery.
+   *
+   * @param afterRecoveryHook runnable called once recovery completes.
+   * @return the freshly constructed actor instance.
+   */
   protected abstract @NotNull PersistentActorBase<CounterMessage, Incremented, R, ST> createSut(
       @NotNull Runnable afterRecoveryHook);
 
+  /**
+   * Creates a fresh backing store for each test run.
+   *
+   * @return a new event store instance.
+   */
   protected abstract @NotNull ST createEventStore();
 
   @Nested

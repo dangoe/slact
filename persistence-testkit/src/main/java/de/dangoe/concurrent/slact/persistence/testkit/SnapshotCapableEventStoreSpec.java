@@ -16,6 +16,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Abstract specification for the
+ * {@link de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore} contract, extending
+ * {@link EventStoreSpec} with snapshot-specific test cases.
+ */
 @DisplayName("Snapshot-capable event store")
 public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
 

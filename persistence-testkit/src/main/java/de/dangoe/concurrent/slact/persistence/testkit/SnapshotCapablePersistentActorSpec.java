@@ -21,6 +21,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Abstract specification for the
+ * {@link de.dangoe.concurrent.slact.persistence.SnapshotCapablePersistentActor} contract, including
+ * snapshot creation and recovery scenarios.
+ */
 public abstract class SnapshotCapablePersistentActorSpec extends
     PersistentActorBaseSpec<SnapshotCapableRecoveryData<PersistentActorBaseSpec.Incremented, Void>, SnapshotCapableEventStore> {
 

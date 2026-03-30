@@ -24,8 +24,8 @@ import org.junit.jupiter.api.DisplayName;
 class SnapshotCapableInMemoryEventStoreTest extends SnapshotCapableEventStoreSpec {
 
   /**
-   * Tracks the most-recently created store so that {@link #seedSnapshot} injects data into the
-   * same instance that the spec's {@code snapshotStore} field holds.
+   * Tracks the most-recently created store so that {@link #seedSnapshot} injects data into the same
+   * instance that the spec's {@code snapshotStore} field holds.
    * <p>
    * Because {@link SnapshotCapableEventStoreSpec} calls {@code createSnapshotCapableEventStore()}
    * twice per test (once via {@code EventStoreSpec#setUpEventStore} and once via
