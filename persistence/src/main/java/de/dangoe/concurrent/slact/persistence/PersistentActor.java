@@ -6,13 +6,34 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A base class for actors that require persistence capabilities. This class provides mechanisms for
- * recovering state from an event store and persisting new events. It handles the recovery process
- * during actor startup and allows derived classes to define their specific behavior after recovery
- * is complete.
+ * Abstract base class for actors whose state is fully derived from a persisted event log.
+ * Subclasses define the partition key, handle messages, call {@link #persist} /
+ * {@link #persistMultiple}, and optionally override {@link #afterRecovery} for post-recovery
+ * initialization.
  *
- * @param <M> The type of messages that the actor will process.
- * @param <E> The type of domain events that the actor will persist and recover.
+ * <p>Example:
+ * <pre>{@code
+ * public class OrderActor extends PersistentActor<OrderCommand, OrderEvent> {
+ *
+ *     @Override
+ *     protected PartitionKey partitionKey() {
+ *         return PartitionKey.of("order-42");
+ *     }
+ *
+ *     @Override
+ *     public void onMessage(OrderCommand cmd) {
+ *         persist(new OrderEvent(cmd));
+ *     }
+ *
+ *     @Override
+ *     protected void afterRecovery() {
+ *         // rebuild in-memory state from events()
+ *     }
+ * }
+ * }</pre>
+ *
+ * @param <M> the message (command) type.
+ * @param <E> the event type.
  */
 public abstract class PersistentActor<M, E> extends
     PersistentActorBase<M, E, RecoveryData<E>, EventStore> {

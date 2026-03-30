@@ -6,19 +6,26 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Defines the contract for an event store that allows loading and appending events associated with
- * a specific partition key.
+ * Defines the contract for loading and appending domain events for a given partition.
+ *
+ * <p>Example — load all events and append a new one:
+ * <pre>{@code
+ * EventStore store = ...;
+ * PartitionKey key = PartitionKey.of("order-42");
+ *
+ * List<EventEnvelope<OrderEvent>> past = store.loadEvents(key).join();
+ * long next = past.stream().mapToLong(EventEnvelope::ordering).max().orElse(-1L);
+ *
+ * store.append(key, next, new OrderPlaced("item-7")).join();
+ * }</pre>
  */
 public interface EventStore {
 
   /**
-   * Loads the events associated with the given partition key. The returned list of events is
-   * ordered by their ordering value, ensuring that the sequence of events is maintained.
+   * Loads all events for the given partition key, ordered by their ordering value.
    *
-   * @param partitionKey The partition key for which to load the events. This key is used to
-   *                     identify the specific stream of events to retrieve.
-   * @return A {@link RichFuture}  that, when completed, will contain a list of
-   * {@link EventEnvelope} objects representing the events associated with the given partition key.
+   * @param partitionKey the partition to load events from.
+   * @return a future completing with an ordering-sorted list of all events for the partition.
    */
   default <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(
       final @NotNull PartitionKey partitionKey) {
@@ -26,17 +33,11 @@ public interface EventStore {
   }
 
   /**
-   * Loads the events associated with the given partition key and an ordering greater or equal to
-   * the given <code>fromOrdering</code> value. The returned list of events is ordered by their
-   * ordering value, ensuring that the sequence of events is maintained.
+   * Loads events for the given partition key starting at the specified ordering position.
    *
-   * @param partitionKey The partition key for which to load the events. This key is used to
-   *                     identify the specific stream of events to retrieve.
-   * @param fromOrdering The ordering value from which to start loading events. Only events with an
-   *                     ordering value greater than or equal to this value will be included in the
-   *                     returned list.
-   * @return A {@link RichFuture}  that, when completed, will contain a list of
-   * {@link EventEnvelope} objects representing the events associated with the given partition key.
+   * @param partitionKey the partition to load events from.
+   * @param fromOrdering only events with ordering ≥ this value are returned.
+   * @return a future completing with an ordering-sorted list of matching events.
    */
   <E> @NotNull RichFuture<List<EventEnvelope<E>>> loadEvents(@NotNull PartitionKey partitionKey,
       long fromOrdering);
@@ -44,18 +45,12 @@ public interface EventStore {
   /**
    * Appends a single event to the event store for the specified partition key.
    *
-   * @param partitionKey    The partition key for which to append the event. This key is used to
-   *                        identify the specific stream of events to which the new event will be
-   *                        added.
-   * @param lastMaxOrdering The last known maximum ordering value for the events in the partition.
-   *                        This is used to detect any potential concurrency issues.
-   * @param event           The event to be appended to the event store. This is the actual event
-   *                        data of type <code>E</code> that will be stored.
-   * @return A {@link RichFuture} that, when completed, will contain an {@link EventEnvelope}
-   * representing the appended event, including its ordering and timestamp.
-   * @throws ConcurrentWriteException if a concurrency conflict is detected, i.e., if the last known
-   *                                  maximum ordering value does not match the current maximum
-   *                                  ordering in the event store.
+   * @param partitionKey    the partition to append the event to.
+   * @param lastMaxOrdering the caller's last known max ordering; used for optimistic concurrency.
+   * @param event           the event to append.
+   * @return a future completing with the persisted {@link EventEnvelope}.
+   * @throws ConcurrentWriteException if another writer advanced the ordering since
+   *                                  {@code lastMaxOrdering} was read.
    */
   default <E> @NotNull RichFuture<EventEnvelope<E>> append(
       final @NotNull PartitionKey partitionKey, long lastMaxOrdering, @NotNull E event) {
@@ -64,21 +59,14 @@ public interface EventStore {
   }
 
   /**
-   * Appends multiple events to the event store for the specified partition key. The events will be
-   * appended in the order they are provided in the list.
+   * Appends multiple events atomically to the event store for the specified partition key.
    *
-   * @param partitionKey    The partition key for which to append the events. This key is used to
-   *                        identify the specific stream of events to which the new events will be
-   *                        added.
-   * @param lastMaxOrdering The last known maximum ordering value for the events in the partition.
-   *                        This is used to detect any potential concurrency issues.
-   * @param events          The list of events to be appended to the event store. These are the
-   *                        actual event data of type <code>E</code> that will be stored.
-   * @return A {@link RichFuture} that, when completed, will contain a list of {@link EventEnvelope}
-   * objects representing the appended events, including their ordering and timestamps.
-   * @throws ConcurrentWriteException if a concurrency conflict is detected, i.e., if the last known
-   *                                  maximum ordering value does not match the current maximum
-   *                                  ordering in the event store.
+   * @param partitionKey    the partition to append the events to.
+   * @param lastMaxOrdering the caller's last known max ordering; used for optimistic concurrency.
+   * @param events          the list of events to append, in order.
+   * @return a future completing with the persisted {@link EventEnvelope} list.
+   * @throws ConcurrentWriteException if another writer advanced the ordering since
+   *                                  {@code lastMaxOrdering} was read.
    */
   <E> @NotNull RichFuture<List<EventEnvelope<E>>> appendMultiple(
       @NotNull PartitionKey partitionKey, long lastMaxOrdering, @NotNull List<E> events);

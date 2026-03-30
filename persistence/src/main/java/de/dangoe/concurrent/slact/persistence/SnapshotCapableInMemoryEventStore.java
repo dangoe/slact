@@ -10,6 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * In-memory implementation of {@link SnapshotCapableEventStore}, suitable for testing.
+ */
 public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implements
     SnapshotCapableEventStore {
 
@@ -19,6 +22,11 @@ public class SnapshotCapableInMemoryEventStore extends InMemoryEventStore implem
 
   private final @NotNull ConcurrentHashMap<SnapshotStoreKey, SnapshotEnvelope<?>> snapshots = new ConcurrentHashMap<>();
 
+  /**
+   * Creates an in-memory snapshot-capable event store.
+   *
+   * @param clock used to timestamp persisted events and snapshots.
+   */
   public SnapshotCapableInMemoryEventStore(final @NotNull Clock clock) {
     super(clock);
   }

@@ -8,17 +8,42 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * An abstract base class for persistent actors that are capable of handling snapshots. It handles
- * the recovery process * during actor startup and allows derived classes to define their specific
- * behavior after recovery * is complete.
+ * Abstract base for persistent actors that also support snapshotting to speed up recovery. Extends
+ * {@link PersistentActorBase} by restoring the latest snapshot first, then replaying only the
+ * events recorded after that snapshot.
  *
- * @param <M> The type of messages that the actor will process.
- * @param <E> The type of domain events that the actor will persist and recover.
- * @param <S> The type of snapshot state that the actor will manage.
+ * <p>Example:
+ * <pre>{@code
+ * public class CartActor extends SnapshotCapablePersistentActor<CartCommand, CartEvent, CartState> {
+ *
+ *     @Override protected PartitionKey partitionKey() { return PartitionKey.of("cart-99"); }
+ *
+ *     @Override
+ *     protected SnapshottingStrategy<CartEvent, CartState> snapshottingStrategy() {
+ *         return SnapshottingStrategy.afterEvery(50, this::buildState);
+ *     }
+ *
+ *     @Override
+ *     public void onMessage(CartCommand cmd) { persist(new CartEvent(cmd)); }
+ * }
+ * }</pre>
+ *
+ * @param <M> the message type.
+ * @param <E> the event type.
+ * @param <S> the snapshot state type.
  */
 public abstract class SnapshotCapablePersistentActor<M, E, S> extends
     PersistentActorBase<M, E, SnapshotCapableRecoveryData<E, S>, SnapshotCapableEventStore> {
 
+  /**
+   * Recovery data combining replayed events with the latest snapshot envelope.
+   *
+   * @param events                 events replayed after the snapshot was applied.
+   * @param latestSnapshotEnvelope the most recent snapshot envelope, or {@code null} if none
+   *                               exists.
+   * @param <E>                    the event type.
+   * @param <S>                    the snapshot state type.
+   */
   public record SnapshotCapableRecoveryData<E, S>(@NotNull List<EventEnvelope<E>> events,
                                                   @Nullable SnapshotEnvelope<S> latestSnapshotEnvelope) implements
       RecoveryData<E> {
@@ -59,15 +84,23 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
   }
 
   /**
-   * Returns the class of the snapshot actorType. This is used when loading the latest snapshot from
-   * the event store so that the snapshot data can be deserialized into the correct actorType.
+   * Returns the class of the snapshot type {@code S}, used when loading the latest snapshot for
+   * deserialization.
    *
-   * @return The class of the snapshot actorType {@code S}.
+   * @return the class representing the snapshot type {@code S}.
    */
   protected abstract @NotNull Class<S> snapshotType();
 
+  /**
+   * Returns the strategy that determines when and how to take a snapshot.
+   */
   protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
 
+  /**
+   * Returns the latest snapshot state restored during recovery, if any.
+   *
+   * @return the latest snapshot, or an empty optional if no snapshot has been recovered.
+   */
   protected final @NotNull Optional<S> latestSnapshot() {
     return Optional.ofNullable(latestSnapshot).map(SnapshotEnvelope::snapshot);
   }
