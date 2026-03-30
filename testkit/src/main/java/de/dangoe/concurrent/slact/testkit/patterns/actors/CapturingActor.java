@@ -27,7 +27,7 @@ public class CapturingActor<M> extends Actor<M> {
   /**
    * Returns the list of received messages.
    *
-   * @return List of received messages.
+   * @return the list of received messages.
    */
   public @NotNull List<ReceivedMessage<M>> receivedMessages() {
     return this.messages;
