@@ -11,16 +11,27 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * In-memory implementation of {@link EventStore}, suitable for testing.
+ */
 public class InMemoryEventStore implements EventStore {
 
   private record StoreKey(@NotNull String raw) {
 
   }
 
+  /**
+   * the clock used to timestamp persisted events; accessible to subclasses.
+   */
   protected final @NotNull Clock clock;
 
   private final @NotNull ConcurrentHashMap<StoreKey, CopyOnWriteArrayList<EventEnvelope<?>>> events = new ConcurrentHashMap<>();
 
+  /**
+   * Creates an in-memory event store.
+   *
+   * @param clock used to timestamp persisted events.
+   */
   public InMemoryEventStore(final @NotNull Clock clock) {
     this.clock = clock;
   }

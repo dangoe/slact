@@ -19,46 +19,25 @@ public interface SnapshotCapableEventStore extends EventStore {
    * optional if no snapshot is available for the given partition key. The future will complete
    * exceptionally if an error occurs while loading the snapshot.
    *
-   * @param partitionKey The partition key for which to load the latest snapshot. This key is used
-   *                     to identify the specific event stream whose snapshot should be retrieved.
-   * @param snapshotType The class of the snapshot type, used to deserialize the stored snapshot
-   *                     data into the correct type.
-   * @param <S>          The type of the snapshot.
-   * @return A {@link RichFuture} that, when completed, will contain an {@link Optional} with the
-   * latest snapshot for the given partition key, or an empty optional if no snapshot is available.
+   * @param partitionKey the partition key identifying the event stream whose snapshot should be
+   *                     loaded.
+   * @param snapshotType the class used to deserialize the snapshot.
+   * @param <S>          the snapshot type.
+   * @return a future completing with the latest snapshot envelope, or empty if no snapshot exists.
    */
   <S> @NotNull RichFuture<Optional<SnapshotEnvelope<S>>> loadLatestSnapshot(
       @NotNull PartitionKey partitionKey, @NotNull Class<S> snapshotType);
 
   /**
-   * Saves a snapshot for the given partition key. The returned future will complete with the
-   * snapshot envelope containing the saved snapshot and its associated metadata, such as the
-   * ordering value and timestamp.
+   * Saves a snapshot for the given partition key.
    *
-   * @param partitionKey         The partition key for which to save the snapshot. This key is used
-   *                             to identify the specific entity or aggregate for which the snapshot
-   *                             is being saved. It allows the event store to associate the snapshot
-   *                             with the correct event stream and ensures that the snapshot can be
-   *                             retrieved correctly when needed.
-   * @param lastSnapshotOrdering The ordering value of the last snapshot that was saved for the
-   *                             given partition key. This value is used to ensure that snapshots
-   *                             are saved in the correct order and to detect any potential
-   *                             concurrency issues when multiple snapshots are being saved for the
-   *                             same partition key.
-   * @param appliedUpToOrdering  The ordering value up to which events have been applied to the
-   *                             snapshot state. This indicates the point in the event stream up to
-   *                             which the snapshot reflects the state of the entity. It is used to
-   *                             ensure that the snapshot is consistent with the events that have
-   *                             been applied and can be used to determine which events need to be
-   *                             applied when restoring the state from the snapshot.
-   * @param snapshot             The snapshot data to be saved. This represents the state of the
-   *                             entity at a specific point in time and can be used for efficient
-   *                             recovery without needing to replay all events from the beginning of
-   *                             the event stream.
-   * @param <S>                  The type of the snapshot.
-   * @return A {@link RichFuture} that, when completed, will contain the {@link SnapshotEnvelope}
-   * with the saved snapshot and its associated metadata. The future will complete exceptionally if
-   * an error occurs while saving the snapshot.
+   * @param partitionKey         the partition key to associate with this snapshot.
+   * @param lastSnapshotOrdering the ordering of the previous snapshot, or {@code null} if none.
+   * @param appliedUpToOrdering  the highest event ordering already reflected in the snapshot
+   *                             state.
+   * @param snapshot             the snapshot data representing the entity state.
+   * @param <S>                  the snapshot type.
+   * @return a future completing with the persisted {@link SnapshotEnvelope}.
    */
   <S> @NotNull RichFuture<SnapshotEnvelope<S>> saveSnapshot(@NotNull PartitionKey partitionKey,
       @Nullable Long lastSnapshotOrdering, long appliedUpToOrdering, @NotNull S snapshot);

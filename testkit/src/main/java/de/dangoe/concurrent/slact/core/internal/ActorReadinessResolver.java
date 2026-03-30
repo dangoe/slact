@@ -14,7 +14,7 @@ public final class ActorReadinessResolver {
   /**
    * Creates a new resolver for the given actor runtime.
    *
-   * @param actorRuntime The actor runtime.
+   * @param actorRuntime the actor runtime.
    */
   public ActorReadinessResolver(final @NotNull ActorRuntime actorRuntime) {
     this.actorRuntime = actorRuntime;
@@ -23,8 +23,8 @@ public final class ActorReadinessResolver {
   /**
    * Checks if the actor at the given path is ready.
    *
-   * @param path The actor path.
-   * @return True if ready, false otherwise.
+   * @param path the actor path.
+   * @return {@code true} if the actor is ready, {@code false} otherwise.
    */
   public boolean isReady(final @NotNull ActorPath path) {
     return ((ActorWrapper<?>) actorRuntime.resolve(path).orElseThrow(() -> new AssertionError(
@@ -34,8 +34,8 @@ public final class ActorReadinessResolver {
   /**
    * Checks if the actor at the given path has completed startup.
    *
-   * @param path The actor path.
-   * @return True if startup is complete, false otherwise.
+   * @param path the actor path.
+   * @return {@code true} if startup is complete, {@code false} otherwise.
    */
   public boolean isStartupComplete(final @NotNull ActorPath path) {
     return ((ActorWrapper<?>) actorRuntime.resolve(path).orElseThrow(() -> new AssertionError(

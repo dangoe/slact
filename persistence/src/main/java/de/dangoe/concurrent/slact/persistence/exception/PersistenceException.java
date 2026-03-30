@@ -3,12 +3,15 @@ package de.dangoe.concurrent.slact.persistence.exception;
 import de.dangoe.concurrent.slact.core.exception.SlactException;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Base exception for all persistence-related failures.
+ */
 public class PersistenceException extends SlactException {
 
   /**
    * Constructs an exception instance with a message.
    *
-   * @param message The error message.
+   * @param message the error message.
    */
   public PersistenceException(final @NotNull String message) {
     super(message);
@@ -17,8 +20,8 @@ public class PersistenceException extends SlactException {
   /**
    * Constructs an exception instance with a message and cause.
    *
-   * @param message The error message.
-   * @param cause   The cause.
+   * @param message the error message.
+   * @param cause   the cause.
    */
   public PersistenceException(final @NotNull String message, final @NotNull Throwable cause) {
     super(message, cause);
@@ -27,7 +30,7 @@ public class PersistenceException extends SlactException {
   /**
    * Constructs an exception instance with a cause.
    *
-   * @param cause The cause.
+   * @param cause the cause.
    */
   public PersistenceException(final @NotNull Throwable cause) {
     super(cause);
@@ -36,10 +39,10 @@ public class PersistenceException extends SlactException {
   /**
    * Constructs an exception instance with message, cause, suppression, and stack trace options.
    *
-   * @param message            The error message.
-   * @param cause              The cause.
-   * @param enableSuppression  Whether suppression is enabled.
-   * @param writableStackTrace Whether the stack trace is writable.
+   * @param message            the error message.
+   * @param cause              the cause.
+   * @param enableSuppression  whether suppression is enabled.
+   * @param writableStackTrace whether the stack trace is writable.
    */
   public PersistenceException(final @NotNull String message, final @NotNull Throwable cause,
       boolean enableSuppression, boolean writableStackTrace) {

@@ -17,9 +17,9 @@ public interface ScheduledExecutor extends AutoCloseable {
   /**
    * Schedules a one-time task to run after the specified delay.
    *
-   * @param command      The task to run.
-   * @param initialDelay The delay before execution.
-   * @return A {@link Cancellable} handle to cancel the task.
+   * @param command      the task to run.
+   * @param initialDelay the delay before execution.
+   * @return a {@link Cancellable} handle to cancel the task.
    */
   @NotNull
   Cancellable scheduleOnce(@NotNull Runnable command, @NotNull Duration initialDelay);
@@ -27,10 +27,10 @@ public interface ScheduledExecutor extends AutoCloseable {
   /**
    * Schedules a task to run at a fixed rate after an initial delay.
    *
-   * @param command      The task to run.
-   * @param initialDelay The delay before first execution.
-   * @param period       The interval between executions.
-   * @return A {@link Cancellable} handle to cancel the task.
+   * @param command      the task to run.
+   * @param initialDelay the delay before first execution.
+   * @param period       the interval between executions.
+   * @return a {@link Cancellable} handle to cancel the task.
    */
   @NotNull
   Cancellable scheduleAtFixedRate(@NotNull Runnable command, @NotNull Duration initialDelay,
@@ -39,8 +39,8 @@ public interface ScheduledExecutor extends AutoCloseable {
   /**
    * Creates a ScheduledExecutor backed by a fixed thread pool.
    *
-   * @param poolSize The number of threads in the pool.
-   * @return A new ScheduledExecutor instance.
+   * @param poolSize the number of threads in the pool.
+   * @return a new {@link ScheduledExecutor} instance.
    */
   static ScheduledExecutor withFixedThreadPool(final int poolSize) {
 

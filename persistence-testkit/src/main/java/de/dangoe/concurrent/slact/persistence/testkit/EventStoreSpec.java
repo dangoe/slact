@@ -24,6 +24,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Event store")
 public abstract class EventStoreSpec {
 
+  /**
+   * A simple test event holding a string value.
+   *
+   * @param value the value contained in this event.
+   */
   public record TestEvent(String value) implements Serializable {
 
     @Serial
@@ -38,14 +43,25 @@ public abstract class EventStoreSpec {
   /**
    * Creates a fresh {@link EventStore} instance backed by the concrete infrastructure. Called once
    * per test after {@link #cleanDatabase()}.
+   *
+   * @return a new {@link EventStore} backed by the test infrastructure.
    */
   protected abstract @NotNull EventStore createEventStore();
 
   /**
    * Resets the database to a clean state before each test so that ordering counters and stored
    * events do not bleed across tests.
+   *
+   * @throws Exception if the database cleanup fails.
    */
   protected abstract void cleanDatabase() throws Exception;
+
+  /**
+   * Creates a new spec instance.
+   */
+  protected EventStoreSpec() {
+    super();
+  }
 
   @BeforeEach
   final void setUpEventStore() throws Exception {

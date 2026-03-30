@@ -72,6 +72,11 @@ public final class DefaultSlactContainer implements SlactContainer {
   private final @NotNull ActorHandle<Object> rootActor;
 
   // TODO Add configuration
+  /**
+   * Creates a new container using the given scheduled executor factory.
+   *
+   * @param scheduledExecutorFactory factory that supplies the scheduled executor.
+   */
   public DefaultSlactContainer(
       final @NotNull Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 
@@ -111,7 +116,8 @@ public final class DefaultSlactContainer implements SlactContainer {
       try {
         eventualResult.get(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       } catch (final TimeoutException e) {
-        logger.warn("Container shutdown did not complete within {} seconds.", SHUTDOWN_TIMEOUT_SECONDS);
+        logger.warn("Container shutdown did not complete within {} seconds.",
+            SHUTDOWN_TIMEOUT_SECONDS);
       } catch (final ExecutionException e) {
         logger.warn("Container shutdown failed.", e);
       }

@@ -18,9 +18,9 @@ public interface JdbcExceptionTranslator {
    * Translates the given {@link SQLException} to a {@link PersistenceException} appropriate for the
    * dialect.
    *
-   * @param partitionKey The partition key involved in the failed operation.
-   * @param cause        The SQL exception to translate.
-   * @return A {@link PersistenceException} (or subtype) representing the failure.
+   * @param partitionKey the partition key involved in the failed operation.
+   * @param cause        the SQL exception to translate.
+   * @return a {@link PersistenceException} (or subtype) representing the failure.
    */
   @NotNull PersistenceException translate(@NotNull PartitionKey partitionKey,
       @NotNull SQLException cause);

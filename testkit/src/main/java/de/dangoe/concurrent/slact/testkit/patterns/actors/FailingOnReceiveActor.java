@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class FailingOnReceiveActor<M> extends Actor<M> {
 
+  /** Creates a new failing actor. */
   public FailingOnReceiveActor() {
     super();
   }

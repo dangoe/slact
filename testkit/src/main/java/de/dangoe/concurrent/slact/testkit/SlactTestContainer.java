@@ -60,9 +60,9 @@ public final class SlactTestContainer implements SlactContainer {
   /**
    * Sends multiple messages to actors.
    *
-   * @param messages Iterable of messages.
-   * @param <M>      The message type.
-   * @return SendMessageOp for multiple messages.
+   * @param messages iterable of messages.
+   * @param <M>      the message type.
+   * @return an operation that sends all messages to the target in order.
    */
   public @NotNull <M> SendMessageOp<M> sendMultiple(final @NotNull Iterable<M> messages) {
     return targetActor -> {
@@ -107,8 +107,8 @@ public final class SlactTestContainer implements SlactContainer {
   /**
    * Waits until the given actor path and additional paths are ready.
    *
-   * @param path  The main actor path.
-   * @param paths Additional actor paths.
+   * @param path  the main actor path.
+   * @param paths additional actor paths.
    */
   public void awaitReady(final @NotNull ActorPath path, final @NotNull ActorPath... paths) {
 
@@ -121,7 +121,7 @@ public final class SlactTestContainer implements SlactContainer {
   /**
    * Waits until all given actor paths are ready.
    *
-   * @param paths Iterable of actor paths.
+   * @param paths the actor paths to wait for.
    */
   public void awaitReady(final @NotNull Iterable<ActorPath> paths) {
 
@@ -133,7 +133,7 @@ public final class SlactTestContainer implements SlactContainer {
   /**
    * Waits until all given actor paths have completed startup.
    *
-   * @param paths Iterable of actor paths.
+   * @param paths the actor paths to wait for.
    */
   public void awaitStartupComplete(final @NotNull Iterable<ActorPath> paths) {
 
@@ -146,8 +146,8 @@ public final class SlactTestContainer implements SlactContainer {
   /**
    * Checks if the given actor path is ready.
    *
-   * @param path The actor path.
-   * @return True if ready, false otherwise.
+   * @param path the actor path.
+   * @return {@code true} if the actor is ready, {@code false} otherwise.
    */
   public boolean isReady(final @NotNull ActorPath path) {
     return new ActorReadinessResolver(this).isReady(path);
@@ -156,8 +156,8 @@ public final class SlactTestContainer implements SlactContainer {
   /**
    * Checks if the given actor path has completed startup.
    *
-   * @param path The actor path.
-   * @return True if startup is complete, false otherwise.
+   * @param path the actor path.
+   * @return {@code true} if startup is complete, {@code false} otherwise.
    */
   public boolean isStartupComplete(final @NotNull ActorPath path) {
     return new ActorReadinessResolver(this).isStartupComplete(path);

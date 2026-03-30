@@ -23,7 +23,7 @@ public final class ActiveActorContextHolder {
   /**
    * Returns the singleton instance.
    *
-   * @return The instance.
+   * @return the singleton instance.
    */
   public static @NotNull ActiveActorContextHolder getInstance() {
     return instance;
@@ -32,7 +32,7 @@ public final class ActiveActorContextHolder {
   /**
    * Returns the currently active actor context, if any.
    *
-   * @return The active actor context, or empty if none.
+   * @return the active actor context, or empty if none.
    */
   public @NotNull Optional<ActorContext<?>> activeContext() {
     return Optional.ofNullable(this.activeContextHolder.get());
@@ -41,7 +41,7 @@ public final class ActiveActorContextHolder {
   /**
    * Activates the given actor context for the current thread.
    *
-   * @param context The actor context to activate.
+   * @param context the actor context to activate.
    */
   public void activateContext(final @NotNull ActorContext<?> context) {
     this.activeContextHolder.set(context);

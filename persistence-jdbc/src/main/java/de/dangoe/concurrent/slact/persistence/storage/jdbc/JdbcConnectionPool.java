@@ -13,9 +13,8 @@ public interface JdbcConnectionPool extends AutoCloseable {
    * Acquires a connection from the pool. This method should block if no connections are currently
    * available until one becomes available.
    *
-   * @return A JdbcConnection object representing the acquired database connection.
-   * @throws InterruptedException If the thread is interrupted while waiting for a connection to
-   *                              become available.
+   * @return a JDBC connection from the pool.
+   * @throws InterruptedException if the thread is interrupted while waiting for a connection.
    */
   @NotNull Connection acquire() throws InterruptedException;
 }

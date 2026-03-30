@@ -23,7 +23,7 @@ public interface ActorRuntime extends ActorHandleResolver, ActorSpawner {
     /**
      * Sends the message to the specified target actor.
      *
-     * @param targetActor The actor to send the message to.
+     * @param targetActor the actor to send the message to.
      */
     void to(@NotNull ActorHandle<? extends M> targetActor);
   }
@@ -39,9 +39,9 @@ public interface ActorRuntime extends ActorHandleResolver, ActorSpawner {
     /**
      * Specifies the expected response type.
      *
-     * @param responseType The class of the response type.
-     * @param <R>          The response type.
-     * @return An operation to request the response from a target actor.
+     * @param responseType the class of the response type.
+     * @param <R>          the response type.
+     * @return an operation to request the response from a target actor.
      */
     <R> @NotNull ResponseRequestFromOp<M, R> ofType(@NotNull Class<R> responseType);
   }
@@ -58,8 +58,8 @@ public interface ActorRuntime extends ActorHandleResolver, ActorSpawner {
     /**
      * Requests the response from the specified target actor.
      *
-     * @param targetActor The actor to request the response from.
-     * @return A future representing the response.
+     * @param targetActor the actor to request the response from.
+     * @return a future representing the response.
      */
     @NotNull Future<R> from(@NotNull ActorHandle<? extends M> targetActor);
   }
@@ -67,44 +67,44 @@ public interface ActorRuntime extends ActorHandleResolver, ActorSpawner {
   /**
    * Stops the specified actor.
    *
-   * @param actor The actor to stop.
-   * @return A future representing completion of the stop operation.
+   * @param actor the actor to stop.
+   * @return a future representing completion of the stop operation.
    */
   @NotNull Future<Done> stop(@NotNull ActorHandle<?> actor);
 
   /**
    * Sends a message to an actor.
    *
-   * @param message The message to send.
-   * @param <M>     The message type.
-   * @return An operation to specify the target actor.
+   * @param message the message to send.
+   * @param <M>     the message type.
+   * @return an operation to specify the target actor.
    */
   <M> @NotNull SendMessageOp<M> send(@NotNull M message);
 
   /**
    * Forwards a message to an actor.
    *
-   * @param message The message to forward.
-   * @param <M>     The message type.
-   * @return An operation to specify the target actor.
+   * @param message the message to forward.
+   * @param <M>     the message type.
+   * @return an operation to specify the target actor.
    */
   <M> @NotNull SendMessageOp<M> forward(@NotNull M message);
 
   /**
    * Requests a response to a message.
    *
-   * @param message The message to request a response for.
-   * @param <M>     The message type.
-   * @return An operation to specify the response type.
+   * @param message the message to request a response for.
+   * @param <M>     the message type.
+   * @return an operation to specify the response type.
    */
   @NotNull <M> ResponseRequestOp<M> requestResponseTo(@NotNull M message);
 
   /**
    * Pipes a future message to an actor.
    *
-   * @param eventualMessage The future message.
-   * @param <M1>            The message type.
-   * @return An operation to specify the target actor.
+   * @param eventualMessage the future message.
+   * @param <M1>            the message type.
+   * @return an operation to specify the target actor.
    */
   <M1> @NotNull FuturePipeOp<M1> pipeFuture(@NotNull Future<M1> eventualMessage);
 }

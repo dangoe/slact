@@ -11,7 +11,7 @@ public class ActorRegistrationException extends SlactException {
   /**
    * Constructs an ActorRegistrationException for the given path.
    *
-   * @param path The actor path.
+   * @param path the actor path.
    */
   public ActorRegistrationException(final @NotNull ActorPath path) {
     super("An actor is already registered for path '%s'.".formatted(path));

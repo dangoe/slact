@@ -4,12 +4,9 @@ import java.util.function.Function;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Represents the result of a decision that can either be accepted with a value of type T or
- * rejected with a reason of type R. This is a sealed interface with two implementations:
- * {@link Accepted} and {@link Rejected}. The {@link Accepted} implementation contains the accepted
- * value, while the {@link Rejected} implementation contains the reason for rejection. The interface
- * provides methods to check whether the decision was accepted or rejected, and to retrieve the
- * value or reason accordingly.
+ * Represents the outcome of a decision that is either accepted (carrying a value of type {@code T})
+ * or rejected (carrying a reason of type {@code R}). Use {@link #accept(Object)} and
+ * {@link #reject(Object)} to create instances.
  *
  * @param <T> The type of the accepted value if the decision is accepted.
  * @param <R> The type of the rejection reason if the decision is rejected.
@@ -17,15 +14,11 @@ import org.jetbrains.annotations.NotNull;
 public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejected {
 
   /**
-   * Represents an accepted decision with a value of type T. This implementation of the
-   * {@link Decision} interface indicates that the decision was accepted, and contains the accepted
-   * value. The {@link #isAccepted()} method returns true for this implementation.
+   * An accepted decision carrying its value.
    *
-   * @param value The accepted value of type T. This is the value associated with the accepted
-   *              decision.
-   * @param <T>   The type of the accepted value.
-   * @param <R>   The type of the rejection reason (not used in this implementation, but required by
-   *              the interface).
+   * @param value the accepted value.
+   * @param <T>   the type of the accepted value.
+   * @param <R>   the type of the rejection reason (unused in this implementation).
    */
   record Accepted<T, R>(@NotNull T value) implements Decision<T, R> {
 
@@ -36,15 +29,11 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   }
 
   /**
-   * Represents a rejected decision with a reason of type R. This implementation of the
-   * {@link Decision} interface indicates that the decision was rejected, and contains the reason
-   * for rejection. The {@link #isAccepted()} method returns false for this implementation.
+   * A rejected decision carrying its reason.
    *
-   * @param reason The reason for rejection of type R. This is the value associated with the
-   *               rejected decision, explaining why the decision was rejected.
-   * @param <T>    The type of the accepted value (not used in this implementation, but required by
-   *               the interface).
-   * @param <R>    The type of the rejection reason.
+   * @param reason the rejection reason.
+   * @param <T>    the type of the accepted value (unused in this implementation).
+   * @param <R>    the type of the rejection reason.
    */
   record Rejected<T, R>(@NotNull R reason) implements Decision<T, R> {
 
@@ -55,14 +44,10 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   }
 
   /**
-   * Maps the accepted value of this decision using the provided mapper function if the decision is
-   * accepted. If the decision is rejected, it returns the same rejected decision without applying
-   * the mapper.
+   * Maps the accepted value using {@code mapper}; returns the same rejected decision if rejected.
    *
-   * @param mapper The function to apply to the accepted value if the decision is accepted. Must not
-   *               be <code>null</code>.
-   * @return A new decision with the mapped accepted value if this decision is accepted, or the same
-   * rejected decision if this decision is rejected.
+   * @param mapper the function to apply to the accepted value.
+   * @return a new decision with the mapped value, or the unchanged rejected decision.
    * @see Decision#mapRejected(Function)
    */
   default @NotNull Decision<T, R> mapAccepted(
@@ -75,14 +60,11 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   }
 
   /**
-   * Maps the rejection reason of this decision using the provided mapper function if the decision
-   * is rejected. If the decision is accepted, it returns the same accepted decision without
-   * applying the mapper.
+   * Maps the rejection reason using {@code mapper}; returns the same accepted decision if
+   * accepted.
    *
-   * @param mapper The function to apply to the rejection reason if the decision is rejected. Must
-   *               not be <code>null</code>.
-   * @return A new decision with the mapped rejection reason if this decision is rejected, or the
-   * same accepted decision if this decision is accepted.
+   * @param mapper the function to apply to the rejection reason.
+   * @return a new decision with the mapped reason, or the unchanged accepted decision.
    * @see Decision#mapAccepted(Function)
    */
   default @NotNull Decision<T, R> mapRejected(
@@ -97,7 +79,7 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   /**
    * Checks whether the decision is accepted.
    *
-   * @return <code>true</code> if the decision is accepted, <code>false</code> otherwise.
+   * @return {@code true} if the decision is accepted, {@code false} otherwise.
    * @see Decision#isRejected()
    */
   boolean isAccepted();
@@ -105,7 +87,7 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   /**
    * Checks whether the decision is rejected.
    *
-   * @return <code>true</code> if the decision is rejected, <code>false</code> otherwise.
+   * @return {@code true} if the decision is rejected, {@code false} otherwise.
    * @see Decision#isAccepted()
    */
   default boolean isRejected() {
@@ -115,11 +97,10 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   /**
    * Creates a new accepted decision with the given value.
    *
-   * @param value The value to be accepted. Must not be <code>null</code>.
-   * @param <T>   The type of the accepted value.
-   * @param <R>   The type of the rejection reason (not used in this method, but required by the
-   *              interface).
-   * @return A new instance of {@link Accepted} containing the accepted value.
+   * @param value the value to accept.
+   * @param <T>   the type of the accepted value.
+   * @param <R>   the type of the rejection reason.
+   * @return a new {@link Accepted} instance.
    */
   static <T, R> @NotNull Decision<T, R> accept(@NotNull T value) {
     return new Accepted<>(value);
@@ -128,11 +109,10 @@ public sealed interface Decision<T, R> permits Decision.Accepted, Decision.Rejec
   /**
    * Creates a new rejected decision with the given reason.
    *
-   * @param reason The reason for rejection. Must not be <code>null</code>.
-   * @param <T>    The type of the accepted value (not used in this method, but required by the
-   *               interface).
-   * @param <R>    The type of the rejection reason.
-   * @return A new instance of {@link Rejected} containing the rejection reason.
+   * @param reason the rejection reason.
+   * @param <T>    the type of the accepted value.
+   * @param <R>    the type of the rejection reason.
+   * @return a new {@link Rejected} instance.
    */
   static <T, R> @NotNull Decision<T, R> reject(@NotNull R reason) {
     return new Rejected<>(reason);

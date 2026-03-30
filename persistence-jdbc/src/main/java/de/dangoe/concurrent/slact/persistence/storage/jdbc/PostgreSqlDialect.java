@@ -20,10 +20,18 @@ import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * {@link JdbcDialect} implementation for PostgreSQL.
+ */
 // TODO Allow to provide suitable serde mechanisms instead of relying on Java's built-in serialization, which is not recommended for production use due to performance and security concerns.
 public class PostgreSqlDialect implements JdbcDialect {
 
   private static final String UNIQUE_VIOLATION_SQLSTATE = "23505";
+
+  /** Creates a new PostgreSQL dialect instance. */
+  public PostgreSqlDialect() {
+    super();
+  }
 
   @Override
   public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,

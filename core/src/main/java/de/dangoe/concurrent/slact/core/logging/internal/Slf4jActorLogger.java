@@ -7,10 +7,22 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * SLF4J-backed implementation of {@link de.dangoe.concurrent.slact.core.logging.ActorLogger}. Log
+ * records are emitted through the SLF4J logger bound to the actor's class.
+ */
 public final class Slf4jActorLogger extends AbstractActorLogger {
 
   private final @NotNull Logger logger;
 
+  /**
+   * Creates a new logger for the given actor.
+   *
+   * @param containerId the unique ID of the owning
+   *                    {@link de.dangoe.concurrent.slact.core.SlactContainer}.
+   * @param actorPath   the hierarchical path of the actor within the container.
+   * @param actorClass  the concrete actor class whose SLF4J logger will be used.
+   */
   public Slf4jActorLogger(final @NotNull UUID containerId, final @NotNull ActorPath actorPath,
       final @NotNull Class<? extends Actor<?>> actorClass) {
     super(containerId, actorPath);

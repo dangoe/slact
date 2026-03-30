@@ -22,6 +22,11 @@ public final class PersistenceExtensionHolder {
     // Private constructor to prevent external instantiation.
   }
 
+  /**
+   * Returns the singleton instance of this holder.
+   *
+   * @return the singleton {@link PersistenceExtensionHolder}.
+   */
   public static @NotNull PersistenceExtensionHolder getInstance() {
     return instance;
   }
@@ -29,8 +34,8 @@ public final class PersistenceExtensionHolder {
   /**
    * Registers a persistence extension.
    *
-   * @param extension The persistence extension to be registered. Must not be <code>null</code>.
-   * @throws PersistenceException Thrown if an extension is already registered.
+   * @param extension the persistence extension to register; must not be {@code null}.
+   * @throws PersistenceException if an extension is already registered.
    */
   public void register(final @NotNull PersistenceExtension extension) {
 
@@ -45,7 +50,7 @@ public final class PersistenceExtensionHolder {
   /**
    * Clears the registered persistence extension, allowing a new one to be registered. After calling
    * this method, there will be no registered extension until a new one is registered using the
-   * <code>register</code> method.
+   * {@link #register} method.
    */
   public void clear() {
     extensionRef.set(null);
@@ -54,22 +59,18 @@ public final class PersistenceExtensionHolder {
   /**
    * Retrieves the currently registered persistence extension, if available.
    *
-   * @return An <code>Optional</code> containing the registered persistence extension, or an empty
-   * <code>Optional</code> if no extension is currently registered.
+   * @return an {@link Optional} containing the registered persistence extension, or empty if none
+   * is registered.
    */
   public @NotNull Optional<PersistenceExtension> get() {
     return Optional.ofNullable(extensionRef.get());
   }
 
   /**
-   * Retrieves the currently registered persistence extension, throwing an exception if no extension
-   * is registered.
+   * Retrieves the registered persistence extension, throwing if none is registered. Intentionally
+   * package-private: call {@link #get()} from external code.
    *
-   * <p>Intentionally package-private: persistent actors within this package call this on every
-   * message dispatch, so the method is kept internal to avoid leaking the "require or throw"
-   * contract into the public API. External callers should use {@link #get()} instead.
-   *
-   * @return The registered persistence extension.
+   * @return the registered persistence extension.
    * @throws PersistenceException if no persistence extension is registered.
    */
   @NotNull PersistenceExtension require() {

@@ -16,9 +16,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Abstract specification for the
+ * {@link de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore} contract, extending
+ * {@link EventStoreSpec} with snapshot-specific test cases.
+ */
 @DisplayName("Snapshot-capable event store")
 public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
 
+  /**
+   * A simple test snapshot holding a string value.
+   *
+   * @param value the value contained in this snapshot.
+   */
   protected record TestSnapshot(String value) implements Serializable {
 
     @Serial
@@ -33,6 +43,8 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
   /**
    * Creates a fresh {@link SnapshotCapableEventStore} backed by the concrete infrastructure. Called
    * once per test after {@link #cleanDatabase()}.
+   *
+   * @return a new {@link SnapshotCapableEventStore} backed by the test infrastructure.
    */
   protected abstract @NotNull SnapshotCapableEventStore createSnapshotCapableEventStore();
 
@@ -42,6 +54,12 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
    * independently of any future {@code saveSnapshot} implementation. Implementations must also
    * insert the corresponding snapshot marker event into the {@code events} table so that the
    * marker-filter contract of {@link EventStore#loadEvents} can be verified.
+   *
+   * @param key                 the partition key to seed the snapshot for.
+   * @param ordering            the ordering value for the snapshot entry.
+   * @param appliedUpToOrdering the ordering of the last event applied before this snapshot.
+   * @param snapshot            the snapshot state to seed.
+   * @throws Exception if the seed operation fails.
    */
   protected abstract void seedSnapshot(@NotNull PartitionKey key, long ordering,
       long appliedUpToOrdering, @NotNull TestSnapshot snapshot) throws Exception;
@@ -290,5 +308,12 @@ public abstract class SnapshotCapableEventStoreSpec extends EventStoreSpec {
       final Throwable actual = thrown instanceof CompletionException ce ? ce.getCause() : thrown;
       assertThat(actual).isInstanceOf(ConcurrentWriteException.class);
     }
+  }
+
+  /**
+   * Creates a new spec instance.
+   */
+  protected SnapshotCapableEventStoreSpec() {
+    super();
   }
 }

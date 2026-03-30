@@ -15,6 +15,7 @@ public class CapturingActor<M> extends Actor<M> {
 
   private final @NotNull List<ReceivedMessage<M>> messages = new CopyOnWriteArrayList<>();
 
+  /** Creates a new capturing actor. */
   public CapturingActor() {
     super();
   }
@@ -27,7 +28,7 @@ public class CapturingActor<M> extends Actor<M> {
   /**
    * Returns the list of received messages.
    *
-   * @return List of received messages.
+   * @return the list of received messages.
    */
   public @NotNull List<ReceivedMessage<M>> receivedMessages() {
     return this.messages;

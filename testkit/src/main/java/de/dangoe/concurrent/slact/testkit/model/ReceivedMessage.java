@@ -8,17 +8,17 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Represents a message received by an actor in tests.
  *
- * @param <M>     The message type.
- * @param message The received message.
- * @param sender  The sender's actor path.
+ * @param <M>     the message type.
+ * @param message the received message.
+ * @param sender  the sender's actor path.
  */
 public record ReceivedMessage<M>(@NotNull M message, @NotNull ActorPath sender) {
 
   /**
    * Constructs a ReceivedMessage with an ActorHandle sender.
    *
-   * @param message The message.
-   * @param sender  The sender handle.
+   * @param message the message.
+   * @param sender  the sender handle.
    */
   public ReceivedMessage(@NotNull M message, @NotNull ActorHandle<?> sender) {
     this(message, sender.path());

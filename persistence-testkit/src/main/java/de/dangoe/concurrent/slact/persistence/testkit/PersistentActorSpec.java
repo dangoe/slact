@@ -10,10 +10,24 @@ import de.dangoe.concurrent.slact.persistence.SnapshotCapableEventStore;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Abstract specification for the {@link de.dangoe.concurrent.slact.persistence.PersistentActor}
+ * contract against a plain {@link de.dangoe.concurrent.slact.persistence.EventStore}.
+ */
 public abstract class PersistentActorSpec extends
     PersistentActorBaseSpec<RecoveryData<PersistentActorBaseSpec.Incremented>, EventStore> {
 
+  /**
+   * Counter actor used by this spec to exercise the {@link PersistentActor} contract.
+   */
   protected static class CounterActor extends PersistentActor<CounterMessage, Incremented> {
+
+    /**
+     * Creates a new counter actor.
+     */
+    protected CounterActor() {
+      super();
+    }
 
     @Override
     protected @NotNull PartitionKey partitionKey() {
@@ -65,4 +79,11 @@ public abstract class PersistentActorSpec extends
 
   @Override
   protected abstract @NotNull EventStore createEventStore();
+
+  /**
+   * Creates a new spec instance.
+   */
+  protected PersistentActorSpec() {
+    super();
+  }
 }

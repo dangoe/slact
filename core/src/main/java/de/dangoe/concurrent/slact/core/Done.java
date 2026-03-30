@@ -17,7 +17,7 @@ public final class Done {
   /**
    * Returns the singleton instance of Done.
    *
-   * @return The Done instance.
+   * @return the singleton {@link Done} instance.
    */
   public static @NotNull Done instance() {
     return instance;

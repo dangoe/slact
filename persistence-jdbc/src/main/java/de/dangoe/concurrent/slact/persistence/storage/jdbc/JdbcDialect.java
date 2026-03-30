@@ -5,7 +5,6 @@ import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
-import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -13,6 +12,9 @@ import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * SPI for translating event-store operations into dialect-specific SQL statements.
+ */
 public interface JdbcDialect {
 
   /**
@@ -20,15 +22,12 @@ public interface JdbcDialect {
    * <code>fromOrdering</code> value, ordered by their natural ordering (e.g. insertion order). The
    * deserializer is used to convert the binary snapshot back into event objects.
    *
-   * @param connection   An active JDBC connection.
-   * @param partitionKey The partition key to load events for.
-   * @param fromOrdering The ordering value from which to start loading events. Only events with an
-   *                     ordering value greater than or equal to this value will be included in the
-   *                     returned list.
-   * @param <E>          The event type.
-   * @return A list of event envelopes containing the loaded events and their associated metadata,
-   * ordered by their natural ordering.
-   * @throws SQLException Thrown, if a database error occurs while loading events.
+   * @param connection   an active JDBC connection.
+   * @param partitionKey the partition key to load events for.
+   * @param fromOrdering the minimum ordering; only events with ordering ≥ this value are included.
+   * @param <E>          the event type.
+   * @return a list of event envelopes, in natural ordering.
+   * @throws SQLException if a database error occurs.
    */
   <E> @NotNull List<EventEnvelope<E>> loadEvents(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey, long fromOrdering) throws SQLException;
@@ -37,17 +36,15 @@ public interface JdbcDialect {
    * Inserts the given events for the partition and returns their persisted envelopes, including
    * database-generated values such as ordering and timestamp.
    *
-   * @param connection      An active JDBC connection.
-   * @param partitionKey    The partition key to insert events under.
-   * @param lastMaxOrdering The last known maximum ordering value for the events in the partition.
-   *                        This is used to detect any potential concurrency issues.
-   * @param events          The events to insert.
-   * @param <E>             The event type.
-   * @return The persisted envelopes for the inserted events, in insertion order.
-   * @throws SQLException             Thrown, if a database error occurs.
-   * @throws ConcurrentWriteException Thrown, if a concurrency conflict is detected, i.e., if the
-   *                                  last known maximum ordering value does not match the current
-   *                                  maximum ordering in the event store.
+   * @param connection      an active JDBC connection.
+   * @param partitionKey    the partition key to insert events under.
+   * @param lastMaxOrdering the last known maximum ordering, used for optimistic concurrency
+   *                        detection.
+   * @param events          the events to insert.
+   * @param <E>             the event type.
+   * @return the persisted envelopes for the inserted events, in insertion order.
+   * @throws SQLException             if a database error occurs.
+   * @throws ConcurrentWriteException if a concurrent write is detected.
    */
   <E> @NotNull List<EventEnvelope<E>> insertEvents(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey, final long lastMaxOrdering, @NotNull List<E> events)
@@ -56,12 +53,11 @@ public interface JdbcDialect {
   /**
    * Loads the latest snapshot for the given partition key, if available.
    *
-   * @param connection   An active JDBC connection.
-   * @param partitionKey The partition key to load the snapshot for.
-   * @param <S>          The snapshot type.
-   * @return An optional containing the snapshot envelope if a snapshot is available, or an empty
-   * optional if no snapshot is available for the given partition key.
-   * @throws SQLException Thrown, if a database error occurs while loading the snapshot.
+   * @param connection   an active JDBC connection.
+   * @param partitionKey the partition key to load the snapshot for.
+   * @param <S>          the snapshot type.
+   * @return an optional containing the latest snapshot envelope, or empty if none exists.
+   * @throws SQLException if a database error occurs.
    */
   <S> @NotNull Optional<SnapshotEnvelope<S>> loadLatestSnapshot(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey) throws SQLException;
@@ -71,19 +67,15 @@ public interface JdbcDialect {
    * given ordering value, which indicates up to which events have been applied to the snapshot
    * state.
    *
-   * @param connection           An active JDBC connection.
-   * @param partitionKey         The partition key to insert the snapshot for.
-   * @param lastSnapshotOrdering The ordering value of the last snapshot for the partition. This is
-   *                             used to ensure that snapshots are inserted in the correct order and
-   *                             to detect any potential concurrency issues.
-   * @param appliedUpToOrdering  The ordering value up to which events have been applied to the
-   *                             snapshot state.
-   * @param snapshot             The snapshot data to insert, representing the state of the entity
-   *                             at the time the snapshot is taken.
-   * @param <S>                  The snapshot type.
-   * @return The snapshot envelope for the inserted snapshot, including database-generated values
-   * such as ordering and timestamp.
-   * @throws SQLException Thrown, if a database error occurs while inserting the snapshot.
+   * @param connection           an active JDBC connection.
+   * @param partitionKey         the partition key to insert the snapshot for.
+   * @param lastSnapshotOrdering the ordering of the previous snapshot, or {@code null} if none
+   *                             exists.
+   * @param appliedUpToOrdering  the highest event ordering already reflected in this snapshot.
+   * @param snapshot             the snapshot data representing the entity state.
+   * @param <S>                  the snapshot type.
+   * @return the persisted snapshot envelope.
+   * @throws SQLException if a database error occurs.
    */
   <S> @NotNull SnapshotEnvelope<S> insertSnapshot(@NotNull Connection connection,
       @NotNull PartitionKey partitionKey, @Nullable Long lastSnapshotOrdering,
@@ -92,9 +84,9 @@ public interface JdbcDialect {
   /**
    * Returns a {@link JdbcExceptionTranslator} that maps vendor-specific {@link SQLException}
    * instances to the appropriate {@link PersistenceException} subtype. The default implementation
-   * always returns {@link SaveFailedException}.
+   * always returns a generic {@link PersistenceException}.
    *
-   * @return A translator for this dialect.
+   * @return a translator for this dialect.
    */
   default @NotNull JdbcExceptionTranslator exceptionTranslator() {
     return (partitionKey, cause) -> new PersistenceException(

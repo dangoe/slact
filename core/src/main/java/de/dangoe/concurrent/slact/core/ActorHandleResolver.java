@@ -11,9 +11,9 @@ public interface ActorHandleResolver {
   /**
    * Resolves an actor handle for the given path.
    *
-   * @param path The actor path.
-   * @param <M>  The message type.
-   * @return An optional actor handle.
+   * @param path the actor path.
+   * @param <M>  the message type.
+   * @return an optional actor handle.
    */
   @NotNull
   <M> Optional<ActorHandle<M>> resolve(@NotNull ActorPath path);

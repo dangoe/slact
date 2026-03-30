@@ -11,27 +11,42 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * An abstract base class for persistent actors that provides common functionality for managing an
- * event store and handling event persistence. This class is designed to be extended by concrete
- * actor implementations that require persistence capabilities. It defines the structure for
- * recovering events from an event store and persisting new events, while allowing derived classes
- * to specify their own partition key and post-recovery behavior.
+ * Abstract base for persistent actors that recover from and append to an event store. Handles
+ * startup recovery automatically, switches to normal behavior after recovery, and delegates
+ * partition key and post-recovery hooks to subclasses.
  *
- * @param <M>  The type of messages that the actor will process.
- * @param <E>  The type of domain events that the actor will persist and recover.
- * @param <ST> The type of event store that the actor will use for persisting and recovering events.
- *             This type must extend the EventStore interface.
+ * @param <M>  the message type.
+ * @param <E>  the event type.
+ * @param <R>  the recovery-data type.
+ * @param <ST> the event-store type.
  */
 // TODO Reduce visibility or hide via suitable module export rules
 public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends EventStore> extends
     Actor<M> {
 
+  /**
+   * Carries the data needed to restore actor state after a restart.
+   *
+   * @param <E> the event type contained in the recovery data.
+   */
   @FunctionalInterface
   public interface RecoveryData<E> {
 
+    /**
+     * Provides the ordered list of events to replay during recovery.
+     *
+     * @return the ordered list of events to replay during recovery.
+     */
     @NotNull List<EventEnvelope<E>> events();
   }
 
+  /**
+   * Wraps the recovery payload delivered back to the actor after async recovery completes.
+   *
+   * @param <R>             the recovery-data type.
+   * @param <E>             the event type.
+   * @param recoveryPayload the recovery payload containing the events loaded from the event store.
+   */
   protected record RecoveryResultMessage<R extends RecoveryData<E>, E>(@NotNull R recoveryPayload) {
 
   }
@@ -44,6 +59,9 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
   @NotNull
   private List<EventEnvelope<E>> events;
 
+  /**
+   * Creates a new persistent actor base with an empty event list.
+   */
   public PersistentActorBase() {
     this.events = new ArrayList<>();
   }
@@ -89,48 +107,40 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
 
   /**
    * Defines an abstract method that must be implemented by derived classes to perform the recovery
-   * process using the provided recovery snapshot. This method is called after the recovery data has
-   * been successfully loaded and the events have been stored in the internal list.
+   * process using the provided recovery snapshot.
    *
-   * @param recoveryPayload The recovery snapshot containing the events that have been recovered
-   *                        from the event store.
+   * @param recoveryPayload the recovery payload with events loaded from the event store.
    */
   protected abstract void recoverInternal(@NotNull R recoveryPayload);
 
   /**
-   * Defines an abstract method that must be implemented by derived classes to load the recovery
-   * data for the actor based on the provided partition key.
+   * Loads the recovery data for this actor from the backing store.
    *
-   * @param partitionKey The partition key for which to load the recovery data.
-   * @return A RichFuture that, when completed, will contain the recovery data of type R, which
-   * includes the list of events to be recovered for the actor.
+   * @param partitionKey the partition key identifying this actor's event stream.
+   * @return a future that completes with the recovery data.
    */
   protected abstract RichFuture<R> loadRecoveryData(@NotNull PartitionKey partitionKey);
 
+  /**
+   * Returns the event store used to load and persist events for this actor.
+   *
+   * @return the backing {@link EventStore}.
+   */
   protected abstract @NotNull ST eventStore();
 
   /**
-   * Persists a single event to the event store. This method is a convenience wrapper around the
-   * persistMultiple method, allowing derived classes to persist individual events without needing
-   * to create a list.
+   * Persists a single event to the event store.
    *
-   * @param event The event to be persisted. This event will be appended to the event store and
-   *              added to the internal list of events if the operation is successful.
+   * @param event the event to append.
    */
   protected final void persist(final @NotNull E event) {
     persistMultiple(List.of(event));
   }
 
   /**
-   * Persists multiple events to the event store in a single operation. This method appends the
-   * provided list of events to the event store using the partition key defined by the derived
-   * class. If the persistence operation is successful, the newly added events are appended to the
-   * internal list of events. If any exception occurs during the persistence process, a
-   * SaveFailedException is thrown with details about the partition key and the cause of the
-   * failure.
+   * Persists multiple events atomically to the event store.
    *
-   * @param events The list of events to be persisted. These events will be appended to the event
-   *               store and added to the internal list of events if the operation is successful.
+   * @param events the list of events to persist.
    */
   protected void persistMultiple(final @NotNull List<E> events) {
 
@@ -146,43 +156,33 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
   }
 
   /**
-   * Defines the partition key that identifies the specific stream of events associated with this
-   * actor.
+   * Returns the partition key that identifies this actor's event stream.
    *
-   * @return The partition key for this actor, which is used to load and persist events in the event
-   * store.
+   * @return the partition key identifying this actor's event stream.
    */
   protected abstract @NotNull PartitionKey partitionKey();
 
   /**
-   * Defines a hook method that is called after the recovery process is complete and the actor has
-   * switched to its default behavior. This method can be overridden by derived classes to perform
-   * any necessary initialization or setup after the events have been successfully recovered.
+   * Called after the actor has fully recovered and switched to its default behavior.
    */
   protected void afterRecovery() {
     // no-op by default
   }
 
   /**
-   * Returns an unmodifiable list of event envelopes representing the events that have been
-   * recovered from the event store. This list is ordered by the events' ordering values, ensuring
-   * that the sequence of events is maintained.
+   * Returns an unmodifiable snapshot of all events recovered from the store.
    *
-   * @return An unmodifiable list of EventEnvelope objects representing the recovered events,
-   * ordered by their ordering values.
+   * @return an unmodifiable list of recovered event envelopes.
    */
   protected @NotNull List<EventEnvelope<E>> events() {
     return Collections.unmodifiableList(events);
   }
 
   /**
-   * Calculates the maximum ordering value among the currently stored events. This method is used to
-   * determine the correct ordering for new events being persisted, ensuring that they are appended
-   * after the existing events in the event store. If there are no events currently stored, this
-   * method returns -1.
+   * Returns the highest ordering value among the recovered events, or {@code -1} if there are
+   * none.
    *
-   * @return The maximum ordering value among the currently stored events, or -1 if there are no
-   * events.
+   * @return the maximum ordering value, or {@code -1} if no events exist.
    */
   protected long maxOrdering() {
     return this.events.stream().mapToLong(EventEnvelope::ordering).max().orElse(-1L);

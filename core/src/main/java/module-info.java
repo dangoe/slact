@@ -1,3 +1,6 @@
+/**
+ * slact core actor system runtime.
+ */
 module de.dangoe.concurrent.slact {
   exports de.dangoe.concurrent.slact.core;
   exports de.dangoe.concurrent.slact.core.exception;
