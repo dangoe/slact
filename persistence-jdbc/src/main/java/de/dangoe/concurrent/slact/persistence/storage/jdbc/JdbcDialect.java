@@ -5,7 +5,6 @@ import de.dangoe.concurrent.slact.persistence.PartitionKey;
 import de.dangoe.concurrent.slact.persistence.SnapshotEnvelope;
 import de.dangoe.concurrent.slact.persistence.exception.ConcurrentWriteException;
 import de.dangoe.concurrent.slact.persistence.exception.PersistenceException;
-import de.dangoe.concurrent.slact.persistence.exception.SaveFailedException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -39,7 +38,8 @@ public interface JdbcDialect {
    *
    * @param connection      an active JDBC connection.
    * @param partitionKey    the partition key to insert events under.
-   * @param lastMaxOrdering the last known maximum ordering, used for optimistic concurrency detection.
+   * @param lastMaxOrdering the last known maximum ordering, used for optimistic concurrency
+   *                        detection.
    * @param events          the events to insert.
    * @param <E>             the event type.
    * @return the persisted envelopes for the inserted events, in insertion order.
@@ -69,7 +69,8 @@ public interface JdbcDialect {
    *
    * @param connection           an active JDBC connection.
    * @param partitionKey         the partition key to insert the snapshot for.
-   * @param lastSnapshotOrdering the ordering of the previous snapshot, or {@code null} if none exists.
+   * @param lastSnapshotOrdering the ordering of the previous snapshot, or {@code null} if none
+   *                             exists.
    * @param appliedUpToOrdering  the highest event ordering already reflected in this snapshot.
    * @param snapshot             the snapshot data representing the entity state.
    * @param <S>                  the snapshot type.
@@ -83,7 +84,7 @@ public interface JdbcDialect {
   /**
    * Returns a {@link JdbcExceptionTranslator} that maps vendor-specific {@link SQLException}
    * instances to the appropriate {@link PersistenceException} subtype. The default implementation
-   * always returns {@link SaveFailedException}.
+   * always returns a generic {@link PersistenceException}.
    *
    * @return a translator for this dialect.
    */
