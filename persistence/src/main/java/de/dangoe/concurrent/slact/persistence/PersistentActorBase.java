@@ -24,12 +24,29 @@ import org.jetbrains.annotations.NotNull;
 public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST extends EventStore> extends
     Actor<M> {
 
+  /**
+   * Carries the data needed to restore actor state after a restart.
+   *
+   * @param <E> the event type contained in the recovery data.
+   */
   @FunctionalInterface
   public interface RecoveryData<E> {
 
+    /**
+     * Provides the ordered list of events to replay during recovery.
+     *
+     * @return the ordered list of events to replay during recovery.
+     */
     @NotNull List<EventEnvelope<E>> events();
   }
 
+  /**
+   * Wraps the recovery payload delivered back to the actor after async recovery completes.
+   *
+   * @param <R>             the recovery-data type.
+   * @param <E>             the event type.
+   * @param recoveryPayload the recovery payload containing the events loaded from the event store.
+   */
   protected record RecoveryResultMessage<R extends RecoveryData<E>, E>(@NotNull R recoveryPayload) {
 
   }
@@ -42,6 +59,9 @@ public abstract class PersistentActorBase<M, E, R extends RecoveryData<E>, ST ex
   @NotNull
   private List<EventEnvelope<E>> events;
 
+  /**
+   * Creates a new persistent actor base with an empty event list.
+   */
   public PersistentActorBase() {
     this.events = new ArrayList<>();
   }

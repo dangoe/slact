@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 public final class RecoveryFailedException extends PersistenceException {
 
   /**
+   * Constructs a {@link RecoveryFailedException} for the given partition key.
+   *
    * @param partitionKey the partition key whose recovery failed.
    * @param cause        the underlying cause of the failure.
    */

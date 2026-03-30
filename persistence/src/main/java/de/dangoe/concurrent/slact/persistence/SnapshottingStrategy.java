@@ -15,6 +15,13 @@ import org.jetbrains.annotations.Nullable;
 @FunctionalInterface
 public interface SnapshottingStrategy<E, S> {
 
+  /**
+   * Holds the snapshot state and the event ordering up to which it was applied.
+   *
+   * @param <S>                 the type of snapshot state.
+   * @param appliedUpToOrdering the event ordering up to which the snapshot was applied.
+   * @param snapshot            the snapshot state.
+   */
   record CreatedSnapshot<S>(long appliedUpToOrdering, @NotNull S snapshot) {
 
   }
@@ -25,7 +32,8 @@ public interface SnapshottingStrategy<E, S> {
    *
    * @param events         the list of events.
    * @param latestSnapshot the latest snapshot, if available.
-   * @return an optional containing a new snapshot if the threshold is met, or empty if no snapshot should be created.
+   * @return an optional containing a new snapshot if the threshold is met, or empty if no snapshot
+   * should be created.
    */
   @NotNull Optional<CreatedSnapshot<S>> tryCreateSnapshot(@NotNull List<EventEnvelope<E>> events,
       @Nullable SnapshotEnvelope<S> latestSnapshot);

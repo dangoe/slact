@@ -29,9 +29,15 @@ public abstract class Actor<M> implements MessageReceiver<M> {
 
   private final @NotNull ActiveActorContextHolder activeActorContextHolder = ActiveActorContextHolder.getInstance();
 
+  /** the default behaviour delegate; delegates to {@link #onMessage(Object)}. */
   protected final @NotNull MessageReceiver<M> defaultBehaviour = Actor.this;
 
   private @NotNull MessageReceiver<M> behaviour = defaultBehaviour;
+
+  /** Creates a new actor instance. */
+  protected Actor() {
+    super();
+  }
 
   /**
    * Called when the actor is started. Override to implement custom startup logic.
@@ -102,6 +108,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Returns the parent actor handle.
    *
+   * @param <M1> the message type of the parent actor.
    * @return the parent actor handle.
    */
   @SuppressWarnings("unchecked")
@@ -121,6 +128,7 @@ public abstract class Actor<M> implements MessageReceiver<M> {
   /**
    * Returns the sender actor handle.
    *
+   * @param <M1> the message type of the sender actor.
    * @return the sender actor handle.
    */
   @SuppressWarnings("unchecked")

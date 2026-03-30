@@ -19,8 +19,11 @@ import org.jetbrains.annotations.NotNull;
  */
 public class JdbcEventStore implements EventStore {
 
+  /** the pool from which JDBC connections are acquired by subclasses. */
   protected final @NotNull JdbcConnectionPool connectionPool;
+  /** the executor used to run async database operations. */
   protected final @NotNull ExecutorService executorService;
+  /** the dialect used to translate between domain objects and SQL. */
   protected final @NotNull JdbcDialect dialect;
 
   /**

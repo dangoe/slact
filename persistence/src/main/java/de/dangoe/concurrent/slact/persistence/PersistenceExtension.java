@@ -13,7 +13,8 @@ public interface PersistenceExtension {
    * Resolves an event store for the given partition key.
    *
    * @param partitionKey the partition key for which to resolve the event store.
-   * @return an {@link Optional} containing the resolved {@link EventStore}, or empty if no store is found
+   * @return an {@link Optional} containing the resolved {@link EventStore}, or empty if no store is
+   * found
    */
   @NotNull Optional<EventStore> resolveStore(@NotNull PartitionKey partitionKey);
 

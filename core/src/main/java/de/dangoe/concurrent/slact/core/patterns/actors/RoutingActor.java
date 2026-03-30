@@ -27,6 +27,11 @@ public final class RoutingActor<R extends RoutingRequest<M>, M> extends Actor<R>
    */
   public interface RoutingRequest<M> {
 
+    /**
+     * Returns the message payload to be dispatched to the selected routee.
+     *
+     * @return the message payload to be dispatched to the selected routee.
+     */
     M message();
   }
 

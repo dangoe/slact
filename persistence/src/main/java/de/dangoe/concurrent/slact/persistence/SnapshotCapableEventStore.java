@@ -19,7 +19,8 @@ public interface SnapshotCapableEventStore extends EventStore {
    * optional if no snapshot is available for the given partition key. The future will complete
    * exceptionally if an error occurs while loading the snapshot.
    *
-   * @param partitionKey the partition key identifying the event stream whose snapshot should be loaded.
+   * @param partitionKey the partition key identifying the event stream whose snapshot should be
+   *                     loaded.
    * @param snapshotType the class used to deserialize the snapshot.
    * @param <S>          the snapshot type.
    * @return a future completing with the latest snapshot envelope, or empty if no snapshot exists.

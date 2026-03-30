@@ -38,6 +38,13 @@ import org.jetbrains.annotations.NotNull;
 public abstract class PersistentActor<M, E> extends
     PersistentActorBase<M, E, RecoveryData<E>, EventStore> {
 
+  /**
+   * Creates a new persistent actor.
+   */
+  protected PersistentActor() {
+    super();
+  }
+
   @Override
   protected final RichFuture<RecoveryData<E>> loadRecoveryData(
       final @NotNull PartitionKey partitionKey) {

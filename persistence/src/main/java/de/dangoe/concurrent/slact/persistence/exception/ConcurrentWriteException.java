@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 public final class ConcurrentWriteException extends PersistenceException {
 
   /**
+   * Constructs a {@link ConcurrentWriteException} for the given partition key.
+   *
    * @param partitionKey the partition key on which the concurrent write was detected.
    */
   public ConcurrentWriteException(final @NotNull PartitionKey partitionKey) {

@@ -20,6 +20,9 @@ public class InMemoryEventStore implements EventStore {
 
   }
 
+  /**
+   * the clock used to timestamp persisted events; accessible to subclasses.
+   */
   protected final @NotNull Clock clock;
 
   private final @NotNull ConcurrentHashMap<StoreKey, CopyOnWriteArrayList<EventEnvelope<?>>> events = new ConcurrentHashMap<>();

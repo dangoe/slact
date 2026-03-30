@@ -59,7 +59,8 @@ public final class PersistenceExtensionHolder {
   /**
    * Retrieves the currently registered persistence extension, if available.
    *
-   * @return an {@link Optional} containing the registered persistence extension, or empty if none is registered.
+   * @return an {@link Optional} containing the registered persistence extension, or empty if none
+   * is registered.
    */
   public @NotNull Optional<PersistenceExtension> get() {
     return Optional.ofNullable(extensionRef.get());

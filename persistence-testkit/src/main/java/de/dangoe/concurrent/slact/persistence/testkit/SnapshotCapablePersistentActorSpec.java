@@ -29,8 +29,19 @@ import org.junit.jupiter.api.Test;
 public abstract class SnapshotCapablePersistentActorSpec extends
     PersistentActorBaseSpec<SnapshotCapableRecoveryData<PersistentActorBaseSpec.Incremented, Void>, SnapshotCapableEventStore> {
 
+  /**
+   * Counter actor used by this spec to exercise the {@link SnapshotCapablePersistentActor}
+   * contract.
+   */
   protected static class CounterActor extends
       SnapshotCapablePersistentActor<CounterMessage, Incremented, Void> {
+
+    /**
+     * Creates a new counter actor.
+     */
+    protected CounterActor() {
+      super();
+    }
 
     @Override
     protected @NotNull PartitionKey partitionKey() {
@@ -214,5 +225,12 @@ public abstract class SnapshotCapablePersistentActorSpec extends
       await().atMost(Constants.DEFAULT_TIMEOUT).until(countAfterRecovery::isDone);
       assertThat(countAfterRecovery.get()).isEqualTo(new CounterMessage.CurrentCount(5));
     }
+  }
+
+  /**
+   * Creates a new spec instance.
+   */
+  protected SnapshotCapablePersistentActorSpec() {
+    super();
   }
 }

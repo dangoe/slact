@@ -28,6 +28,11 @@ public class PostgreSqlDialect implements JdbcDialect {
 
   private static final String UNIQUE_VIOLATION_SQLSTATE = "23505";
 
+  /** Creates a new PostgreSQL dialect instance. */
+  public PostgreSqlDialect() {
+    super();
+  }
+
   @Override
   public @NotNull <E> List<EventEnvelope<E>> loadEvents(final @NotNull Connection connection,
       final @NotNull PartitionKey partitionKey, final long fromOrdering) throws SQLException {

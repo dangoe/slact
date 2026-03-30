@@ -10,6 +10,9 @@ import org.jetbrains.annotations.Nullable;
  * Identifies the event stream of a single persistent actor instance by combining a stable,
  * business-defined actor type discriminator with a domain-specific entity ID. Both components must
  * be non-empty strings consisting of letters, digits, underscores, or hyphens.
+ *
+ * @param actorType a stable, business-defined discriminator for the actor type.
+ * @param entityId  a domain-specific identifier for the actor instance.
  */
 public record PartitionKey(@NotNull String actorType, @NotNull String entityId) implements
     Serializable {
@@ -22,6 +25,9 @@ public record PartitionKey(@NotNull String actorType, @NotNull String entityId) 
   private static final @NotNull Pattern RAW_KEY_PATTERN = Pattern.compile(
       "^(%s)#(%s)$".formatted(IDENTIFIER_REGEX, IDENTIFIER_REGEX));
 
+  /**
+   * Validates that both components are non-empty and match the allowed character set.
+   */
   public PartitionKey {
     checkValidIdentifier("Actor type", actorType);
     checkValidIdentifier("Entity ID", entityId);
@@ -30,6 +36,8 @@ public record PartitionKey(@NotNull String actorType, @NotNull String entityId) 
   /**
    * Returns a single string representation combining {@code actorType} and {@code entityId},
    * suitable for use as a database key. The format is {@code actorType#entityId}.
+   *
+   * @return the raw key string in {@code actorType#entityId} format.
    */
   public @NotNull String raw() {
     return "%s#%s".formatted(actorType, entityId);
@@ -39,6 +47,9 @@ public record PartitionKey(@NotNull String actorType, @NotNull String entityId) 
    * Parses a raw partition key string as produced by {@link #raw()} back into a
    * {@link PartitionKey}. Returns an empty optional if the input is blank, does not match the
    * expected {@code actorType#entityId} format, or contains invalid characters.
+   *
+   * @param raw the raw string to parse.
+   * @return the parsed {@link PartitionKey}, or an empty optional if the input is invalid.
    */
   public static @NotNull Optional<@NotNull PartitionKey> parse(final @NotNull String raw) {
     final var matcher = RAW_KEY_PATTERN.matcher(raw.trim());

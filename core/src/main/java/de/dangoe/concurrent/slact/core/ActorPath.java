@@ -9,6 +9,11 @@ import org.jetbrains.annotations.NotNull;
  */
 public abstract class ActorPath {
 
+  /** Creates a new actor path. */
+  protected ActorPath() {
+    super();
+  }
+
   private static final class Root extends ActorPath {
 
     private static final Root instance = new Root();

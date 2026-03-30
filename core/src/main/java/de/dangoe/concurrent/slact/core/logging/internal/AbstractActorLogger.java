@@ -15,6 +15,7 @@ public abstract class AbstractActorLogger implements ActorLogger {
   private final @NotNull UUID containerId;
   private final @NotNull ActorPath actorPath;
 
+  /** the template renderer used by subclass logging methods. */
   protected final @NotNull LogTemplateRenderer renderer;
 
   /**

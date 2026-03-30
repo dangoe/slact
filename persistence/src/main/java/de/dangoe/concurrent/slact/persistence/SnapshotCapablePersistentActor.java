@@ -36,6 +36,13 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
     PersistentActorBase<M, E, SnapshotCapableRecoveryData<E, S>, SnapshotCapableEventStore> {
 
   /**
+   * Creates a new snapshot-capable persistent actor.
+   */
+  protected SnapshotCapablePersistentActor() {
+    super();
+  }
+
+  /**
    * Recovery data combining replayed events with the latest snapshot envelope.
    *
    * @param events                 events replayed after the snapshot was applied.
@@ -93,6 +100,8 @@ public abstract class SnapshotCapablePersistentActor<M, E, S> extends
 
   /**
    * Returns the strategy that determines when and how to take a snapshot.
+   *
+   * @return the snapshotting strategy for this actor.
    */
   protected abstract @NotNull SnapshottingStrategy<E, S> snapshottingStrategy();
 

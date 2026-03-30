@@ -233,6 +233,11 @@ public abstract class MailboxItem {
 
   private final ActorPath sender;
 
+  /**
+   * Creates a new mailbox item from the given sender path.
+   *
+   * @param sender the actor path of the message sender.
+   */
   protected MailboxItem(final @NotNull ActorPath sender) {
     super();
     this.id = ID_GENERATOR.next();

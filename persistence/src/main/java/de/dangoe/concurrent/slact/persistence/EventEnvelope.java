@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
  * @param ordering  the event's position within its partition.
  * @param timestamp the time the event was persisted.
  * @param event     the actual event snapshot.
+ * @param <E>       the event type.
  */
 public record EventEnvelope<E>(long ordering, @NotNull Instant timestamp,
                                @NotNull E event) implements EventLogEntryLike {

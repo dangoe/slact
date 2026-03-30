@@ -72,6 +72,11 @@ public final class DefaultSlactContainer implements SlactContainer {
   private final @NotNull ActorHandle<Object> rootActor;
 
   // TODO Add configuration
+  /**
+   * Creates a new container using the given scheduled executor factory.
+   *
+   * @param scheduledExecutorFactory factory that supplies the scheduled executor.
+   */
   public DefaultSlactContainer(
       final @NotNull Supplier<ScheduledExecutor> scheduledExecutorFactory) {
 

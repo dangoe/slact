@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 public class MessageRejectedException extends SlactException {
 
   /**
+   * Constructs a {@link MessageRejectedException} for the given actor and message.
+   *
    * @param actor   the actor that was unable to handle the message.
    * @param message the message that was rejected.
    */

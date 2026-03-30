@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 public final class SaveFailedException extends PersistenceException {
 
   /**
+   * Constructs a {@link SaveFailedException} for the given partition key.
+   *
    * @param partitionKey the partition key whose save operation failed.
    * @param cause        the underlying cause of the failure.
    */
