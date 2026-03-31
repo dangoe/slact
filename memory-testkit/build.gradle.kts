@@ -5,6 +5,6 @@ plugins {
 
 dependencies {
     api(project(":memory"))
-    implementation(libs.junit.jupiter)
-    implementation(libs.assertj.core)
+    api(libs.junit.jupiter)
+    api(libs.assertj.core)
 }

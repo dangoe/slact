@@ -25,22 +25,23 @@ class Neo4jMemoryStoreIT extends MemoryStoreSpec {
   @Container
   private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:5");
 
-  @Override
-  protected @NotNull MemoryStore createStore() {
-    final var driver = GraphDatabase.driver(
+  private static org.neo4j.driver.Driver createDriver() {
+    return GraphDatabase.driver(
         neo4j.getBoltUrl(),
         AuthTokens.basic("neo4j", neo4j.getAdminPassword()));
-    final var store = new Neo4jMemoryStore(driver, "neo4j", EMBEDDING_DIMENSION);
+  }
+
+  @Override
+  protected @NotNull MemoryStore createStore() {
+    final var store = new Neo4jMemoryStore(createDriver(), "neo4j", EMBEDDING_DIMENSION);
     store.initialize();
     return store;
   }
 
   @Override
   protected void cleanStore() {
-    final var driver = GraphDatabase.driver(
-        neo4j.getBoltUrl(),
-        AuthTokens.basic("neo4j", neo4j.getAdminPassword()));
-    try (final var session = driver.session()) {
+    try (final var driver = createDriver();
+         final var session = driver.session()) {
       session.run("MATCH (n) DETACH DELETE n");
     }
   }
