@@ -1,91 +1,103 @@
 # slact
 
-A lightweight actor system implementation in Java 21 — built as a learning project to explore the actor model and concurrent message passing from scratch.
+`slact` is a Java 21 actor system with typed message passing, hierarchical supervision, behavioral switching, and event-sourced persistence extensions.
 
-## Motivation
+Originally started as a learning project, it now contains a broader multi-module setup for actor runtime, persistence, and agentic-memory integrations.
 
-This is a **tinker project** created to learn about actor system internals: message dispatching, actor lifecycle management, hierarchical supervision, and behavioral switching. It is not intended for production use but rather as an educational exercise in building concurrency primitives.
+## Core capabilities
 
-## Features
+- Typed actors via `Actor<M>` and `ActorHandle<M>`
+- Asynchronous message passing and request/response interactions
+- Behavior switching with `behaveAs(...)` / `behaveAsDefault()`
+- Actor lifecycle hooks (`onStart`, `onStop`)
+- Hierarchical actor paths and child spawning
+- Future piping into actor mailboxes
+- Routing utilities (including round-robin routing actor patterns)
+- Persistence abstraction for event-sourced actors
+- Testkits for actor and persistence-heavy testing
+- Agentic memory orchestration modules (core, Neo4j, MCP, demo)
 
-- **Typed actors** — actors are generic (`Actor<M>`) and process only their declared message type
-- **Message passing** — actors communicate exclusively through typed, asynchronous messages
-- **Behavioral switching** — actors can change their message handling at runtime via `behaveAs()` / `behaveAsDefault()`
-- **Lifecycle hooks** — `onStart()` and `onStop()` callbacks for initialization and cleanup
-- **Hierarchical actor spawning** — actors can spawn child actors through their context
-- **Actor handles** — type-safe references (`ActorHandle<M>`) for addressing and sending messages
-- **Actor paths** — hierarchical addressing for actors in the system
-- **Request-response** — built-in support for `respondWith()` and future-based responses
-- **Routing patterns** — included `RoutingActor` with round-robin strategy for work distribution
-- **Future piping** — pipe `Future` results into actor mailboxes
-- **Testkit** — dedicated module with `SlactTestContainer` and a JUnit 5 extension for actor testing
-- **Java Module System** — explicit module boundaries via `module-info.java`
+## Project modules
 
-## Project Structure
+| Module | Purpose |
+|---|---|
+| `core` | Actor runtime (`Actor`, container, paths, patterns) |
+| `testkit` | Testing support (`SlactTestContainer`, JUnit 5 extension) |
+| `persistence-core` | Event-sourcing abstractions (`EventStore`, `PersistentActor`) |
+| `persistence-jdbc` | JDBC-based persistence implementation (PostgreSQL + HikariCP) |
+| `persistence-testkit` | Testing utilities/specs for persistence modules |
+| `agentic-ai-memory-core` | Memory orchestration actors and ports |
+| `agentic-ai-memory-neo4j` | Neo4j-backed memory integration |
+| `agentic-ai-memory-mcp` | MCP integration for memory features |
+| `agentic-ai-memory-testkit` | Test helpers for agentic memory modules |
+| `agentic-ai-memory-demo` | CLI demo application |
+| `build-logic` | Shared Gradle convention plugins |
 
-| Module        | Description                                              |
-|---------------|----------------------------------------------------------|
-| `core`        | Main library — actor runtime, message handling, patterns |
-| `testkit`     | Testing utilities — test container, JUnit 5 extension    |
-| `build-logic` | Gradle convention plugins for shared build configuration |
+## Prerequisites
 
-## Quick Start
+- Java 21
+- Gradle wrapper (`./gradlew`) is included
+- Docker (for integration tests using Testcontainers)
 
-### Prerequisites
-
-- Java 21+
-- Gradle 8.5+ (wrapper included)
-
-### Build
+## Build and test
 
 ```bash
 ./gradlew build
+./gradlew test
+./gradlew :core:test
+./gradlew :core:test --tests "ClassName"
+./gradlew :core:test --tests "ClassName.method"
+./gradlew :persistence-jdbc:integrationTest
+PERF_TEST=true ./gradlew :core:test --tests "*ActorPerformanceTest"
 ```
 
-### Run Tests
+## Run the memory demo
 
 ```bash
-./gradlew test
+./gradlew :agentic-ai-memory-demo:run
 ```
 
-### Example
+Main class: `de.dangoe.concurrent.slact.memory.demo.MemoryDemoCli`
+
+## Minimal actor example
 
 ```java
-// Define a message type
-sealed interface Greeting { }
-record Hello(String name) implements Greeting { }
-
-// Define an actor
-class GreeterActor extends Actor<Greeting> {
-    @Override
-    public void onMessage(Greeting message) {
-        if (message instanceof Hello(String name)) {
-            System.out.println("Hello, " + name + "!");
-        }
-    }
+sealed interface Greeting permits Greeting.Hello {
+  record Hello(String name) implements Greeting {}
 }
 
-// Bootstrap the actor system
+final class GreeterActor extends Actor<Greeting> {
+  @Override
+  public void onMessage(final Greeting message) {
+    switch (message) {
+      case Greeting.Hello hello -> System.out.println("Hello, " + hello.name() + "!");
+    }
+  }
+}
+
 try (var container = new SlactContainerBuilder().build()) {
-    var greeter = container.spawn("greeter", GreeterActor::new);
-    greeter.send(new Hello("World"));
+  var greeter = container.spawn("greeter", GreeterActor::new);
+  container.send(new Greeting.Hello("World")).to(greeter);
 }
 ```
 
-## AI-Assisted Development
+## AI-assisted development
 
-Parts of this codebase were created with the help of **AI agents** (GitHub Copilot). AI was primarily used to improve **test completeness** — generating test cases for edge cases, lifecycle scenarios, and message flow coverage. The core architecture and design decisions are human-driven. All AI generated code is reviewed by the author for correctness and maintainability.
+Parts of this codebase were developed with support from AI agents (including GitHub Copilot).
 
-## Tech Stack
+AI is used as an engineering aid (for example for implementation drafts, refactor support, and test case generation), while architecture decisions and final code quality remain under human ownership.
 
-- **Java 21** — records, sealed interfaces, pattern matching
-- **Gradle 8.5** — with convention plugins and version catalogs
-- **JUnit 5** — testing framework
-- **AssertJ** — fluent assertions
-- **Awaitility** — async testing support
-- **SLF4J / Logback** — logging
+All AI-generated or AI-assisted changes are reviewed manually before being accepted.
+
+## Tech stack
+
+- Java 21
+- Gradle with convention plugins and version catalog
+- JUnit 5, AssertJ, Awaitility, Mockito
+- SLF4J / Logback
+- Testcontainers (integration tests)
+- Neo4j Java Driver (agentic memory integration)
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
