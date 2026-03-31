@@ -37,9 +37,9 @@ public final class MemoryDemoCli {
    * @throws Exception if startup or shutdown fails.
    */
   public static void main(final @NotNull String[] args) throws Exception {
-    final var embeddingPort = new StubEmbeddingPort();
-    final var targetModelPort = new StubTargetModelPort();
-    final var extractionPort = new StubMemoryExtractionPort();
+    final var embeddingPort = new StubEmbeddingAdapter();
+    final var targetModelPort = new StubTargetModelAdapter();
+    final var extractionPort = new StubMemoryExtractionAdapter();
     final var memoryStore = new InMemoryMemoryStore();
 
     try (final var container = new SlactContainerBuilder().build()) {

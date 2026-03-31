@@ -5,7 +5,7 @@ import de.dangoe.concurrent.slact.memory.TargetModelPort;
 import java.util.concurrent.CompletableFuture;
 import org.jetbrains.annotations.NotNull;
 
-final class StubTargetModelPort implements TargetModelPort {
+final class StubTargetModelAdapter implements TargetModelPort {
 
   @Override
   public @NotNull RichFuture<String> complete(final @NotNull String prompt) {

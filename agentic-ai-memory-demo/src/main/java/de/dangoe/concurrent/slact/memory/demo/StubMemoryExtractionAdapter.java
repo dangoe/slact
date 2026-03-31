@@ -7,11 +7,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.jetbrains.annotations.NotNull;
 
-final class StubMemoryExtractionPort implements MemoryExtractionPort {
+final class StubMemoryExtractionAdapter implements MemoryExtractionPort {
 
   @Override
-  public @NotNull RichFuture<List<MemoryCandidate>> extract(
-      final @NotNull String prompt,
+  public @NotNull RichFuture<List<MemoryCandidate>> extract(final @NotNull String prompt,
       final @NotNull String response) {
     final var fact = response.length() > 80 ? response.substring(0, 80) : response;
     final var candidate = new MemoryCandidate("prompt", fact);
