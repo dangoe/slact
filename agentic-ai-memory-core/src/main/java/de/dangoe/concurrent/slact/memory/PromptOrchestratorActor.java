@@ -3,10 +3,11 @@ package de.dangoe.concurrent.slact.memory;
 import de.dangoe.concurrent.slact.core.Actor;
 import de.dangoe.concurrent.slact.core.ActorHandle;
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
-import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
   private static final int DEFAULT_MAX_MEMORY_RESULTS = 5;
 
   private final @NotNull EmbeddingPort embeddingPort;
-  private final @NotNull MemoryStore memoryStore;
+  private final @NotNull ActorHandle<MemoryCommand.QueryMemory> memoryRetrievalActor;
   private final int maxMemoryResults;
   private final @NotNull TargetModelPort targetModelPort;
   private final @NotNull MemoryExtractionPort memoryExtractionPort;
@@ -60,7 +61,7 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
    * Creates a new PromptOrchestratorActor with the given dependencies.
    *
    * @param embeddingPort        the port for generating embeddings.
-   * @param memoryStore          the memory store for querying and saving memories.
+   * @param memoryRetrievalActor the actor handle for querying memories.
    * @param maxMemoryResults     the maximum number of memory results to retrieve for enriching the
    *                             prompt context.
    * @param targetModelPort      the port for completing the enriched prompt with the target model.
@@ -68,12 +69,14 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
    * @param memoryWriteActor     the actor handle for writing new memories to the memory store.
    */
   public PromptOrchestratorActor(final @NotNull EmbeddingPort embeddingPort,
-      final @NotNull MemoryStore memoryStore, final int maxMemoryResults,
+      final @NotNull ActorHandle<MemoryCommand.QueryMemory> memoryRetrievalActor,
+      final int maxMemoryResults,
       final @NotNull TargetModelPort targetModelPort,
       final @NotNull MemoryExtractionPort memoryExtractionPort,
       final @NotNull ActorHandle<MemoryCommand.WriteMemory> memoryWriteActor) {
     this.embeddingPort = Objects.requireNonNull(embeddingPort, "EmbeddingPort must not be null");
-    this.memoryStore = Objects.requireNonNull(memoryStore, "MemoryStore must not be null");
+    this.memoryRetrievalActor = Objects.requireNonNull(memoryRetrievalActor,
+        "MemoryRetrievalActor must not be null");
     this.maxMemoryResults = maxMemoryResults;
     this.targetModelPort = Objects.requireNonNull(targetModelPort,
         "TargetModelPort must not be null");
@@ -88,16 +91,17 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
    * maxMemoryResults value.
    *
    * @param embeddingPort        the port for generating embeddings.
-   * @param memoryStore          the memory store for querying and saving memories.
+   * @param memoryRetrievalActor the actor handle for querying memories.
    * @param targetModelPort      the port for completing the enriched prompt with the target model.
    * @param memoryExtractionPort the port for extracting new memories from the prompt and response.
    * @param memoryWriteActor     the actor handle for writing new memories to the memory store.
    */
   public PromptOrchestratorActor(final @NotNull EmbeddingPort embeddingPort,
-      final @NotNull MemoryStore memoryStore, final @NotNull TargetModelPort targetModelPort,
+      final @NotNull ActorHandle<MemoryCommand.QueryMemory> memoryRetrievalActor,
+      final @NotNull TargetModelPort targetModelPort,
       final @NotNull MemoryExtractionPort memoryExtractionPort,
       final @NotNull ActorHandle<MemoryCommand.WriteMemory> memoryWriteActor) {
-    this(embeddingPort, memoryStore, DEFAULT_MAX_MEMORY_RESULTS, targetModelPort,
+    this(embeddingPort, memoryRetrievalActor, DEFAULT_MAX_MEMORY_RESULTS, targetModelPort,
         memoryExtractionPort, memoryWriteActor);
   }
 
@@ -118,13 +122,12 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
   private @NotNull RichFuture<PromptResponse> buildPipeline(final @NotNull String promptText) {
     return embeddingPort.embed(promptText).thenCompose(
-        embedding -> memoryStore.query(new MemoryQuery(embedding, maxMemoryResults))
-            .thenCompose(memories -> {
-              final var enrichedPrompt = mergeContext(promptText, memories);
-              return targetModelPort.complete(enrichedPrompt)
-                  .thenCompose(response -> extractAndSaveMemoriesAsync(promptText, response)
-                      .thenApply(unused -> (PromptResponse) new PromptResponse.Answer(response)));
-            })).exceptionally(e -> new PromptResponse.Failure(e.getMessage()));
+        embedding -> askMemoryQuery(embedding).thenCompose(memories -> {
+          final var enrichedPrompt = mergeContext(promptText, memories);
+          return targetModelPort.complete(enrichedPrompt)
+              .thenCompose(response -> extractAndSaveMemoriesAsync(promptText, response)
+                  .thenApply(unused -> (PromptResponse) new PromptResponse.Answer(response)));
+        })).exceptionally(e -> new PromptResponse.Failure(e.getMessage()));
   }
 
   private @NotNull String mergeContext(final @NotNull String promptText,
@@ -149,6 +152,26 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
         });
   }
 
+  private @NotNull RichFuture<List<MemoryEntry>> askMemoryQuery(
+      final @NotNull Embedding embedding) {
+    return asRichFuture(
+        context().requestResponseTo(new MemoryCommand.QueryMemory(embedding, maxMemoryResults))
+            .ofType(MemoryResponse.class)
+            .from(memoryRetrievalActor))
+        .thenCompose(response -> {
+          if (response instanceof MemoryResponse.QueryResult(List<MemoryEntry> entries)) {
+            return RichFuture.of(CompletableFuture.completedFuture(entries));
+          }
+          if (response instanceof MemoryResponse.Failure(String errorMessage)) {
+            return RichFuture.of(
+                CompletableFuture.failedFuture(new IllegalStateException(errorMessage)));
+          }
+          return RichFuture.of(CompletableFuture.failedFuture(
+              new IllegalStateException(
+                  "Unexpected response type: " + response.getClass().getName())));
+        });
+  }
+
   private @NotNull RichFuture<Void> saveExtractedMemories(
       final @NotNull List<MemoryCandidate> candidates) {
 
@@ -156,9 +179,38 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     for (final var candidate : candidates) {
       final var content = candidate.subject() + ": " + candidate.fact();
       chain = chain.thenCompose(unused -> embeddingPort.embed(content)
-          .thenCompose(embedding -> memoryStore.save(Memory.of(content, embedding, Map.of()))
-              .thenApply(savedId -> null)));
+          .thenCompose(embedding -> askMemoryWrite(content, embedding))
+          .thenApply(unusedResult -> null));
     }
     return chain;
+  }
+
+  private @NotNull RichFuture<Void> askMemoryWrite(final @NotNull String content,
+      final @NotNull Embedding embedding) {
+    return asRichFuture(
+        context().requestResponseTo(new MemoryCommand.WriteMemory(content, embedding, Map.of()))
+            .ofType(MemoryResponse.class)
+            .from(memoryWriteActor))
+        .thenCompose(response -> {
+          if (response instanceof MemoryResponse.Written) {
+            return RichFuture.of(CompletableFuture.completedFuture(null));
+          }
+          if (response instanceof MemoryResponse.Failure(String errorMessage)) {
+            return RichFuture.of(
+                CompletableFuture.failedFuture(new IllegalStateException(errorMessage)));
+          }
+          return RichFuture.of(CompletableFuture.failedFuture(
+              new IllegalStateException(
+                  "Unexpected response type: " + response.getClass().getName())));
+        });
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> @NotNull RichFuture<T> asRichFuture(final @NotNull Future<T> future) {
+    if (future instanceof RichFuture<?> richFuture) {
+      return (RichFuture<T>) richFuture;
+    }
+    return RichFuture.of(CompletableFuture.failedFuture(
+        new IllegalStateException("Expected RichFuture from actor ask operation.")));
   }
 }

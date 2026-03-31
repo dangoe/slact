@@ -63,12 +63,14 @@ class PromptOrchestratorActorTest {
 
       final var writeActor = container.spawn("write-actor",
           () -> new MemoryWriteActor(emptyMemoryStore()));
+      final var retrievalActor = container.spawn("retrieval-actor",
+          () -> new MemoryRetrievalActor(emptyMemoryStore()));
 
       final var orchestrator = container.spawn("orchestrator",
           () -> new PromptOrchestratorActor(
-              stubEmbeddingPort(), emptyMemoryStore(), targetModel, extractionPort, writeActor));
+              stubEmbeddingPort(), retrievalActor, targetModel, extractionPort, writeActor));
 
-      container.awaitReady(writeActor.path(), orchestrator.path());
+      container.awaitReady(retrievalActor.path(), writeActor.path(), orchestrator.path());
 
       final var eventualResponse = container.requestResponseTo(
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
@@ -95,12 +97,14 @@ class PromptOrchestratorActorTest {
 
       final var writeActor = container.spawn("write-actor-fail",
           () -> new MemoryWriteActor(emptyMemoryStore()));
+      final var retrievalActor = container.spawn("retrieval-actor-fail",
+          () -> new MemoryRetrievalActor(emptyMemoryStore()));
 
       final var orchestrator = container.spawn("orchestrator-fail",
           () -> new PromptOrchestratorActor(
-              stubEmbeddingPort(), emptyMemoryStore(), targetModel, extractionPort, writeActor));
+              stubEmbeddingPort(), retrievalActor, targetModel, extractionPort, writeActor));
 
-      container.awaitReady(writeActor.path(), orchestrator.path());
+      container.awaitReady(retrievalActor.path(), writeActor.path(), orchestrator.path());
 
       final var eventualResponse = container.requestResponseTo(
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
@@ -141,12 +145,14 @@ class PromptOrchestratorActorTest {
 
       final var writeActor = container.spawn("write-actor-merge",
           () -> new MemoryWriteActor(store));
+      final var retrievalActor = container.spawn("retrieval-actor-merge",
+          () -> new MemoryRetrievalActor(store));
 
       final var orchestrator = container.spawn("orchestrator-merge",
           () -> new PromptOrchestratorActor(
-              stubEmbeddingPort(), store, targetModel, extractionPort, writeActor));
+              stubEmbeddingPort(), retrievalActor, targetModel, extractionPort, writeActor));
 
-      container.awaitReady(writeActor.path(), orchestrator.path());
+      container.awaitReady(retrievalActor.path(), writeActor.path(), orchestrator.path());
 
       final var eventualResponse = container.requestResponseTo(
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
@@ -170,16 +176,19 @@ class PromptOrchestratorActorTest {
 
       final var extractionFuture = new CompletableFuture<List<MemoryCandidate>>();
       final var extractionPort = mock(MemoryExtractionPort.class);
-      when(extractionPort.extract(anyString(), anyString())).thenReturn(RichFuture.of(extractionFuture));
+      when(extractionPort.extract(anyString(), anyString())).thenReturn(
+          RichFuture.of(extractionFuture));
 
       final var writeActor = container.spawn("write-actor-wait",
           () -> new MemoryWriteActor(emptyMemoryStore()));
+      final var retrievalActor = container.spawn("retrieval-actor-wait",
+          () -> new MemoryRetrievalActor(emptyMemoryStore()));
 
       final var orchestrator = container.spawn("orchestrator-wait",
           () -> new PromptOrchestratorActor(
-              stubEmbeddingPort(), emptyMemoryStore(), targetModel, extractionPort, writeActor));
+              stubEmbeddingPort(), retrievalActor, targetModel, extractionPort, writeActor));
 
-      container.awaitReady(writeActor.path(), orchestrator.path());
+      container.awaitReady(retrievalActor.path(), writeActor.path(), orchestrator.path());
 
       final var eventualResponse = container.requestResponseTo(
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
@@ -210,12 +219,14 @@ class PromptOrchestratorActorTest {
 
       final var writeActor = container.spawn("write-actor-extract-fail",
           () -> new MemoryWriteActor(emptyMemoryStore()));
+      final var retrievalActor = container.spawn("retrieval-actor-extract-fail",
+          () -> new MemoryRetrievalActor(emptyMemoryStore()));
 
       final var orchestrator = container.spawn("orchestrator-extract-fail",
           () -> new PromptOrchestratorActor(
-              stubEmbeddingPort(), emptyMemoryStore(), targetModel, extractionPort, writeActor));
+              stubEmbeddingPort(), retrievalActor, targetModel, extractionPort, writeActor));
 
-      container.awaitReady(writeActor.path(), orchestrator.path());
+      container.awaitReady(retrievalActor.path(), writeActor.path(), orchestrator.path());
 
       final var eventualResponse = container.requestResponseTo(
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
@@ -248,12 +259,14 @@ class PromptOrchestratorActorTest {
 
       final var writeActor = container.spawn("write-actor-save-fail",
           () -> new MemoryWriteActor(store));
+      final var retrievalActor = container.spawn("retrieval-actor-save-fail",
+          () -> new MemoryRetrievalActor(store));
 
       final var orchestrator = container.spawn("orchestrator-save-fail",
           () -> new PromptOrchestratorActor(
-              stubEmbeddingPort(), store, targetModel, extractionPort, writeActor));
+              stubEmbeddingPort(), retrievalActor, targetModel, extractionPort, writeActor));
 
-      container.awaitReady(writeActor.path(), orchestrator.path());
+      container.awaitReady(retrievalActor.path(), writeActor.path(), orchestrator.path());
 
       final var eventualResponse = container.requestResponseTo(
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(

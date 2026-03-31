@@ -1,6 +1,7 @@
 package de.dangoe.concurrent.slact.memory.demo;
 
 import de.dangoe.concurrent.slact.core.SlactContainerBuilder;
+import de.dangoe.concurrent.slact.memory.MemoryRetrievalActor;
 import de.dangoe.concurrent.slact.memory.MemoryWriteActor;
 import de.dangoe.concurrent.slact.memory.PromptOrchestratorActor;
 import de.dangoe.concurrent.slact.memory.PromptResponse;
@@ -42,13 +43,16 @@ public final class MemoryDemoCli {
     final var memoryStore = new InMemoryMemoryStore();
 
     try (final var container = new SlactContainerBuilder().build()) {
+      final var retrievalActor = container.spawn(
+          "retrieval-actor",
+          () -> new MemoryRetrievalActor(memoryStore));
       final var writeActor = container.spawn(
           "write-actor",
           () -> new MemoryWriteActor(memoryStore));
       final var orchestrator = container.spawn(
           "orchestrator",
           () -> new PromptOrchestratorActor(
-              embeddingPort, memoryStore, targetModelPort, extractionPort, writeActor));
+              embeddingPort, retrievalActor, targetModelPort, extractionPort, writeActor));
 
       logger.info("Memory demo started.");
       logger.info(
