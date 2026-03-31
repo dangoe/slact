@@ -15,19 +15,25 @@ public sealed interface MemoryResponse
    *
    * @param memoryId the ID of the stored memory.
    */
-  record Written(@NotNull UUID memoryId) implements MemoryResponse {}
+  record Written(@NotNull UUID memoryId) implements MemoryResponse {
+
+  }
 
   /**
    * Contains the results of a memory query.
    *
    * @param entries the list of matching memory entries, ordered by similarity score.
    */
-  record QueryResult(@NotNull List<MemoryEntry> entries) implements MemoryResponse {}
+  record QueryResult(@NotNull List<MemoryEntry> entries) implements MemoryResponse {
+
+  }
 
   /**
    * Indicates that an operation failed.
    *
    * @param errorMessage a human-readable description of the failure.
    */
-  record Failure(@NotNull String errorMessage) implements MemoryResponse {}
+  record Failure(@NotNull String errorMessage) implements MemoryResponse {
+
+  }
 }

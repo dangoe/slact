@@ -8,4 +8,6 @@ import org.jetbrains.annotations.NotNull;
  * @param memory the matched memory.
  * @param score  cosine similarity score in the range [0, 1].
  */
-public record MemoryEntry(@NotNull Memory memory, @NotNull Score score) {}
+public record MemoryEntry(@NotNull Memory memory, @NotNull Score score) {
+
+}

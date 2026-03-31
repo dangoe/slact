@@ -58,13 +58,13 @@ public final class Neo4jMemoryStore implements MemoryStore {
     logger.info("Initializing Neo4jMemoryStore with embedding dimension {}", embeddingDimension);
     try (final var session = driver.session(SessionConfig.forDatabase(database))) {
       session.run("""
-              CREATE VECTOR INDEX %s IF NOT EXISTS
-              FOR (m:%s) ON (m.embedding)
-              OPTIONS {indexConfig: {
-                  `vector.dimensions`: %d,
-                  `vector.similarity_function`: 'cosine'
-              }}
-              """.formatted(INDEX_NAME, NODE_LABEL, embeddingDimension));
+          CREATE VECTOR INDEX %s IF NOT EXISTS
+          FOR (m:%s) ON (m.embedding)
+          OPTIONS {indexConfig: {
+              `vector.dimensions`: %d,
+              `vector.similarity_function`: 'cosine'
+          }}
+          """.formatted(INDEX_NAME, NODE_LABEL, embeddingDimension));
     }
     logger.info("Neo4jMemoryStore initialized.");
   }
@@ -94,11 +94,11 @@ public final class Neo4jMemoryStore implements MemoryStore {
     final var future = session
         .runAsync(
             """
-            CALL db.index.vector.queryNodes($index, $maxResults, $embedding)
-            YIELD node AS m, score
-            RETURN m.id AS id, m.content AS content, m.embedding AS embedding,
-                   m.createdAt AS createdAt, score
-            """,
+                CALL db.index.vector.queryNodes($index, $maxResults, $embedding)
+                YIELD node AS m, score
+                RETURN m.id AS id, m.content AS content, m.embedding AS embedding,
+                       m.createdAt AS createdAt, score
+                """,
             Map.of(
                 "index", INDEX_NAME,
                 "maxResults", query.maxResults(),

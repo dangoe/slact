@@ -20,3 +20,7 @@ dependencies {
 application {
     mainClass.set("de.dangoe.concurrent.slact.memory.demo.MemoryDemoCli")
 }
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
+}

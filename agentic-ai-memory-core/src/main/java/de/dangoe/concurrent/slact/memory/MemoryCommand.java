@@ -18,7 +18,9 @@ public sealed interface MemoryCommand permits MemoryCommand.WriteMemory, MemoryC
   record WriteMemory(
       @NotNull String content,
       @NotNull Embedding embedding,
-      @NotNull Map<String, String> metadata) implements MemoryCommand {}
+      @NotNull Map<String, String> metadata) implements MemoryCommand {
+
+  }
 
   /**
    * Command to query memories similar to the given embedding.
@@ -28,5 +30,7 @@ public sealed interface MemoryCommand permits MemoryCommand.WriteMemory, MemoryC
    */
   record QueryMemory(
       @NotNull Embedding embedding,
-      int maxResults) implements MemoryCommand {}
+      int maxResults) implements MemoryCommand {
+
+  }
 }

@@ -6,14 +6,14 @@ import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Represents a single memory entry with content, a pre-computed embedding vector, and
- * optional metadata.
+ * Represents a single memory entry with content, a pre-computed embedding vector, and optional
+ * metadata.
  *
- * @param id         unique identifier.
- * @param content    the raw text content of the memory.
- * @param embedding  the pre-computed embedding vector for the content.
- * @param metadata   optional key-value metadata.
- * @param createdAt  creation timestamp.
+ * @param id        unique identifier.
+ * @param content   the raw text content of the memory.
+ * @param embedding the pre-computed embedding vector for the content.
+ * @param metadata  optional key-value metadata.
+ * @param createdAt creation timestamp.
  */
 public record Memory(
     @NotNull UUID id,

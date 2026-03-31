@@ -16,9 +16,13 @@ public record Embedding(float @NotNull [] values) {
 
   @Override
   public boolean equals(final Object o) {
-    if (this == o) return true;
-    if (!(o instanceof Embedding other)) return false;
-    return Arrays.equals(values, other.values);
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof Embedding(float[] values1))) {
+      return false;
+    }
+    return Arrays.equals(values, values1);
   }
 
   @Override

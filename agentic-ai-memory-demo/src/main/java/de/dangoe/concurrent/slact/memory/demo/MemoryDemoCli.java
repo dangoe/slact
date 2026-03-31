@@ -1,13 +1,14 @@
 package de.dangoe.concurrent.slact.memory.demo;
 
 import de.dangoe.concurrent.slact.core.SlactContainerBuilder;
-import de.dangoe.concurrent.slact.memory.MemoryCommand;
 import de.dangoe.concurrent.slact.memory.MemoryWriteActor;
 import de.dangoe.concurrent.slact.memory.PromptOrchestratorActor;
 import de.dangoe.concurrent.slact.memory.PromptResponse;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +22,8 @@ public final class MemoryDemoCli {
 
   private static final Logger logger = LoggerFactory.getLogger(MemoryDemoCli.class);
   private static final long RESPONSE_TIMEOUT_SECONDS = 30L;
+  private static final String EXIT_COMMAND = "exit";
+  private static final String QUIT_COMMAND = "quit";
 
   private MemoryDemoCli() {
     // utility class
@@ -32,7 +35,7 @@ public final class MemoryDemoCli {
    * @param args command-line arguments (unused).
    * @throws Exception if startup or shutdown fails.
    */
-  public static void main(final String[] args) throws Exception {
+  public static void main(final @NotNull String[] args) throws Exception {
     final var embeddingPort = new StubEmbeddingPort();
     final var targetModelPort = new StubTargetModelPort();
     final var extractionPort = new StubMemoryExtractionPort();
@@ -47,32 +50,54 @@ public final class MemoryDemoCli {
           () -> new PromptOrchestratorActor(
               embeddingPort, memoryStore, targetModelPort, extractionPort, writeActor));
 
-      logger.info("Memory demo started. Enter prompts (Ctrl+D to exit):");
+      logger.info("Memory demo started.");
+      logger.info(
+          "Enter prompts and press Enter. Type '{}' or '{}' to stop (Ctrl+D also exits).",
+          EXIT_COMMAND, QUIT_COMMAND);
 
       final var reader = new BufferedReader(new InputStreamReader(System.in));
-      String line;
-      while ((line = reader.readLine()) != null) {
-        final var trimmed = line.trim();
-        if (trimmed.isEmpty()) {
-          continue;
-        }
-        try {
-          final var response = container.requestResponseTo(
-                  (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(trimmed))
-              .ofType(PromptResponse.class)
-              .from(orchestrator);
+      runCliLoop(reader, line -> System.out.println(line),
+          prompt -> { // NOSONAR: intentional CLI output
+            final var response = container.requestResponseTo(
+                    (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
+                        prompt))
+                .ofType(PromptResponse.class)
+                .from(orchestrator);
+            return response.get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+          });
+    }
+  }
 
-          final var result = response.get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-          switch (result) {
-            case PromptResponse.Answer answer ->
-                System.out.println("Answer: " + answer.text()); // NOSONAR: intentional CLI output
-            case PromptResponse.Failure failure ->
-                System.out.println("Error: " + failure.errorMessage()); // NOSONAR: intentional CLI output
-          }
-        } catch (final Exception e) {
-          logger.error("Failed to process prompt: {}", trimmed, e);
-        }
+  static void runCliLoop(
+      final @NotNull BufferedReader reader,
+      final @NotNull Consumer<String> output,
+      final @NotNull PromptProcessor promptProcessor) throws Exception {
+    String line;
+    while ((line = reader.readLine()) != null) {
+      final var trimmed = line.trim();
+      if (trimmed.isEmpty()) {
+        continue;
+      }
+      if (isShutdownCommand(trimmed)) {
+        logger.info("Shutdown command received. Exiting memory demo.");
+        return;
+      }
+      final var result = promptProcessor.process(trimmed);
+      switch (result) {
+        case PromptResponse.Answer answer -> output.accept("Answer: " + answer.text());
+        case PromptResponse.Failure failure -> output.accept("Error: " + failure.errorMessage());
       }
     }
+    logger.info("Input closed. Exiting memory demo.");
+  }
+
+  static boolean isShutdownCommand(final @NotNull String input) {
+    return EXIT_COMMAND.equalsIgnoreCase(input) || QUIT_COMMAND.equalsIgnoreCase(input);
+  }
+
+  @FunctionalInterface
+  interface PromptProcessor {
+
+    @NotNull PromptResponse process(@NotNull String prompt) throws Exception;
   }
 }

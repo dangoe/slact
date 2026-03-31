@@ -1,7 +1,6 @@
 package de.dangoe.concurrent.slact.memory.demo;
 
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
-import de.dangoe.concurrent.slact.memory.Embedding;
 import de.dangoe.concurrent.slact.memory.Memory;
 import de.dangoe.concurrent.slact.memory.MemoryEntry;
 import de.dangoe.concurrent.slact.memory.MemoryQuery;
@@ -32,7 +31,8 @@ final class InMemoryMemoryStore implements MemoryStore {
   public @NotNull RichFuture<List<MemoryEntry>> query(final @NotNull MemoryQuery query) {
     final var queryValues = query.embedding().values();
     final var results = memories.stream()
-        .map(m -> new MemoryEntry(m, new Score(cosineSimilarity(queryValues, m.embedding().values()))))
+        .map(m -> new MemoryEntry(m,
+            new Score(cosineSimilarity(queryValues, m.embedding().values()))))
         .sorted(Comparator.comparingDouble((MemoryEntry e) -> e.score().value()).reversed())
         .limit(query.maxResults())
         .toList();

@@ -43,7 +43,7 @@ class Neo4jMemoryStoreIT extends MemoryStoreSpec {
   @Override
   protected void cleanStore() {
     try (final var driver = createDriver();
-         final var session = driver.session()) {
+        final var session = driver.session()) {
       session.run("MATCH (n) DETACH DELETE n");
     }
   }

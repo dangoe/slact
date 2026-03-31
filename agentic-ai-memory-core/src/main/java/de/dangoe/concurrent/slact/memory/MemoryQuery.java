@@ -8,4 +8,6 @@ import org.jetbrains.annotations.NotNull;
  * @param embedding  the query embedding vector.
  * @param maxResults maximum number of results to return.
  */
-public record MemoryQuery(@NotNull Embedding embedding, int maxResults) {}
+public record MemoryQuery(@NotNull Embedding embedding, int maxResults) {
+
+}

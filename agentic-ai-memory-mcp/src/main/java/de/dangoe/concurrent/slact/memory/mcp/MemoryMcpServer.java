@@ -10,7 +10,6 @@ import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -137,8 +136,7 @@ public final class MemoryMcpServer {
   }
 
   private static float @NotNull [] toFloatArray(final @NotNull Object raw) {
-    @SuppressWarnings("unchecked")
-    final var list = (List<Number>) raw;
+    @SuppressWarnings("unchecked") final var list = (List<Number>) raw;
     final float[] array = new float[list.size()];
     for (int i = 0; i < list.size(); i++) {
       array[i] = list.get(i).floatValue();
