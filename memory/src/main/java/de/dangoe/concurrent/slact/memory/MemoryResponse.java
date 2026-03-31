@@ -5,7 +5,7 @@ import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Sealed interface for responses produced by {@link MemoryActor}.
+ * Sealed interface for responses produced by memory actors.
  */
 public sealed interface MemoryResponse
     permits MemoryResponse.Written, MemoryResponse.QueryResult, MemoryResponse.Failure {

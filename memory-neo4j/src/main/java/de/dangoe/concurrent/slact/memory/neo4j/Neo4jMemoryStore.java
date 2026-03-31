@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.jetbrains.annotations.NotNull;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.SessionConfig;
@@ -20,14 +21,6 @@ import org.neo4j.driver.async.AsyncSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link MemoryStore} implementation backed by a Neo4j graph database.
- *
- * <p>Memories are stored as {@code (:Memory)} nodes with an embedding property. A vector index
- * is created on startup to support efficient similarity queries.
- *
- * <p>Call {@link #initialize()} once before using the store to create the vector index.
- */
 public final class Neo4jMemoryStore implements MemoryStore {
 
   private static final String INDEX_NAME = "memory_embedding_idx";
@@ -37,28 +30,30 @@ public final class Neo4jMemoryStore implements MemoryStore {
   private final @NotNull Driver driver;
   private final @NotNull String database;
   private final int embeddingDimension;
+  private final double similarityThreshold;
 
-  /**
-   * Creates a new Neo4j-backed memory store.
-   *
-   * @param driver             the Neo4j driver instance.
-   * @param database           the name of the Neo4j database to use.
-   * @param embeddingDimension the dimensionality of the embedding vectors.
-   */
   public Neo4jMemoryStore(
       final @NotNull Driver driver,
       final @NotNull String database,
       final int embeddingDimension) {
+    this(driver, database, embeddingDimension, 0.0);
+  }
+
+  public Neo4jMemoryStore(
+      final @NotNull Driver driver,
+      final @NotNull String database,
+      final int embeddingDimension,
+      final double similarityThreshold) {
     this.driver = Objects.requireNonNull(driver, "Driver must not be null");
     this.database = Objects.requireNonNull(database, "Database must not be null");
     this.embeddingDimension = embeddingDimension;
+    if (similarityThreshold < 0.0 || similarityThreshold > 1.0) {
+      throw new IllegalArgumentException(
+          "Similarity threshold must be between 0.0 and 1.0, but was: " + similarityThreshold);
+    }
+    this.similarityThreshold = similarityThreshold;
   }
 
-  /**
-   * Creates the vector index in the Neo4j database if it does not already exist.
-   *
-   * <p>Must be called once before using {@link #save} or {@link #query}.
-   */
   public void initialize() {
     logger.info("Initializing Neo4jMemoryStore with embedding dimension {}", embeddingDimension);
     try (final var session = driver.session(SessionConfig.forDatabase(database))) {
@@ -76,21 +71,20 @@ public final class Neo4jMemoryStore implements MemoryStore {
 
   @Override
   public @NotNull RichFuture<UUID> save(final @NotNull Memory memory) {
-    final var session = driver.session(AsyncSession.class, SessionConfig.forDatabase(database));
-    final var future = session
-        .runAsync(
-            "CREATE (m:%s {id: $id, content: $content, embedding: $embedding, createdAt: $createdAt}) RETURN m.id AS id"
-                .formatted(NODE_LABEL),
-            Map.of(
-                "id", memory.id().toString(),
-                "content", memory.content(),
-                "embedding", toDoubleList(memory.embedding().values()),
-                "createdAt", memory.createdAt().toString()))
-        .thenCompose(cursor -> cursor.singleAsync())
-        .thenApply(record -> UUID.fromString(record.get("id").asString()))
-        .whenComplete((result, error) -> session.closeAsync())
-        .toCompletableFuture();
-    return RichFuture.of(future);
+    if (similarityThreshold > 0.0) {
+      return query(new MemoryQuery(memory.embedding(), 1))
+          .thenCompose(entries -> {
+            if (!entries.isEmpty()
+                && entries.get(0).score().value() >= similarityThreshold) {
+              logger.debug("Deduplication: reusing existing memory {} (score {})",
+                  entries.get(0).memory().id(), entries.get(0).score().value());
+              return RichFuture.of(
+                  CompletableFuture.completedFuture(entries.get(0).memory().id()));
+            }
+            return doSave(memory);
+          });
+    }
+    return doSave(memory);
   }
 
   @Override
@@ -123,6 +117,24 @@ public final class Neo4jMemoryStore implements MemoryStore {
               new Memory(id, content, new Embedding(embeddingArray), Map.of(), createdAt), score));
         }))
         .thenApply(ignored -> entries)
+        .whenComplete((result, error) -> session.closeAsync())
+        .toCompletableFuture();
+    return RichFuture.of(future);
+  }
+
+  private @NotNull RichFuture<UUID> doSave(final @NotNull Memory memory) {
+    final var session = driver.session(AsyncSession.class, SessionConfig.forDatabase(database));
+    final var future = session
+        .runAsync(
+            "CREATE (m:%s {id: $id, content: $content, embedding: $embedding, createdAt: $createdAt}) RETURN m.id AS id"
+                .formatted(NODE_LABEL),
+            Map.of(
+                "id", memory.id().toString(),
+                "content", memory.content(),
+                "embedding", toDoubleList(memory.embedding().values()),
+                "createdAt", memory.createdAt().toString()))
+        .thenCompose(cursor -> cursor.singleAsync())
+        .thenApply(record -> UUID.fromString(record.get("id").asString()))
         .whenComplete((result, error) -> session.closeAsync())
         .toCompletableFuture();
     return RichFuture.of(future);

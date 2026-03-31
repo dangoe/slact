@@ -4,7 +4,7 @@ import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Sealed interface for commands sent to {@link MemoryActor}.
+ * Sealed interface for commands sent to memory actors.
  */
 public sealed interface MemoryCommand permits MemoryCommand.WriteMemory, MemoryCommand.QueryMemory {
 

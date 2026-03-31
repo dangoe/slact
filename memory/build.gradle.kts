@@ -10,6 +10,7 @@ tasks.withType<JavaCompile> {
 
 dependencies {
     api(project(":core"))
+    implementation(libs.slf4j.api)
 
     testImplementation(project(":testkit"))
     testImplementation(libs.awaitility)
