@@ -5,7 +5,6 @@ plugins {
 
 dependencies {
     api(project(":memory"))
-    implementation(project(":core"))
-    implementation(libs.mcp)
-    implementation(libs.slf4j.api)
+    implementation(libs.junit.jupiter)
+    implementation(libs.assertj.core)
 }

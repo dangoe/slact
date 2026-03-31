@@ -2,13 +2,15 @@ package de.dangoe.concurrent.slact.memory.neo4j;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import de.dangoe.concurrent.slact.memory.Memory;
+import de.dangoe.concurrent.slact.memory.Embedding;
 import de.dangoe.concurrent.slact.memory.MemoryQuery;
-import java.util.Map;
-import org.junit.jupiter.api.BeforeAll;
+import de.dangoe.concurrent.slact.memory.MemoryStore;
+import de.dangoe.concurrent.slact.memory.testkit.MemoryStoreSpec;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.GraphDatabase;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -16,55 +18,48 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 @DisplayName("Neo4jMemoryStore")
-class Neo4jMemoryStoreIT {
+class Neo4jMemoryStoreIT extends MemoryStoreSpec {
 
   private static final int EMBEDDING_DIMENSION = 4;
 
   @Container
-  static final Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:5")
-      .withoutAuthentication();
+  private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:5");
 
-  private static Neo4jMemoryStore store;
-
-  @BeforeAll
-  static void setUp() {
-    final var driver = GraphDatabase.driver(neo4j.getBoltUrl());
-    store = new Neo4jMemoryStore(driver, "neo4j", EMBEDDING_DIMENSION);
+  @Override
+  protected @NotNull MemoryStore createStore() {
+    final var driver = GraphDatabase.driver(
+        neo4j.getBoltUrl(),
+        AuthTokens.basic("neo4j", neo4j.getAdminPassword()));
+    final var store = new Neo4jMemoryStore(driver, "neo4j", EMBEDDING_DIMENSION);
     store.initialize();
+    return store;
   }
 
-  @Nested
-  @DisplayName("save()")
-  class Save {
-
-    @Test
-    @DisplayName("when a memory is saved, then returns its id")
-    void whenSaved_thenReturnsId() {
-      final var memory = Memory.of("integration test content",
-          new float[]{0.1f, 0.2f, 0.3f, 0.4f}, Map.of());
-
-      final var id = store.save(memory).join();
-
-      assertThat(id).isEqualTo(memory.id());
+  @Override
+  protected void cleanStore() {
+    final var driver = GraphDatabase.driver(
+        neo4j.getBoltUrl(),
+        AuthTokens.basic("neo4j", neo4j.getAdminPassword()));
+    try (final var session = driver.session()) {
+      session.run("MATCH (n) DETACH DELETE n");
     }
   }
 
   @Nested
-  @DisplayName("query()")
-  class Query {
+  @DisplayName("Given an invalid embedding dimension")
+  class GivenAnInvalidEmbeddingDimension {
 
     @Test
-    @DisplayName("when queried with the same embedding, then returns an entry with a positive score")
-    void whenQueried_thenReturnsMatchingEntry() {
-      final var embedding = new float[]{0.5f, 0.5f, 0.5f, 0.5f};
-      final var memory = Memory.of("query integration test", embedding, Map.of());
-      store.save(memory).join();
+    @DisplayName("querying with wrong dimension fails")
+    void queryingWithWrongDimensionFails() {
+      final var wrongEmbedding = new Embedding(new float[]{0.1f, 0.2f});
+      final var query = new MemoryQuery(wrongEmbedding, 1);
 
-      final var query = new MemoryQuery(embedding, 1);
-      final var results = store.query(query).join();
+      final var thrown = org.assertj.core.api.Assertions.catchThrowableOfType(
+          () -> createStore().query(query).join(),
+          Exception.class);
 
-      assertThat(results).isNotEmpty();
-      assertThat(results.get(0).score()).isGreaterThan(0.0);
+      assertThat(thrown).isNotNull();
     }
   }
 }

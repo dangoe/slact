@@ -23,7 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @DisplayName("MemoryActor")
 public class MemoryActorTest {
 
-  private static final float[] EMBEDDING = new float[]{0.1f, 0.2f, 0.3f};
+  private static final Embedding EMBEDDING = new Embedding(new float[]{0.1f, 0.2f, 0.3f});
 
   @Nested
   @DisplayName("given a WriteMemory command")
@@ -49,7 +49,7 @@ public class MemoryActorTest {
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
 
-      assertThat(eventualResponse.get().memoryId()).isNotBlank();
+      assertThat(eventualResponse.get().memoryId()).isNotNull();
     }
   }
 
@@ -62,8 +62,8 @@ public class MemoryActorTest {
     void shouldRespondWithQueryResult(final @NotNull SlactTestContainer container)
         throws Exception {
 
-      final var memory = Memory.of("hello", EMBEDDING, Map.of());
-      final var entry = new MemoryEntry(memory, 0.95);
+      final var memory = Memory.of("hello", new float[]{0.1f, 0.2f, 0.3f}, Map.of());
+      final var entry = new MemoryEntry(memory, new Score(0.95));
 
       final var store = mock(MemoryStore.class);
       when(store.query(any())).thenReturn(
@@ -81,7 +81,7 @@ public class MemoryActorTest {
 
       final var result = eventualResponse.get();
       assertThat(result.entries()).hasSize(1);
-      assertThat(result.entries().get(0).score()).isEqualTo(0.95);
+      assertThat(result.entries().get(0).score().value()).isEqualTo(0.95);
       assertThat(result.entries().get(0).memory().content()).isEqualTo("hello");
     }
   }

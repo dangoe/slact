@@ -16,9 +16,9 @@ import org.jetbrains.annotations.NotNull;
  * @param createdAt  creation timestamp.
  */
 public record Memory(
-    @NotNull String id,
+    @NotNull UUID id,
     @NotNull String content,
-    float @NotNull [] embedding,
+    @NotNull Embedding embedding,
     @NotNull Map<String, String> metadata,
     @NotNull Instant createdAt) {
 
@@ -32,9 +32,24 @@ public record Memory(
    */
   public static @NotNull Memory of(
       @NotNull String content,
+      @NotNull Embedding embedding,
+      @NotNull Map<String, String> metadata) {
+    return new Memory(UUID.randomUUID(), content, embedding,
+        Map.copyOf(metadata), Instant.now());
+  }
+
+  /**
+   * Creates a new memory with a generated ID and the current timestamp.
+   *
+   * @param content   the raw text content.
+   * @param embedding the pre-computed embedding vector as a raw float array.
+   * @param metadata  optional key-value metadata.
+   * @return a new memory instance.
+   */
+  public static @NotNull Memory of(
+      @NotNull String content,
       float @NotNull [] embedding,
       @NotNull Map<String, String> metadata) {
-    return new Memory(UUID.randomUUID().toString(), content, embedding,
-        Map.copyOf(metadata), Instant.now());
+    return of(content, new Embedding(embedding), metadata);
   }
 }

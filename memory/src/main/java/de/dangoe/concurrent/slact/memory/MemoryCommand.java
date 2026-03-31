@@ -12,21 +12,21 @@ public sealed interface MemoryCommand permits MemoryCommand.WriteMemory, MemoryC
    * Command to write a new memory entry.
    *
    * @param content   the text content to remember.
-   * @param embedding the pre-computed embedding vector for the content.
+   * @param embedding the pre-computed embedding for the content.
    * @param metadata  optional key-value metadata.
    */
   record WriteMemory(
       @NotNull String content,
-      float @NotNull [] embedding,
+      @NotNull Embedding embedding,
       @NotNull Map<String, String> metadata) implements MemoryCommand {}
 
   /**
    * Command to query memories similar to the given embedding.
    *
-   * @param embedding the query embedding vector.
-   * @param topK      maximum number of results to return.
+   * @param embedding  the query embedding.
+   * @param maxResults maximum number of results to return.
    */
   record QueryMemory(
-      float @NotNull [] embedding,
-      int topK) implements MemoryCommand {}
+      @NotNull Embedding embedding,
+      int maxResults) implements MemoryCommand {}
 }

@@ -1,6 +1,7 @@
 package de.dangoe.concurrent.slact.memory;
 
 import java.util.List;
+import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -14,7 +15,7 @@ public sealed interface MemoryResponse
    *
    * @param memoryId the ID of the stored memory.
    */
-  record Written(@NotNull String memoryId) implements MemoryResponse {}
+  record Written(@NotNull UUID memoryId) implements MemoryResponse {}
 
   /**
    * Contains the results of a memory query.

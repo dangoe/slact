@@ -16,6 +16,7 @@ dependencies {
 
     testImplementation(libs.logback.classic)
 
+    integrationTestImplementation(project(":memory-testkit"))
     integrationTestImplementation(libs.testcontainers.junit.jupiter)
     integrationTestImplementation(libs.testcontainers.neo4j)
     integrationTestRuntimeOnly(libs.logback.classic)

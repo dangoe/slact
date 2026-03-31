@@ -1,15 +1,18 @@
 package de.dangoe.concurrent.slact.memory.neo4j;
 
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
+import de.dangoe.concurrent.slact.memory.Embedding;
 import de.dangoe.concurrent.slact.memory.Memory;
 import de.dangoe.concurrent.slact.memory.MemoryEntry;
 import de.dangoe.concurrent.slact.memory.MemoryQuery;
 import de.dangoe.concurrent.slact.memory.MemoryStore;
+import de.dangoe.concurrent.slact.memory.Score;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.SessionConfig;
@@ -27,9 +30,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class Neo4jMemoryStore implements MemoryStore {
 
-  private static final Logger LOG = LoggerFactory.getLogger(Neo4jMemoryStore.class);
   private static final String INDEX_NAME = "memory_embedding_idx";
   private static final String NODE_LABEL = "Memory";
+  private static final Logger logger = LoggerFactory.getLogger(Neo4jMemoryStore.class);
 
   private final @NotNull Driver driver;
   private final @NotNull String database;
@@ -57,7 +60,7 @@ public final class Neo4jMemoryStore implements MemoryStore {
    * <p>Must be called once before using {@link #save} or {@link #query}.
    */
   public void initialize() {
-    LOG.info("Initializing Neo4jMemoryStore with embedding dimension {}", embeddingDimension);
+    logger.info("Initializing Neo4jMemoryStore with embedding dimension {}", embeddingDimension);
     try (final var session = driver.session(SessionConfig.forDatabase(database))) {
       session.run("""
               CREATE VECTOR INDEX %s IF NOT EXISTS
@@ -68,23 +71,23 @@ public final class Neo4jMemoryStore implements MemoryStore {
               }}
               """.formatted(INDEX_NAME, NODE_LABEL, embeddingDimension));
     }
-    LOG.info("Neo4jMemoryStore initialized.");
+    logger.info("Neo4jMemoryStore initialized.");
   }
 
   @Override
-  public @NotNull RichFuture<String> save(final @NotNull Memory memory) {
+  public @NotNull RichFuture<UUID> save(final @NotNull Memory memory) {
     final var session = driver.session(AsyncSession.class, SessionConfig.forDatabase(database));
     final var future = session
         .runAsync(
             "CREATE (m:%s {id: $id, content: $content, embedding: $embedding, createdAt: $createdAt}) RETURN m.id AS id"
                 .formatted(NODE_LABEL),
             Map.of(
-                "id", memory.id(),
+                "id", memory.id().toString(),
                 "content", memory.content(),
-                "embedding", toDoubleList(memory.embedding()),
+                "embedding", toDoubleList(memory.embedding().values()),
                 "createdAt", memory.createdAt().toString()))
         .thenCompose(cursor -> cursor.singleAsync())
-        .thenApply(record -> record.get("id").asString())
+        .thenApply(record -> UUID.fromString(record.get("id").asString()))
         .whenComplete((result, error) -> session.closeAsync())
         .toCompletableFuture();
     return RichFuture.of(future);
@@ -93,36 +96,33 @@ public final class Neo4jMemoryStore implements MemoryStore {
   @Override
   public @NotNull RichFuture<List<MemoryEntry>> query(final @NotNull MemoryQuery query) {
     final var session = driver.session(AsyncSession.class, SessionConfig.forDatabase(database));
+    final List<MemoryEntry> entries = new ArrayList<>();
     final var future = session
         .runAsync(
             """
-            CALL db.index.vector.queryNodes($index, $topK, $embedding)
+            CALL db.index.vector.queryNodes($index, $maxResults, $embedding)
             YIELD node AS m, score
             RETURN m.id AS id, m.content AS content, m.embedding AS embedding,
                    m.createdAt AS createdAt, score
             """,
             Map.of(
                 "index", INDEX_NAME,
-                "topK", query.topK(),
-                "embedding", toDoubleList(query.embedding())))
-        .thenCompose(cursor -> cursor.listAsync())
-        .thenApply(records -> {
-          final List<MemoryEntry> entries = new ArrayList<>(records.size());
-          for (final var record : records) {
-            final var id = record.get("id").asString();
-            final var content = record.get("content").asString();
-            final var embeddingList = record.get("embedding").asList(v -> (float) v.asDouble());
-            final var createdAt = Instant.parse(record.get("createdAt").asString());
-            final var score = record.get("score").asDouble();
-            final float[] embeddingArray = new float[embeddingList.size()];
-            for (int i = 0; i < embeddingList.size(); i++) {
-              embeddingArray[i] = embeddingList.get(i);
-            }
-            entries.add(new MemoryEntry(new Memory(id, content, embeddingArray,
-                Map.of(), createdAt), score));
+                "maxResults", query.maxResults(),
+                "embedding", toDoubleList(query.embedding().values())))
+        .thenCompose(cursor -> cursor.forEachAsync(record -> {
+          final var id = UUID.fromString(record.get("id").asString());
+          final var content = record.get("content").asString();
+          final var embeddingList = record.get("embedding").asList(v -> (float) v.asDouble());
+          final var createdAt = Instant.parse(record.get("createdAt").asString());
+          final var score = new Score(record.get("score").asDouble());
+          final float[] embeddingArray = new float[embeddingList.size()];
+          for (int i = 0; i < embeddingList.size(); i++) {
+            embeddingArray[i] = embeddingList.get(i);
           }
-          return entries;
-        })
+          entries.add(new MemoryEntry(
+              new Memory(id, content, new Embedding(embeddingArray), Map.of(), createdAt), score));
+        }))
+        .thenApply(ignored -> entries)
         .whenComplete((result, error) -> session.closeAsync())
         .toCompletableFuture();
     return RichFuture.of(future);

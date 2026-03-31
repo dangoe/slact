@@ -9,10 +9,10 @@ import org.jetbrains.annotations.NotNull;
 public interface EmbeddingPort {
 
   /**
-   * Computes an embedding vector for the given text.
+   * Computes an embedding for the given text.
    *
    * @param text the input text.
-   * @return a future completing with the embedding vector.
+   * @return a future completing with the embedding.
    */
-  @NotNull RichFuture<float[]> embed(@NotNull String text);
+  @NotNull RichFuture<Embedding> embed(@NotNull String text);
 }

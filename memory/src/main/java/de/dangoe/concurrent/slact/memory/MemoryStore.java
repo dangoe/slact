@@ -2,6 +2,7 @@ package de.dangoe.concurrent.slact.memory;
 
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.util.List;
+import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -15,7 +16,7 @@ public interface MemoryStore {
    * @param memory the memory to store.
    * @return a future completing with the stored memory's ID.
    */
-  @NotNull RichFuture<String> save(@NotNull Memory memory);
+  @NotNull RichFuture<UUID> save(@NotNull Memory memory);
 
   /**
    * Queries memories similar to the given query and returns the top-K results.

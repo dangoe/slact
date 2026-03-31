@@ -43,7 +43,7 @@ public final class MemoryActor extends Actor<MemoryCommand> {
 
   private void handleQuery(final @NotNull MemoryCommand.QueryMemory cmd) {
     try {
-      final var query = new MemoryQuery(cmd.embedding(), cmd.topK());
+      final var query = new MemoryQuery(cmd.embedding(), cmd.maxResults());
       final var entries = store.query(query).join();
       respondWith(new MemoryResponse.QueryResult(entries));
     } catch (final Exception e) {
