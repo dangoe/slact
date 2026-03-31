@@ -6,7 +6,9 @@ jetbrains-annotations = "24.0.0"
 junit-jupiter = "5.10.0"
 liquibase = "4.29.2"
 logback = "1.5.27"
+mcp               = "0.9.0"
 mockito = "5.23.0"
+neo4j-java-driver = "5.26.3"
 postgresql = "42.7.4"
 slf4j = "2.0.17"
 testcontainers = "1.21.4"
@@ -19,8 +21,11 @@ jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "j
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+mcp                  = { module = "io.modelcontextprotocol.sdk:mcp",        version.ref = "mcp" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+neo4j-java-driver    = { module = "org.neo4j.driver:neo4j-java-driver",     version.ref = "neo4j-java-driver" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-neo4j = { module = "org.testcontainers:neo4j",               version.ref = "testcontainers" }
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
