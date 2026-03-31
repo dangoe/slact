@@ -101,11 +101,3 @@ All AI-generated or AI-assisted changes are reviewed manually before being accep
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
-## Branding assets
-
-A compact logo set is available in `docs/assets/logos/`:
-
-- `slact-logo-horizontal.svg` - primary lockup (wordmark + icon)
-- `slact-logo-icon.svg` - square icon for avatars/favicons
-- `slact-logo-monochrome.svg` - monochrome variant for print/dark-light constrained contexts
