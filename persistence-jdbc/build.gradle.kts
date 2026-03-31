@@ -11,7 +11,7 @@ tasks.withType<JavaCompile> {
 }
 
 dependencies {
-    api(project(":persistence"))
+    api(project(":persistence-core"))
     implementation(project(":core"))
     implementation(libs.slf4j.api)
     implementation(libs.hikaricp)

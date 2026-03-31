@@ -10,13 +10,13 @@ tasks.withType<JavaCompile> {
 }
 
 dependencies {
-    api(project(":memory"))
+    api(project(":agentic-ai-memory-core"))
     implementation(libs.neo4j.java.driver)
     implementation(libs.slf4j.api)
 
     testImplementation(libs.logback.classic)
 
-    integrationTestImplementation(project(":memory-testkit"))
+    integrationTestImplementation(project(":agentic-ai-memory-testkit"))
     integrationTestImplementation(libs.testcontainers.junit.jupiter)
     integrationTestImplementation(libs.testcontainers.neo4j)
     integrationTestRuntimeOnly(libs.logback.classic)

@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-    api(project(":memory"))
+    api(project(":agentic-ai-memory-core"))
     api(libs.junit.jupiter)
     api(libs.assertj.core)
 }

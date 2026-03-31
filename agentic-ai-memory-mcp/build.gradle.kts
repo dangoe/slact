@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-    api(project(":memory"))
+    api(project(":agentic-ai-memory-core"))
     implementation(project(":core"))
     implementation(libs.mcp)
     implementation(libs.slf4j.api)

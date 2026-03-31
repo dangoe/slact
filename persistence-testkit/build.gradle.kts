@@ -5,7 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
-    implementation(project(":persistence"))
+    implementation(project(":persistence-core"))
     implementation(project(":testkit"))
     implementation(libs.junit.jupiter)
     implementation(libs.assertj.core)

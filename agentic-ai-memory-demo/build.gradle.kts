@@ -10,8 +10,8 @@ tasks.withType<JavaCompile> {
 
 dependencies {
     implementation(project(":core"))
-    implementation(project(":memory"))
-    implementation(project(":memory-neo4j"))
+    implementation(project(":agentic-ai-memory-core"))
+    implementation(project(":agentic-ai-memory-neo4j"))
     implementation(libs.neo4j.java.driver)
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
