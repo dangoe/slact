@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.memory;
 import de.dangoe.concurrent.slact.core.Actor;
 import de.dangoe.concurrent.slact.core.ActorHandle;
 import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -120,10 +121,9 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
         embedding -> memoryStore.query(new MemoryQuery(embedding, maxMemoryResults))
             .thenCompose(memories -> {
               final var enrichedPrompt = mergeContext(promptText, memories);
-              return targetModelPort.complete(enrichedPrompt).thenApply(response -> {
-                extractAndSaveMemoriesAsync(promptText, response);
-                return (PromptResponse) new PromptResponse.Answer(response);
-              });
+              return targetModelPort.complete(enrichedPrompt)
+                  .thenCompose(response -> extractAndSaveMemoriesAsync(promptText, response)
+                      .thenApply(unused -> (PromptResponse) new PromptResponse.Answer(response)));
             })).exceptionally(e -> new PromptResponse.Failure(e.getMessage()));
   }
 
@@ -139,19 +139,26 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     return sb.append("]\n\n").append(promptText).toString();
   }
 
-  private void extractAndSaveMemoriesAsync(final @NotNull String prompt,
+  private @NotNull RichFuture<Void> extractAndSaveMemoriesAsync(final @NotNull String prompt,
       final @NotNull String response) {
-    Thread.startVirtualThread(() -> {
-      try {
-        final var candidates = memoryExtractionPort.extract(prompt, response).join();
-        for (final var candidate : candidates) {
-          final var content = candidate.subject() + ": " + candidate.fact();
-          final var embedding = embeddingPort.embed(content).join();
-          memoryWriteActor.send(new MemoryCommand.WriteMemory(content, embedding, Map.of()));
-        }
-      } catch (final Exception e) {
-        logger.warn("Memory extraction failed for prompt: {}", prompt, e);
-      }
-    });
+    return memoryExtractionPort.extract(prompt, response)
+        .thenCompose(this::saveExtractedMemories)
+        .exceptionally(e -> {
+          logger.warn("Memory extraction failed for prompt: {}", prompt, e);
+          throw new RuntimeException(e);
+        });
+  }
+
+  private @NotNull RichFuture<Void> saveExtractedMemories(
+      final @NotNull List<MemoryCandidate> candidates) {
+
+    RichFuture<Void> chain = RichFuture.of(CompletableFuture.completedFuture(null));
+    for (final var candidate : candidates) {
+      final var content = candidate.subject() + ": " + candidate.fact();
+      chain = chain.thenCompose(unused -> embeddingPort.embed(content)
+          .thenCompose(embedding -> memoryStore.save(Memory.of(content, embedding, Map.of()))
+              .thenApply(savedId -> null)));
+    }
+    return chain;
   }
 }

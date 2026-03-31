@@ -11,6 +11,7 @@ import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.testkit.Constants;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainer;
 import de.dangoe.concurrent.slact.testkit.SlactTestContainerExtension;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -156,6 +157,111 @@ class PromptOrchestratorActorTest {
 
       assertThat(capturedPrompt.get()).contains("user: name=Alice");
       assertThat(capturedPrompt.get()).contains("Who am I?");
+    }
+
+    @Test
+    @DisplayName("should wait for memory extraction completion before responding")
+    void shouldWaitForMemoryExtractionCompletion(final @NotNull SlactTestContainer container)
+        throws Exception {
+
+      final var targetModel = mock(TargetModelPort.class);
+      when(targetModel.complete(anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture("mocked answer")));
+
+      final var extractionFuture = new CompletableFuture<List<MemoryCandidate>>();
+      final var extractionPort = mock(MemoryExtractionPort.class);
+      when(extractionPort.extract(anyString(), anyString())).thenReturn(RichFuture.of(extractionFuture));
+
+      final var writeActor = container.spawn("write-actor-wait",
+          () -> new MemoryWriteActor(emptyMemoryStore()));
+
+      final var orchestrator = container.spawn("orchestrator-wait",
+          () -> new PromptOrchestratorActor(
+              stubEmbeddingPort(), emptyMemoryStore(), targetModel, extractionPort, writeActor));
+
+      container.awaitReady(writeActor.path(), orchestrator.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
+                  "hello"))
+          .ofType(PromptResponse.Answer.class).from(orchestrator);
+
+      await().during(Duration.ofMillis(200)).atMost(Constants.DEFAULT_TIMEOUT)
+          .untilAsserted(() -> assertThat(eventualResponse.isDone()).isFalse());
+
+      extractionFuture.complete(List.of());
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+      assertThat(eventualResponse.get().text()).isEqualTo("mocked answer");
+    }
+
+    @Test
+    @DisplayName("should respond with Failure when memory extraction fails")
+    void shouldRespondWithFailureWhenExtractionFails(final @NotNull SlactTestContainer container)
+        throws Exception {
+
+      final var targetModel = mock(TargetModelPort.class);
+      when(targetModel.complete(anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture("mocked answer")));
+
+      final var extractionPort = mock(MemoryExtractionPort.class);
+      when(extractionPort.extract(anyString(), anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.failedFuture(new RuntimeException("extract error"))));
+
+      final var writeActor = container.spawn("write-actor-extract-fail",
+          () -> new MemoryWriteActor(emptyMemoryStore()));
+
+      final var orchestrator = container.spawn("orchestrator-extract-fail",
+          () -> new PromptOrchestratorActor(
+              stubEmbeddingPort(), emptyMemoryStore(), targetModel, extractionPort, writeActor));
+
+      container.awaitReady(writeActor.path(), orchestrator.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
+                  "hello"))
+          .ofType(PromptResponse.Failure.class).from(orchestrator);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+      assertThat(eventualResponse.get().errorMessage()).contains("extract error");
+    }
+
+    @Test
+    @DisplayName("should respond with Failure when saving an extracted memory fails")
+    void shouldRespondWithFailureWhenSavingExtractedMemoryFails(
+        final @NotNull SlactTestContainer container) throws Exception {
+
+      final var targetModel = mock(TargetModelPort.class);
+      when(targetModel.complete(anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture("mocked answer")));
+
+      final var extractionPort = mock(MemoryExtractionPort.class);
+      when(extractionPort.extract(anyString(), anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(
+              List.of(new MemoryCandidate("user", "name=Alice")))));
+
+      final var store = mock(MemoryStore.class);
+      when(store.query(any())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(List.of())));
+      when(store.save(any())).thenReturn(
+          RichFuture.of(CompletableFuture.failedFuture(new RuntimeException("save error"))));
+
+      final var writeActor = container.spawn("write-actor-save-fail",
+          () -> new MemoryWriteActor(store));
+
+      final var orchestrator = container.spawn("orchestrator-save-fail",
+          () -> new PromptOrchestratorActor(
+              stubEmbeddingPort(), store, targetModel, extractionPort, writeActor));
+
+      container.awaitReady(writeActor.path(), orchestrator.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
+                  "hello"))
+          .ofType(PromptResponse.Failure.class).from(orchestrator);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+      assertThat(eventualResponse.get().errorMessage()).contains("save error");
     }
   }
 }
