@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">slact icon logo</title>
+  <desc id="desc">A sleek actor nucleus with intersecting orbital rings.</desc>
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#30C9FF"/>
+      <stop offset="100%" stop-color="#7B61FF"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7B61FF"/>
+      <stop offset="100%" stop-color="#22E3A0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="88" fill="#0E1221"/>
+
+  <g transform="translate(256,256)">
+    <ellipse cx="0" cy="0" rx="166" ry="72" fill="none" stroke="url(#g1)" stroke-width="24" transform="rotate(-24)"/>
+    <ellipse cx="0" cy="0" rx="166" ry="72" fill="none" stroke="url(#g2)" stroke-width="24" transform="rotate(24)"/>
+    <ellipse cx="0" cy="0" rx="166" ry="72" fill="none" stroke="#2D3558" stroke-width="12" transform="rotate(90)"/>
+
+    <circle cx="0" cy="0" r="42" fill="url(#g1)"/>
+
+    <circle cx="144" cy="-66" r="18" fill="#30C9FF"/>
+    <circle cx="-140" cy="48" r="18" fill="#7B61FF"/>
+    <circle cx="16" cy="-150" r="18" fill="#22E3A0"/>
+  </g>
+</svg>

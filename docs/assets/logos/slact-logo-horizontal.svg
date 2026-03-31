@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">slact project logo</title>
+  <desc id="desc">A sleek orbital actor icon with slact wordmark.</desc>
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#30C9FF"/>
+      <stop offset="100%" stop-color="#7B61FF"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7B61FF"/>
+      <stop offset="100%" stop-color="#22E3A0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#101425" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="240" rx="28" fill="#0E1221"/>
+
+  <g transform="translate(120,120)" filter="url(#soft)">
+    <ellipse cx="0" cy="0" rx="78" ry="34" fill="none" stroke="url(#g1)" stroke-width="12" transform="rotate(-22)"/>
+    <ellipse cx="0" cy="0" rx="78" ry="34" fill="none" stroke="url(#g2)" stroke-width="12" transform="rotate(22)"/>
+    <ellipse cx="0" cy="0" rx="78" ry="34" fill="none" stroke="#2D3558" stroke-width="6" transform="rotate(90)"/>
+
+    <circle cx="0" cy="0" r="20" fill="url(#g1)"/>
+
+    <circle cx="68" cy="-30" r="10" fill="#30C9FF"/>
+    <circle cx="-66" cy="22" r="10" fill="#7B61FF"/>
+    <circle cx="8" cy="-71" r="10" fill="#22E3A0"/>
+  </g>
+
+  <g transform="translate(250,0)">
+    <text x="0" y="146" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="104" font-weight="700" fill="#EAF1FF" letter-spacing="1.5">slact</text>
+    <rect x="3" y="165" width="270" height="8" rx="4" fill="url(#g1)"/>
+    <text x="3" y="198" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="500" fill="#9FB2DE" letter-spacing="3">SLEEK ACTOR SYSTEM</text>
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240" role="img" aria-labelledby="title desc">
+  <title id="title">slact monochrome logo</title>
+  <desc id="desc">Monochrome logo variant of slact with actor orbit symbol.</desc>
+
+  <rect width="900" height="240" rx="24" fill="#111111"/>
+
+  <g transform="translate(120,120)">
+    <ellipse cx="0" cy="0" rx="78" ry="34" fill="none" stroke="#DCDCDC" stroke-width="10" transform="rotate(-22)"/>
+    <ellipse cx="0" cy="0" rx="78" ry="34" fill="none" stroke="#BEBEBE" stroke-width="10" transform="rotate(22)"/>
+    <ellipse cx="0" cy="0" rx="78" ry="34" fill="none" stroke="#8C8C8C" stroke-width="6" transform="rotate(90)"/>
+    <circle cx="0" cy="0" r="18" fill="#F0F0F0"/>
+    <circle cx="68" cy="-30" r="9" fill="#DCDCDC"/>
+    <circle cx="-66" cy="22" r="9" fill="#BEBEBE"/>
+    <circle cx="8" cy="-71" r="9" fill="#9E9E9E"/>
+  </g>
+
+  <text x="250" y="146" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="104" font-weight="700" fill="#F0F0F0" letter-spacing="1.5">slact</text>
+  <text x="254" y="198" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="500" fill="#BEBEBE" letter-spacing="3">SLEEK ACTOR SYSTEM</text>
+</svg>
