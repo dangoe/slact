@@ -8,4 +8,6 @@ dependencies {
     implementation(project(":core"))
     implementation(libs.mcp)
     implementation(libs.slf4j.api)
+
+    testImplementation(project(":core"))
 }

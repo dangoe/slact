@@ -1,9 +1,11 @@
 package de.dangoe.concurrent.slact.ai.memory.mcp;
 
 import de.dangoe.concurrent.slact.ai.memory.Embedding;
+import de.dangoe.concurrent.slact.ai.memory.EmbeddingPort;
 import de.dangoe.concurrent.slact.ai.memory.MemoryEntry;
 import de.dangoe.concurrent.slact.ai.memory.MemoryQuery;
 import de.dangoe.concurrent.slact.ai.memory.MemoryStore;
+import de.dangoe.concurrent.slact.ai.memory.PromptResponse;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
@@ -18,46 +20,62 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * MCP server that exposes memory read and write operations as tools.
+ * MCP server that exposes memory query and prompt orchestration as tools.
  *
- * <p>Wraps a {@link MemoryStore} and exposes two tools:
+ * <p>Provides two tools:
  * <ul>
- *   <li>{@code write_memory} — stores text content with its pre-computed embedding.</li>
- *   <li>{@code query_memory} — retrieves similar memories for a given embedding.</li>
+ *   <li>{@code query_memory} — retrieves similar memories for a given text criteria. The criteria
+ *       is embedded internally via the {@link EmbeddingPort}.</li>
+ *   <li>{@code process_prompt} — sends a prompt through the full orchestration pipeline and
+ *       returns the answer.</li>
  * </ul>
  */
 public final class MemoryMcpServer {
 
-  private static final Logger logger = LoggerFactory.getLogger(MemoryMcpServer.class);
+  private static final String TOOL_QUERY_MEMORY = "query_memory";
+  private static final String TOOL_PROCESS_PROMPT = "process_prompt";
+  private static final int DEFAULT_MAX_RESULTS = 5;
 
-  private static final McpSchema.JsonSchema WRITE_MEMORY_SCHEMA = new McpSchema.JsonSchema(
-      "object",
-      Map.of(
-          "content", Map.of("type", "string", "description", "Text content to remember"),
-          "embedding", Map.of("type", "array", "items", Map.of("type", "number"),
-              "description", "Pre-computed embedding vector")),
-      List.of("content", "embedding"),
-      null, null, null);
+  private static final Logger logger = LoggerFactory.getLogger(MemoryMcpServer.class);
 
   private static final McpSchema.JsonSchema QUERY_MEMORY_SCHEMA = new McpSchema.JsonSchema(
       "object",
       Map.of(
-          "embedding", Map.of("type", "array", "items", Map.of("type", "number"),
-              "description", "Query embedding vector"),
+          "criteria", Map.of("type", "string",
+              "description", "Text criteria for finding similar memories"),
           "maxResults", Map.of("type", "integer",
-              "description", "Maximum number of results to return")),
-      List.of("embedding", "maxResults"),
+              "description", "Maximum number of results to return (default: "
+                  + DEFAULT_MAX_RESULTS + ")")),
+      List.of("criteria"),
       null, null, null);
 
-  private final @NotNull MemoryStore store;
+  private static final McpSchema.JsonSchema PROCESS_PROMPT_SCHEMA = new McpSchema.JsonSchema(
+      "object",
+      Map.of(
+          "prompt", Map.of("type", "string",
+              "description", "The prompt to process through the AI memory pipeline")),
+      List.of("prompt"),
+      null, null, null);
+
+  private final @NotNull EmbeddingPort embeddingPort;
+  private final @NotNull MemoryStore memoryStore;
+  private final @NotNull PromptHandler promptHandler;
 
   /**
    * Creates a new {@link MemoryMcpServer}.
    *
-   * @param store the memory store to delegate operations to.
+   * @param embeddingPort the port used to embed query criteria; must not be {@code null}.
+   * @param memoryStore   the memory store used for similarity queries; must not be {@code null}.
+   * @param promptHandler the handler that processes prompts via the orchestration pipeline;
+   *                      must not be {@code null}.
    */
-  public MemoryMcpServer(final @NotNull MemoryStore store) {
-    this.store = Objects.requireNonNull(store, "Memory store must not be null");
+  public MemoryMcpServer(
+      final @NotNull EmbeddingPort embeddingPort,
+      final @NotNull MemoryStore memoryStore,
+      final @NotNull PromptHandler promptHandler) {
+    this.embeddingPort = Objects.requireNonNull(embeddingPort, "EmbeddingPort must not be null");
+    this.memoryStore = Objects.requireNonNull(memoryStore, "Memory store must not be null");
+    this.promptHandler = Objects.requireNonNull(promptHandler, "PromptHandler must not be null");
   }
 
   /**
@@ -71,57 +89,40 @@ public final class MemoryMcpServer {
         .serverInfo("memory-mcp", "1.0.0")
         .toolCall(
             McpSchema.Tool.builder()
-                .name("write_memory")
-                .description("Stores a memory entry with its pre-computed embedding vector")
-                .inputSchema(WRITE_MEMORY_SCHEMA)
-                .build(),
-            this::handleWriteMemory)
-        .toolCall(
-            McpSchema.Tool.builder()
-                .name("query_memory")
-                .description("Queries similar memories for a given embedding vector")
+                .name(TOOL_QUERY_MEMORY)
+                .description(
+                    "Queries memories similar to the given text criteria. "
+                        + "The criteria is embedded internally.")
                 .inputSchema(QUERY_MEMORY_SCHEMA)
                 .build(),
             this::handleQueryMemory)
+        .toolCall(
+            McpSchema.Tool.builder()
+                .name(TOOL_PROCESS_PROMPT)
+                .description(
+                    "Sends a prompt through the full AI memory pipeline and returns the answer. "
+                        + "Relevant memories are retrieved and injected into the context "
+                        + "automatically.")
+                .inputSchema(PROCESS_PROMPT_SCHEMA)
+                .build(),
+            this::handleProcessPrompt)
         .build();
 
     logger.info("MemoryMcpServer started.");
   }
 
-  private @NotNull CallToolResult handleWriteMemory(
+  @NotNull CallToolResult handleQueryMemory(
       final @NotNull McpSyncServerExchange exchange,
       final @NotNull McpSchema.CallToolRequest request) {
     try {
       final var args = request.arguments();
-      final var content = (String) args.get("content");
-      final var embedding = toFloatArray(args.get("embedding"));
+      final var criteria = (String) args.get("criteria");
+      final var maxResults = args.containsKey("maxResults")
+          ? ((Number) args.get("maxResults")).intValue()
+          : DEFAULT_MAX_RESULTS;
 
-      final var memory = de.dangoe.concurrent.slact.ai.memory.Memory.of(
-          content, embedding, Map.of());
-      final var id = store.save(memory).join();
-
-      return CallToolResult.builder()
-          .addTextContent("Memory stored with id: " + id)
-          .build();
-    } catch (final Exception e) {
-      logger.error("Failed to write memory", e);
-      return CallToolResult.builder()
-          .addTextContent("Error: " + e.getMessage())
-          .isError(true)
-          .build();
-    }
-  }
-
-  private @NotNull CallToolResult handleQueryMemory(
-      final @NotNull McpSyncServerExchange exchange,
-      final @NotNull McpSchema.CallToolRequest request) {
-    try {
-      final var args = request.arguments();
-      final var embedding = toFloatArray(args.get("embedding"));
-      final var maxResults = ((Number) args.get("maxResults")).intValue();
-
-      final var results = store.query(
-          new MemoryQuery(new Embedding(embedding), maxResults)).join();
+      final Embedding embedding = embeddingPort.embed(criteria).join();
+      final var results = memoryStore.query(new MemoryQuery(embedding, maxResults)).join();
 
       return CallToolResult.builder()
           .addTextContent(formatResults(results))
@@ -135,13 +136,30 @@ public final class MemoryMcpServer {
     }
   }
 
-  private static float @NotNull [] toFloatArray(final @NotNull Object raw) {
-    @SuppressWarnings("unchecked") final var list = (List<Number>) raw;
-    final float[] array = new float[list.size()];
-    for (int i = 0; i < list.size(); i++) {
-      array[i] = list.get(i).floatValue();
+  @NotNull CallToolResult handleProcessPrompt(
+      final @NotNull McpSyncServerExchange exchange,
+      final @NotNull McpSchema.CallToolRequest request) {
+    try {
+      final var args = request.arguments();
+      final var prompt = (String) args.get("prompt");
+
+      final var response = promptHandler.process(prompt);
+      return switch (response) {
+        case PromptResponse.Answer answer -> CallToolResult.builder()
+            .addTextContent(answer.text())
+            .build();
+        case PromptResponse.Failure failure -> CallToolResult.builder()
+            .addTextContent("Error: " + failure.errorMessage())
+            .isError(true)
+            .build();
+      };
+    } catch (final Exception e) {
+      logger.error("Failed to process prompt", e);
+      return CallToolResult.builder()
+          .addTextContent("Error: " + e.getMessage())
+          .isError(true)
+          .build();
     }
-    return array;
   }
 
   private static @NotNull String formatResults(final @NotNull List<MemoryEntry> entries) {
@@ -154,5 +172,21 @@ public final class MemoryMcpServer {
           .append(entry.memory().content()).append('\n');
     }
     return sb.toString();
+  }
+
+  /**
+   * Handles processing of a prompt via the orchestration pipeline.
+   */
+  @FunctionalInterface
+  public interface PromptHandler {
+
+    /**
+     * Processes the given prompt and returns the result.
+     *
+     * @param prompt the prompt text.
+     * @return the response from the pipeline.
+     * @throws Exception if processing fails.
+     */
+    @NotNull PromptResponse process(@NotNull String prompt) throws Exception;
   }
 }
