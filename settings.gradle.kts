@@ -6,11 +6,11 @@ include(
     "persistence-core",
     "persistence-jdbc",
     "persistence-testkit",
-    "agentic-ai-memory-core",
-    "agentic-ai-memory-neo4j",
-    "agentic-ai-memory-mcp",
-    "agentic-ai-memory-testkit",
-    "agentic-ai-memory-demo"
+    "ai-memory-core",
+    "ai-memory-neo4j",
+    "ai-memory-mcp",
+    "ai-memory-testkit",
+    "ai-memory-demo"
 )
 
 project(":core").name = "core"
@@ -18,11 +18,11 @@ project(":testkit").name = "testkit"
 project(":persistence-core").name = "persistence-core"
 project(":persistence-jdbc").name = "persistence-jdbc"
 project(":persistence-testkit").name = "persistence-testkit"
-project(":agentic-ai-memory-core").name = "agentic-ai-memory-core"
-project(":agentic-ai-memory-neo4j").name = "agentic-ai-memory-neo4j"
-project(":agentic-ai-memory-mcp").name = "agentic-ai-memory-mcp"
-project(":agentic-ai-memory-testkit").name = "agentic-ai-memory-testkit"
-project(":agentic-ai-memory-demo").name = "agentic-ai-memory-demo"
+project(":ai-memory-core").name = "ai-memory-core"
+project(":ai-memory-neo4j").name = "ai-memory-neo4j"
+project(":ai-memory-mcp").name = "ai-memory-mcp"
+project(":ai-memory-testkit").name = "ai-memory-testkit"
+project(":ai-memory-demo").name = "ai-memory-demo"
 
 pluginManagement {
     includeBuild("build-logic")
