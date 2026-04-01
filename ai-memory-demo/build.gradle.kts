@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":ai-memory-core"))
     implementation(project(":ai-memory-neo4j"))
+    implementation(project(":ai-memory-embedding-ollama"))
     implementation(libs.neo4j.java.driver)
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)

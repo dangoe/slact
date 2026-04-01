@@ -2,6 +2,7 @@
 assertj-core = "3.26.3"
 awaitility = "4.2.2"
 hikaricp = "5.1.0"
+jackson = "2.18.3"
 jetbrains-annotations = "24.0.0"
 junit-jupiter = "5.10.0"
 liquibase = "4.29.2"
@@ -17,6 +18,7 @@ testcontainers = "1.21.4"
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj-core" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
