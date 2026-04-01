@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
@@ -90,6 +92,100 @@ class PromptOrchestratorActorTest {
     }
 
     @Test
+    @DisplayName("should process pipeline when embedding completes asynchronously")
+    void shouldProcessPipelineWhenEmbeddingCompletesAsynchronously(
+        final @NotNull SlactTestContainer container) throws Exception {
+
+      final var embeddingFuture = new CompletableFuture<Embedding>();
+      final var completedOnExternalThread = new AtomicBoolean(false);
+      final var embeddingPort = mock(EmbeddingPort.class);
+      when(embeddingPort.embed(anyString())).thenReturn(RichFuture.of(embeddingFuture));
+
+      final var targetModel = mock(TargetModelPort.class);
+      when(targetModel.complete(anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture("mocked answer")));
+
+      final var extractionPort = mock(MemoryExtractionPort.class);
+      when(extractionPort.extract(anyString(), anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(List.of())));
+
+      final var memoryActor = container.spawn("memory-actor-async-embedding",
+          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
+      final var contextMergeActor = container.spawn("context-merge-actor-async-embedding",
+          ContextMergeActor::new);
+      final var llmCallActor = container.spawn("llm-call-actor-async-embedding",
+          () -> new LlmCallActor(targetModel));
+
+      final var orchestrator = container.spawn("orchestrator-async-embedding",
+          () -> new PromptOrchestratorActor(embeddingPort, memoryActor, contextMergeActor,
+              llmCallActor, extractionPort));
+
+      container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
+          orchestrator.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process("hello"))
+          .ofType(PromptResponse.Answer.class).from(orchestrator);
+
+      try (final var executor = Executors.newSingleThreadExecutor(r -> {
+        final var thread = new Thread(r);
+        thread.setName("embedding-completer-external");
+        return thread;
+      })) {
+        executor.execute(() -> {
+          completedOnExternalThread.set(Thread.currentThread().getName()
+              .startsWith("embedding-completer-external"));
+          embeddingFuture.complete(EMBEDDING);
+        });
+      }
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+      assertThat(completedOnExternalThread.get()).isTrue();
+      assertThat(eventualResponse.get().text()).isEqualTo("mocked answer");
+    }
+
+    @Test
+    @DisplayName("should respond with Failure when embedding fails asynchronously")
+    void shouldRespondWithFailureWhenEmbeddingFailsAsynchronously(
+        final @NotNull SlactTestContainer container) throws Exception {
+
+      final var embeddingFuture = new CompletableFuture<Embedding>();
+      final var embeddingPort = mock(EmbeddingPort.class);
+      when(embeddingPort.embed(anyString())).thenReturn(RichFuture.of(embeddingFuture));
+
+      final var targetModel = mock(TargetModelPort.class);
+      final var extractionPort = mock(MemoryExtractionPort.class);
+      when(extractionPort.extract(anyString(), anyString())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(List.of())));
+
+      final var memoryActor = container.spawn("memory-actor-async-embedding-fail",
+          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
+      final var contextMergeActor = container.spawn("context-merge-actor-async-embedding-fail",
+          ContextMergeActor::new);
+      final var llmCallActor = container.spawn("llm-call-actor-async-embedding-fail",
+          () -> new LlmCallActor(targetModel));
+
+      final var orchestrator = container.spawn("orchestrator-async-embedding-fail",
+          () -> new PromptOrchestratorActor(embeddingPort, memoryActor, contextMergeActor,
+              llmCallActor, extractionPort));
+
+      container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
+          orchestrator.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process("hello"))
+          .ofType(PromptResponse.Failure.class).from(orchestrator);
+
+      try (final var executor = Executors.newSingleThreadExecutor()) {
+        executor.execute(() -> embeddingFuture.completeExceptionally(
+            new RuntimeException("embedding error")));
+      }
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+      assertThat(eventualResponse.get().errorMessage()).contains("embedding error");
+    }
+
+    @Test
     @DisplayName("should respond with Failure when the target model throws")
     void shouldRespondWithFailureWhenTargetModelThrows(final @NotNull SlactTestContainer container)
         throws Exception {
@@ -122,7 +218,8 @@ class PromptOrchestratorActorTest {
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
 
-      assertThat(eventualResponse.get().errorMessage()).contains("model error");
+      assertThat(eventualResponse.get().errorMessage()).isEqualTo("LLM call failed");
+      assertThat(eventualResponse.get().cause().getMessage()).contains("model error");
     }
 
     @Test
