@@ -154,4 +154,61 @@ class MemoryActorTest {
       assertThat(eventualResponse.get().errorMessage()).contains("simulated query failure");
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Forget
+  // -------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("given a Forget command")
+  class GivenAForgetCommand {
+
+    @Test
+    @DisplayName("should respond with Forgotten containing the memory ID")
+    void shouldRespondWithForgotten(final @NotNull SlactTestContainer container) throws Exception {
+
+      final var targetId = UUID.randomUUID();
+      final var store = mock(MemoryStore.class);
+      when(store.delete(targetId)).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(null)));
+
+      final var strategy = mock(MemorizationStrategy.class);
+      final var actor = container.spawn("memory-actor-forget",
+          () -> new MemoryActor(store, strategy));
+      container.awaitReady(actor.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (MemoryCommand) new MemoryCommand.Forget(targetId))
+          .ofType(MemoryResponse.Forgotten.class).from(actor);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+
+      assertThat(eventualResponse.get().memoryId()).isEqualTo(targetId);
+    }
+
+    @Test
+    @DisplayName("should respond with Failure when delete throws")
+    void shouldRespondWithFailureOnDeleteError(final @NotNull SlactTestContainer container)
+        throws Exception {
+
+      final var targetId = UUID.randomUUID();
+      final var store = mock(MemoryStore.class);
+      when(store.delete(targetId)).thenReturn(
+          RichFuture.of(CompletableFuture.failedFuture(
+              new RuntimeException("simulated delete failure"))));
+
+      final var strategy = mock(MemorizationStrategy.class);
+      final var actor = container.spawn("memory-actor-forget-fail",
+          () -> new MemoryActor(store, strategy));
+      container.awaitReady(actor.path());
+
+      final var eventualResponse = container.requestResponseTo(
+              (MemoryCommand) new MemoryCommand.Forget(targetId))
+          .ofType(MemoryResponse.Failure.class).from(actor);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
+
+      assertThat(eventualResponse.get().errorMessage()).contains("simulated delete failure");
+    }
+  }
 }

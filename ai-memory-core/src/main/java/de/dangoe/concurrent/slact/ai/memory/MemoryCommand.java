@@ -1,12 +1,14 @@
 package de.dangoe.concurrent.slact.ai.memory;
 
 import java.util.Map;
+import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Sealed interface for commands sent to memory actors.
  */
-public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryCommand.Query {
+public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryCommand.Query,
+    MemoryCommand.Forget {
 
   /**
    * Command to memorize a new memory entry.
@@ -33,6 +35,16 @@ public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryComm
   record Query(
       @NotNull Embedding embedding,
       int maxResults) implements MemoryCommand {
+
+  }
+
+  /**
+   * Command to delete a memory entry by its ID.
+   *
+   * @param memoryId the ID of the memory to delete.
+   */
+  record Forget(
+      @NotNull UUID memoryId) implements MemoryCommand {
 
   }
 }

@@ -122,6 +122,20 @@ public final class Neo4jMemoryStore implements MemoryStore {
     return RichFuture.of(future);
   }
 
+  @Override
+  public @NotNull RichFuture<Void> delete(final @NotNull UUID id) {
+    final var session = driver.session(AsyncSession.class, SessionConfig.forDatabase(database));
+    final var future = session
+        .runAsync(
+            "MATCH (m:%s {id: $id}) DELETE m".formatted(NODE_LABEL),
+            Map.of("id", id.toString()))
+        .thenCompose(cursor -> cursor.consumeAsync())
+        .thenApply(ignored -> (Void) null)
+        .whenComplete((result, error) -> session.closeAsync())
+        .toCompletableFuture();
+    return RichFuture.of(future);
+  }
+
   private @NotNull RichFuture<UUID> doSave(final @NotNull Memory memory) {
     final var session = driver.session(AsyncSession.class, SessionConfig.forDatabase(database));
     final var future = session

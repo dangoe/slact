@@ -8,7 +8,8 @@ import org.jetbrains.annotations.NotNull;
  * Sealed interface for responses produced by memory actors.
  */
 public sealed interface MemoryResponse
-    permits MemoryResponse.Written, MemoryResponse.QueryResult, MemoryResponse.Failure {
+    permits MemoryResponse.Written, MemoryResponse.QueryResult, MemoryResponse.Forgotten,
+    MemoryResponse.Failure {
 
   /**
    * Confirms that a memory was successfully written.
@@ -25,6 +26,15 @@ public sealed interface MemoryResponse
    * @param entries the list of matching memory entries, ordered by similarity score.
    */
   record QueryResult(@NotNull List<MemoryEntry> entries) implements MemoryResponse {
+
+  }
+
+  /**
+   * Confirms that a memory was successfully deleted.
+   *
+   * @param memoryId the ID of the deleted memory.
+   */
+  record Forgotten(@NotNull UUID memoryId) implements MemoryResponse {
 
   }
 

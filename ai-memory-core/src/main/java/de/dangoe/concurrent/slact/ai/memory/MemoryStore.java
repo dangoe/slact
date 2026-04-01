@@ -25,4 +25,15 @@ public interface MemoryStore {
    * @return a future completing with the ordered list of matching memory entries.
    */
   @NotNull RichFuture<List<MemoryEntry>> query(@NotNull MemoryQuery query);
+
+  /**
+   * Deletes the memory with the given ID.
+   *
+   * <p>If no memory with the given ID exists, the returned future completes normally without
+   * any error.
+   *
+   * @param id the ID of the memory to delete.
+   * @return a future that completes when the memory has been deleted.
+   */
+  @NotNull RichFuture<Void> delete(@NotNull UUID id);
 }

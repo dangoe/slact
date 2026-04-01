@@ -18,6 +18,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -169,6 +170,50 @@ class MemoryMcpServerTest {
     }
   }
 
+  @Nested
+  @DisplayName("given a delete_memory call")
+  class GivenADeleteMemoryCall {
+
+    @Test
+    @DisplayName("should return confirmation message when deletion succeeds")
+    void shouldReturnConfirmationMessageWhenDeletionSucceeds() throws Exception {
+      final var id = UUID.randomUUID();
+      when(memoryStore.delete(id))
+          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(null)));
+
+      final var result = invokeDeleteMemory(id.toString());
+
+      assertThat(result.isError()).isNotEqualTo(true);
+      assertThat(((McpSchema.TextContent) result.content().get(0)).text())
+          .contains(id.toString());
+    }
+
+    @Test
+    @DisplayName("should return error result when memory store delete throws")
+    void shouldReturnErrorResultWhenMemoryStoreDeleteThrows() throws Exception {
+      final var id = UUID.randomUUID();
+      when(memoryStore.delete(id))
+          .thenReturn(RichFuture.of(
+              CompletableFuture.failedFuture(new RuntimeException("delete error"))));
+
+      final var result = invokeDeleteMemory(id.toString());
+
+      assertThat(result.isError()).isTrue();
+      assertThat(((McpSchema.TextContent) result.content().get(0)).text())
+          .contains("delete error");
+    }
+
+    @Test
+    @DisplayName("should return error result when UUID format is invalid")
+    void shouldReturnErrorResultWhenUuidFormatIsInvalid() {
+      final var result = invokeDeleteMemory("not-a-uuid");
+
+      assertThat(result.isError()).isTrue();
+      assertThat(((McpSchema.TextContent) result.content().get(0)).text())
+          .contains("invalid UUID format");
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
@@ -181,6 +226,11 @@ class MemoryMcpServerTest {
       args.put("maxResults", maxResults);
     }
     return server.handleQueryMemory(null, new McpSchema.CallToolRequest("query_memory", args));
+  }
+
+  private McpSchema.CallToolResult invokeDeleteMemory(final String id) {
+    return server.handleDeleteMemory(null,
+        new McpSchema.CallToolRequest("delete_memory", Map.of("id", id)));
   }
 
   private McpSchema.CallToolResult invokeProcessPrompt(final String prompt) throws Exception {

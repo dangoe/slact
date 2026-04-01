@@ -7,6 +7,7 @@ import de.dangoe.concurrent.slact.ai.memory.Memory;
 import de.dangoe.concurrent.slact.ai.memory.MemoryQuery;
 import de.dangoe.concurrent.slact.ai.memory.MemoryStore;
 import java.util.Map;
+import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,6 +102,41 @@ public abstract class MemoryStoreSpec {
       final var results = store.query(new MemoryQuery(EMBEDDING, 5)).join();
 
       assertThat(results).isEmpty();
+    }
+
+    @Test
+    @DisplayName("deleting a non-existent ID completes without error")
+    void deletingNonExistentIdCompletesWithoutError() {
+      assertThat(store.delete(UUID.randomUUID()).join()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Given a saved memory is deleted")
+  class GivenASavedMemoryIsDeleted {
+
+    private static final Embedding EMBEDDING = new Embedding(new float[]{0.1f, 0.2f, 0.3f, 0.4f});
+
+    @Test
+    @DisplayName("querying with the same embedding returns no results")
+    void queryingAfterDeleteReturnsNoResults() {
+      final var memory = Memory.of("to be deleted", EMBEDDING.values(), Map.of());
+      store.save(memory).join();
+
+      store.delete(memory.id()).join();
+
+      final var results = store.query(new MemoryQuery(EMBEDDING, 5)).join();
+      assertThat(results).extracting(e -> e.memory().id())
+          .doesNotContain(memory.id());
+    }
+
+    @Test
+    @DisplayName("delete returns null (Void) on success")
+    void deleteReturnsNullOnSuccess() {
+      final var memory = Memory.of("delete me", EMBEDDING.values(), Map.of());
+      store.save(memory).join();
+
+      assertThat(store.delete(memory.id()).join()).isNull();
     }
   }
 }

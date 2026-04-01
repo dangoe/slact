@@ -28,6 +28,12 @@ final class InMemoryMemoryStore implements MemoryStore {
   }
 
   @Override
+  public @NotNull RichFuture<Void> delete(final @NotNull UUID id) {
+    memories.removeIf(m -> m.id().equals(id));
+    return RichFuture.of(CompletableFuture.completedFuture(null));
+  }
+
+  @Override
   public @NotNull RichFuture<List<MemoryEntry>> query(final @NotNull MemoryQuery query) {
     final var queryValues = query.embedding().values();
     final var results = memories.stream()

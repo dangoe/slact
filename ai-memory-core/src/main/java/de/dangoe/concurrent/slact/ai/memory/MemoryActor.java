@@ -37,6 +37,7 @@ public final class MemoryActor extends Actor<MemoryCommand> {
     switch (message) {
       case MemoryCommand.Memorize cmd -> handleMemorize(cmd);
       case MemoryCommand.Query cmd -> handleQuery(cmd);
+      case MemoryCommand.Forget cmd -> handleForget(cmd);
     }
   }
 
@@ -54,6 +55,15 @@ public final class MemoryActor extends Actor<MemoryCommand> {
       final var query = new MemoryQuery(cmd.embedding(), cmd.maxResults());
       final var entries = store.query(query).join();
       respondWith(new MemoryResponse.QueryResult(entries));
+    } catch (final Exception e) {
+      respondWith(new MemoryResponse.Failure(e.getMessage()));
+    }
+  }
+
+  private void handleForget(final @NotNull MemoryCommand.Forget cmd) {
+    try {
+      store.delete(cmd.memoryId()).join();
+      respondWith(new MemoryResponse.Forgotten(cmd.memoryId()));
     } catch (final Exception e) {
       respondWith(new MemoryResponse.Failure(e.getMessage()));
     }

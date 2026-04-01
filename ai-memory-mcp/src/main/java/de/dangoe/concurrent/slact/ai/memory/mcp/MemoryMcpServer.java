@@ -15,17 +15,19 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * MCP server that exposes memory query and prompt orchestration as tools.
+ * MCP server that exposes memory query, deletion, and prompt orchestration as tools.
  *
- * <p>Provides two tools:
+ * <p>Provides three tools:
  * <ul>
  *   <li>{@code query_memory} — retrieves similar memories for a given text criteria. The criteria
  *       is embedded internally via the {@link EmbeddingPort}.</li>
+ *   <li>{@code delete_memory} — deletes a stored memory entry by its ID.</li>
  *   <li>{@code process_prompt} — sends a prompt through the full orchestration pipeline and
  *       returns the answer.</li>
  * </ul>
@@ -33,6 +35,7 @@ import org.slf4j.LoggerFactory;
 public final class MemoryMcpServer {
 
   private static final String TOOL_QUERY_MEMORY = "query_memory";
+  private static final String TOOL_DELETE_MEMORY = "delete_memory";
   private static final String TOOL_PROCESS_PROMPT = "process_prompt";
   private static final int DEFAULT_MAX_RESULTS = 5;
 
@@ -55,6 +58,14 @@ public final class MemoryMcpServer {
           "prompt", Map.of("type", "string",
               "description", "The prompt to process through the AI memory pipeline")),
       List.of("prompt"),
+      null, null, null);
+
+  private static final McpSchema.JsonSchema DELETE_MEMORY_SCHEMA = new McpSchema.JsonSchema(
+      "object",
+      Map.of(
+          "id", Map.of("type", "string",
+              "description", "UUID of the memory entry to delete")),
+      List.of("id"),
       null, null, null);
 
   private final @NotNull EmbeddingPort embeddingPort;
@@ -98,6 +109,13 @@ public final class MemoryMcpServer {
             this::handleQueryMemory)
         .toolCall(
             McpSchema.Tool.builder()
+                .name(TOOL_DELETE_MEMORY)
+                .description("Deletes a stored memory entry by its UUID.")
+                .inputSchema(DELETE_MEMORY_SCHEMA)
+                .build(),
+            this::handleDeleteMemory)
+        .toolCall(
+            McpSchema.Tool.builder()
                 .name(TOOL_PROCESS_PROMPT)
                 .description(
                     "Sends a prompt through the full AI memory pipeline and returns the answer. "
@@ -129,6 +147,33 @@ public final class MemoryMcpServer {
           .build();
     } catch (final Exception e) {
       logger.error("Failed to query memory", e);
+      return CallToolResult.builder()
+          .addTextContent("Error: " + e.getMessage())
+          .isError(true)
+          .build();
+    }
+  }
+
+  @NotNull CallToolResult handleDeleteMemory(
+      final @NotNull McpSyncServerExchange exchange,
+      final @NotNull McpSchema.CallToolRequest request) {
+    try {
+      final var args = request.arguments();
+      final var id = UUID.fromString((String) args.get("id"));
+
+      memoryStore.delete(id).join();
+
+      return CallToolResult.builder()
+          .addTextContent("Memory " + id + " deleted.")
+          .build();
+    } catch (final IllegalArgumentException e) {
+      logger.error("Invalid memory ID format", e);
+      return CallToolResult.builder()
+          .addTextContent("Error: invalid UUID format — " + e.getMessage())
+          .isError(true)
+          .build();
+    } catch (final Exception e) {
+      logger.error("Failed to delete memory", e);
       return CallToolResult.builder()
           .addTextContent("Error: " + e.getMessage())
           .isError(true)
