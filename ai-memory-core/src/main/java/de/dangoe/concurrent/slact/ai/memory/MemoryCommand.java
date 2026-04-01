@@ -14,8 +14,8 @@ public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryComm
    * Command to memorize a new memory entry.
    *
    * <p>The concrete {@link MemorizationStrategy} decides how the content is persisted,
-   * including any embedding computation or deduplication — those are implementation details
-   * not visible at this level.
+   * including any embedding computation or deduplication — those are implementation details not
+   * visible at this level.
    *
    * @param content  the text content to remember.
    * @param metadata optional key-value metadata.

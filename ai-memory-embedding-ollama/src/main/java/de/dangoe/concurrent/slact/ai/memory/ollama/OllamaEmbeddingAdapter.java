@@ -37,8 +37,10 @@ import org.slf4j.LoggerFactory;
 public final class OllamaEmbeddingAdapter implements EmbeddingPort {
 
   private static final String EMBED_PATH = "/api/embed";
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private static final Logger logger = LoggerFactory.getLogger(OllamaEmbeddingAdapter.class);
+
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   private final @NotNull HttpClient httpClient;
   private final @NotNull String baseUrl;
@@ -47,57 +49,66 @@ public final class OllamaEmbeddingAdapter implements EmbeddingPort {
   /**
    * Creates an {@link OllamaEmbeddingAdapter} that communicates with the given Ollama server.
    *
-   * @param baseUrl the base URL of the Ollama server (e.g. {@code http://localhost:11434});
-   *                must not be {@code null}.
-   * @param model   the Ollama model name to use for embedding (e.g. {@code nomic-embed-text});
-   *                must not be {@code null}.
+   * @param baseUrl the base URL of the Ollama server (e.g. {@code http://localhost:11434}); must
+   *                not be {@code null}.
+   * @param model   the Ollama model name to use for embedding (e.g. {@code nomic-embed-text}); must
+   *                not be {@code null}.
    */
-  public OllamaEmbeddingAdapter(
-      final @NotNull String baseUrl,
-      final @NotNull String model) {
+  public OllamaEmbeddingAdapter(final @NotNull String baseUrl, final @NotNull String model) {
+
     this.baseUrl = Objects.requireNonNull(baseUrl, "Base URL must not be null");
     this.model = Objects.requireNonNull(model, "Model must not be null");
+
     this.httpClient = HttpClient.newHttpClient();
   }
 
   @Override
   public @NotNull RichFuture<Embedding> embed(final @NotNull String text) {
-    try {
-      final ObjectNode requestBody = OBJECT_MAPPER.createObjectNode()
-          .put("model", model)
-          .put("input", text);
-      final var requestJson = OBJECT_MAPPER.writeValueAsString(requestBody);
 
-      final var request = HttpRequest.newBuilder()
-          .uri(URI.create(baseUrl + EMBED_PATH))
+    try {
+
+      final ObjectNode requestBody = objectMapper.createObjectNode().put("model", model)
+          .put("input", text);
+
+      final var requestJson = objectMapper.writeValueAsString(requestBody);
+
+      final var request = HttpRequest.newBuilder().uri(URI.create(baseUrl + EMBED_PATH))
           .header("Content-Type", "application/json")
-          .POST(HttpRequest.BodyPublishers.ofString(requestJson))
-          .build();
+          .POST(HttpRequest.BodyPublishers.ofString(requestJson)).build();
 
       final var future = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
           .thenApply(response -> {
+
             if (response.statusCode() != 200) {
               throw new RuntimeException(
-                  "Ollama embed request failed with HTTP " + response.statusCode()
-                      + ": " + response.body());
+                  "Ollama embed request failed with HTTP %s: %s".formatted(response.statusCode(),
+                      response.body()));
             }
+
             try {
-              final var responseNode = OBJECT_MAPPER.readTree(response.body());
+
+              final var responseNode = objectMapper.readTree(response.body());
               final var embeddingsNode = responseNode.get("embeddings");
+
               if (embeddingsNode == null || embeddingsNode.isEmpty()) {
                 throw new RuntimeException(
-                    "Ollama response contains no embeddings: " + response.body());
+                    "Ollama response contains no embeddings: %s".formatted(response.body()));
               }
+
               final var vectorNode = embeddingsNode.get(0);
               final float[] values = new float[vectorNode.size()];
+
               for (int i = 0; i < vectorNode.size(); i++) {
                 values[i] = (float) vectorNode.get(i).asDouble();
               }
-              logger.debug("Embedded text ({} chars) → {} dimensions", text.length(), values.length);
+
+              logger.debug("Embedded text ({} chars) → {} dimensions", text.length(),
+                  values.length);
+
               return new Embedding(values);
             } catch (final Exception e) {
               throw new RuntimeException(
-                  "Failed to parse Ollama embed response: " + response.body(), e);
+                  "Failed to parse Ollama embed response: %s".formatted(response.body()), e);
             }
           });
 

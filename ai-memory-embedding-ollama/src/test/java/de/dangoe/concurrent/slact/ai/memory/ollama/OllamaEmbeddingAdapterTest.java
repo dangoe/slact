@@ -30,17 +30,20 @@ class OllamaEmbeddingAdapterTest {
   class GivenConstructorArguments {
 
     @Test
+    @SuppressWarnings("DataFlowIssue")
     @DisplayName("should throw NullPointerException when baseUrl is null")
     void shouldThrowWhenBaseUrlIsNull() {
-      assertThatThrownBy(() -> new OllamaEmbeddingAdapter(null, "model"))
-          .isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> new OllamaEmbeddingAdapter(null, "model")).isInstanceOf(
+          NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue")
     @DisplayName("should throw NullPointerException when model is null")
     void shouldThrowWhenModelIsNull() {
-      assertThatThrownBy(() -> new OllamaEmbeddingAdapter("http://localhost:11434", null))
-          .isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(
+          () -> new OllamaEmbeddingAdapter("http://localhost:11434", null)).isInstanceOf(
+          NullPointerException.class);
     }
   }
 }

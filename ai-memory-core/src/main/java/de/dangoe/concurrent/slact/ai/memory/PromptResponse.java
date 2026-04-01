@@ -21,8 +21,9 @@ public sealed interface PromptResponse permits PromptResponse.Answer, PromptResp
    * Represents a failure response containing an error message.
    *
    * @param errorMessage a human-readable description of the failure
+   * @param cause the cause of the failure, which can be used for debugging
    */
-  record Failure(@NotNull String errorMessage) implements PromptResponse {
+  record Failure(@NotNull String errorMessage, @NotNull Throwable cause) implements PromptResponse {
 
   }
 }

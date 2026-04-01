@@ -1,12 +1,12 @@
 package de.dangoe.concurrent.slact.ai.memory.neo4j;
 
-import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import de.dangoe.concurrent.slact.ai.memory.Embedding;
 import de.dangoe.concurrent.slact.ai.memory.Memory;
 import de.dangoe.concurrent.slact.ai.memory.MemoryEntry;
 import de.dangoe.concurrent.slact.ai.memory.MemoryQuery;
 import de.dangoe.concurrent.slact.ai.memory.MemoryStore;
 import de.dangoe.concurrent.slact.ai.memory.Score;
+import de.dangoe.concurrent.slact.core.util.concurrent.RichFuture;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

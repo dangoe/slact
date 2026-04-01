@@ -77,8 +77,8 @@ public final class MemoryMcpServer {
    *
    * @param embeddingPort the port used to embed query criteria; must not be {@code null}.
    * @param memoryStore   the memory store used for similarity queries; must not be {@code null}.
-   * @param promptHandler the handler that processes prompts via the orchestration pipeline;
-   *                      must not be {@code null}.
+   * @param promptHandler the handler that processes prompts via the orchestration pipeline; must
+   *                      not be {@code null}.
    */
   public MemoryMcpServer(
       final @NotNull EmbeddingPort embeddingPort,

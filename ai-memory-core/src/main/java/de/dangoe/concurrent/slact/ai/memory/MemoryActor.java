@@ -9,8 +9,8 @@ import org.jetbrains.annotations.NotNull;
  * ({@link MemoryCommand.Query}) commands against a {@link MemoryStore}.
  *
  * <p>Write operations are fully delegated to the provided {@link MemorizationStrategy}, which
- * encapsulates all storage-specific details (e.g. embedding computation, deduplication).
- * Query operations are executed directly against the store.</p>
+ * encapsulates all storage-specific details (e.g. embedding computation, deduplication). Query
+ * operations are executed directly against the store.</p>
  */
 public final class MemoryActor extends Actor<MemoryCommand> {
 

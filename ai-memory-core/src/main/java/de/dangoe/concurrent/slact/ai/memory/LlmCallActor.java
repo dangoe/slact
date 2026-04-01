@@ -6,8 +6,8 @@ import java.util.Objects;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Actor that calls the target language model with an enriched prompt and delivers the response to
- * a caller-supplied reply handle.
+ * Actor that calls the target language model with an enriched prompt and delivers the response to a
+ * caller-supplied reply handle.
  */
 public final class LlmCallActor extends Actor<LlmCallActor.Message> {
 
@@ -23,9 +23,8 @@ public final class LlmCallActor extends Actor<LlmCallActor.Message> {
      * @param enrichedPrompt the context-enriched prompt.
      * @param replyTo        where to deliver the resulting {@link PromptResponse}.
      */
-    record Call(
-        @NotNull String enrichedPrompt,
-        @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
+    record Call(@NotNull String enrichedPrompt,
+                @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
 
     }
 
@@ -35,9 +34,8 @@ public final class LlmCallActor extends Actor<LlmCallActor.Message> {
      * @param response the raw response text from the LLM.
      * @param replyTo  the original reply target.
      */
-    record CallDone(
-        @NotNull String response,
-        @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
+    record CallDone(@NotNull String response,
+                    @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
 
     }
 
@@ -47,9 +45,8 @@ public final class LlmCallActor extends Actor<LlmCallActor.Message> {
      * @param errorMessage a description of the failure.
      * @param replyTo      the original reply target.
      */
-    record CallFailed(
-        @NotNull String errorMessage,
-        @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
+    record CallFailed(@NotNull String errorMessage, @NotNull Throwable cause,
+                      @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
 
     }
   }
@@ -72,16 +69,16 @@ public final class LlmCallActor extends Actor<LlmCallActor.Message> {
       case Message.Call call -> handleCall(call);
       case Message.CallDone done ->
           send((PromptResponse) new PromptResponse.Answer(done.response())).to(done.replyTo());
-      case Message.CallFailed failed ->
-          send((PromptResponse) new PromptResponse.Failure(failed.errorMessage())).to(failed.replyTo());
+      case Message.CallFailed failed -> send(
+          (PromptResponse) new PromptResponse.Failure(failed.errorMessage(), failed.cause())).to(
+          failed.replyTo());
     }
   }
 
   private void handleCall(final @NotNull Message.Call call) {
     final var future = targetModelPort.complete(call.enrichedPrompt())
         .thenApply(response -> (Message) new Message.CallDone(response, call.replyTo()))
-        .exceptionally(e -> new Message.CallFailed(
-            e.getMessage() != null ? e.getMessage() : "LLM call failed", call.replyTo()));
+        .exceptionally(e -> new Message.CallFailed("LLM call failed", e, call.replyTo()));
     pipeFuture(future).to(self());
   }
 }

@@ -69,8 +69,7 @@ public final class MemoryDemoCli {
     final var neo4jDatabase = ENV.getOrDefault("NEO4J_DATABASE", "neo4j");
     final var ollamaUrl = ENV.getOrDefault("OLLAMA_URL", "http://localhost:11434");
     final var ollamaModel = ENV.getOrDefault("OLLAMA_MODEL", "nomic-embed-text");
-    final var embeddingDimension =
-        Integer.parseInt(ENV.getOrDefault("EMBEDDING_DIMENSION", "768"));
+    final var embeddingDimension = Integer.parseInt(ENV.getOrDefault("EMBEDDING_DIMENSION", "768"));
 
     final var embeddingAdapter = new OllamaEmbeddingAdapter(ollamaUrl, ollamaModel);
     final var targetModelAdapter = new StubTargetModelAdapter();
@@ -81,45 +80,38 @@ public final class MemoryDemoCli {
     memoryStore.initialize();
 
     try (driver; final var container = new SlactContainerBuilder().build()) {
-      final var memorizationStrategy =
-          new EmbeddingBasedMemorizationStrategy(embeddingAdapter, memoryStore);
-      final var memoryActor = container.spawn(
-          "memory-actor",
+      final var memorizationStrategy = new EmbeddingBasedMemorizationStrategy(embeddingAdapter,
+          memoryStore);
+      final var memoryActor = container.spawn("memory-actor",
           () -> new MemoryActor(memoryStore, memorizationStrategy));
-      final var contextMergeActor = container.spawn(
-          "context-merge-actor",
-          ContextMergeActor::new);
-      final var llmCallActor = container.spawn(
-          "llm-call-actor",
+      final var contextMergeActor = container.spawn("context-merge-actor", ContextMergeActor::new);
+      final var llmCallActor = container.spawn("llm-call-actor",
           () -> new LlmCallActor(targetModelAdapter));
-      final var orchestrator = container.spawn(
-          "orchestrator",
-          () -> new PromptOrchestratorActor(
-              embeddingAdapter, memoryActor, contextMergeActor, llmCallActor, extractionAdapter));
+      final var orchestrator = container.spawn("orchestrator",
+          () -> new PromptOrchestratorActor(embeddingAdapter, memoryActor, contextMergeActor,
+              llmCallActor, extractionAdapter));
 
-      logger.info("Memory demo started (Neo4j: {}, Ollama: {} / {}).",
-          neo4jUri, ollamaUrl, ollamaModel);
-      logger.info(
-          "Enter prompts and press Enter. Type '{}' or '{}' to stop (Ctrl+D also exits).",
+      logger.info("Memory demo started (Neo4j: {}, Ollama: {} / {}).", neo4jUri, ollamaUrl,
+          ollamaModel);
+      logger.info("Enter prompts and press Enter. Type '{}' or '{}' to stop (Ctrl+D also exits).",
           EXIT_COMMAND, QUIT_COMMAND);
 
       final var reader = new BufferedReader(new InputStreamReader(System.in));
-      runCliLoop(reader, line -> System.out.println(line), // NOSONAR: intentional CLI output
-          prompt -> {
-            final var response = container.requestResponseTo(
-                    (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(
-                        prompt))
-                .ofType(PromptResponse.class)
-                .from(orchestrator);
-            return response.get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-          });
+      runCliLoop(reader, System.out::println, prompt -> {
+        final var response = container.requestResponseTo(
+                (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process(prompt))
+            .ofType(PromptResponse.class).from(orchestrator);
+        return response.get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      });
+    } catch (final Exception e) {
+      logger.error("An error occurred during the memory demo.", e);
+      throw e;
     }
   }
 
-  static void runCliLoop(
-      final @NotNull BufferedReader reader,
-      final @NotNull Consumer<String> output,
-      final @NotNull PromptProcessor promptProcessor) throws Exception {
+  static void runCliLoop(final @NotNull BufferedReader reader,
+      final @NotNull Consumer<String> output, final @NotNull PromptProcessor promptProcessor)
+      throws Exception {
     String line;
     while ((line = reader.readLine()) != null) {
       final var trimmed = line.trim();
@@ -133,7 +125,10 @@ public final class MemoryDemoCli {
       final var result = promptProcessor.process(trimmed);
       switch (result) {
         case PromptResponse.Answer answer -> output.accept("Answer: " + answer.text());
-        case PromptResponse.Failure failure -> output.accept("Error: " + failure.errorMessage());
+        case PromptResponse.Failure failure -> {
+          output.accept("Error: " + failure.errorMessage());
+          logger.error("Prompt processing failed for input: {}", trimmed, failure.cause());
+        }
       }
     }
     logger.info("Input closed. Exiting memory demo.");
