@@ -1,6 +1,7 @@
 package de.dangoe.concurrent.slact.ai.memory.demo;
 
 import de.dangoe.concurrent.slact.ai.memory.ContextMergeActor;
+import de.dangoe.concurrent.slact.ai.memory.EmbeddingBasedMemorizationStrategy;
 import de.dangoe.concurrent.slact.ai.memory.LlmCallActor;
 import de.dangoe.concurrent.slact.ai.memory.MemoryActor;
 import de.dangoe.concurrent.slact.ai.memory.PromptOrchestratorActor;
@@ -44,9 +45,11 @@ public final class MemoryDemoCli {
     final var memoryStore = new InMemoryMemoryStore();
 
     try (final var container = new SlactContainerBuilder().build()) {
+      final var memorizationStrategy = new EmbeddingBasedMemorizationStrategy(embeddingPort,
+          memoryStore);
       final var memoryActor = container.spawn(
           "memory-actor",
-          () -> new MemoryActor(memoryStore));
+          () -> new MemoryActor(memoryStore, memorizationStrategy));
       final var contextMergeActor = container.spawn(
           "context-merge-actor",
           ContextMergeActor::new);

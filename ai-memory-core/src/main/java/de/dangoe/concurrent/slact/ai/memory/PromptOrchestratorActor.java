@@ -29,7 +29,7 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
    */
   public sealed interface Message permits Message.Process, Message.PipelineDone,
       Message.TriggerContextMerge, Message.TriggerMemoryUpdate, Message.ProcessNextCandidate,
-      Message.CandidateEmbeddingDone, Message.MemoryUpdateFailed {
+      Message.MemoryUpdateFailed {
 
     record Process(@NotNull String text) implements Message {}
 
@@ -44,11 +44,6 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
     record ProcessNextCandidate(@NotNull String prompt, @NotNull List<MemoryCandidate> candidates,
                                 int index) implements Message {}
-
-    record CandidateEmbeddingDone(@NotNull String prompt,
-                                  @NotNull List<MemoryCandidate> candidates, int index,
-                                  @NotNull String content,
-                                  @NotNull Embedding embedding) implements Message {}
 
     record MemoryUpdateFailed(@NotNull String prompt, @NotNull String reason)
         implements Message {}
@@ -101,7 +96,6 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
       case Message.TriggerContextMerge trigger -> handleTriggerContextMerge(trigger);
       case Message.TriggerMemoryUpdate update -> handleTriggerMemoryUpdate(update);
       case Message.ProcessNextCandidate next -> handleProcessNextCandidate(next);
-      case Message.CandidateEmbeddingDone embedded -> handleCandidateEmbeddingDone(embedded);
       case Message.MemoryUpdateFailed failed ->
           logger.warn("Memory update failed for prompt: {} ({})", failed.prompt(), failed.reason());
     }
@@ -110,8 +104,8 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
   private void handleProcess(final @NotNull Message.Process cmd) {
     final ActorHandle<PromptResponse> replyTo = sender();
 
-    // Spawn a bridge child actor that will receive the PromptResponse from the LLM pipeline
-    // and forward it back to this orchestrator as a PipelineDone message.
+    // Spawn a bridge child actor that receives the PromptResponse from the LLM pipeline
+    // and forwards it back to this orchestrator as a PipelineDone message.
     final var self = self();
     final var prompt = cmd.text();
     activeBridge = context().spawn(
@@ -123,7 +117,6 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
           }
         });
 
-    // Embed + query memory, then pipe TriggerContextMerge to self
     final var bridge = activeBridge;
     final RichFuture<Message> phase = embeddingPort.embed(prompt)
         .thenCompose(embedding -> askMemoryQuery(embedding, memoryActor).thenApply(
@@ -162,20 +155,13 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     }
     final var candidate = next.candidates().get(next.index());
     final var content = candidate.subject() + ": " + candidate.fact();
-    final RichFuture<Message> embeddingFlow = embeddingPort.embed(content).thenApply(
-        embedding -> (Message) new Message.CandidateEmbeddingDone(next.prompt(), next.candidates(),
-            next.index(), content, embedding)).exceptionally(
-        e -> new Message.MemoryUpdateFailed(next.prompt(), Objects.toString(e.getMessage())));
-    pipeFuture(embeddingFlow).to(self());
-  }
 
-  private void handleCandidateEmbeddingDone(
-      final @NotNull Message.CandidateEmbeddingDone embedded) {
-    final RichFuture<Message> writeFlow = askMemoryWrite(embedded.content(),
-        embedded.embedding()).thenApply(
-        unused -> (Message) new Message.ProcessNextCandidate(embedded.prompt(),
-            embedded.candidates(), embedded.index() + 1)).exceptionally(
-        e -> new Message.MemoryUpdateFailed(embedded.prompt(), Objects.toString(e.getMessage())));
+    // Delegate all memorization details (including embedding) to the MemorizationStrategy
+    // inside MemoryActor — callers only supply raw text.
+    final RichFuture<Message> writeFlow = askMemoryWrite(content).thenApply(
+        unused -> (Message) new Message.ProcessNextCandidate(next.prompt(), next.candidates(),
+            next.index() + 1)).exceptionally(
+        e -> new Message.MemoryUpdateFailed(next.prompt(), Objects.toString(e.getMessage())));
     pipeFuture(writeFlow).to(self());
   }
 
@@ -198,11 +184,10 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     });
   }
 
-  private @NotNull RichFuture<Void> askMemoryWrite(final @NotNull String content,
-      final @NotNull Embedding embedding) {
+  private @NotNull RichFuture<Void> askMemoryWrite(final @NotNull String content) {
     return asRichFuture(
         context().requestResponseTo(
-                (MemoryCommand) new MemoryCommand.Memorize(content, embedding, Map.of()))
+                (MemoryCommand) new MemoryCommand.Memorize(content, Map.of()))
             .ofType(MemoryResponse.class).from(memoryActor)).thenCompose(response -> {
       if (response instanceof MemoryResponse.Written) {
         return RichFuture.of(CompletableFuture.completedFuture(null));

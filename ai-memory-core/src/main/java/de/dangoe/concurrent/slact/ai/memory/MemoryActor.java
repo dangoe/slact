@@ -8,9 +8,9 @@ import org.jetbrains.annotations.NotNull;
  * Actor that handles both memory write ({@link MemoryCommand.Memorize}) and read
  * ({@link MemoryCommand.Query}) commands against a {@link MemoryStore}.
  *
- * <p>Write operations are delegated to a {@link MemorizationStrategy}, defaulting to
- * {@link EmbeddingBasedMemorizationStrategy}. Query operations are executed directly against the
- * store.</p>
+ * <p>Write operations are fully delegated to the provided {@link MemorizationStrategy}, which
+ * encapsulates all storage-specific details (e.g. embedding computation, deduplication).
+ * Query operations are executed directly against the store.</p>
  */
 public final class MemoryActor extends Actor<MemoryCommand> {
 
@@ -18,19 +18,11 @@ public final class MemoryActor extends Actor<MemoryCommand> {
   private final @NotNull MemorizationStrategy memorizationStrategy;
 
   /**
-   * Creates a new {@link MemoryActor} with the default {@link EmbeddingBasedMemorizationStrategy}.
+   * Creates a new {@link MemoryActor} with the given store and memorization strategy.
    *
-   * @param store the memory store; must not be {@code null}.
-   */
-  public MemoryActor(final @NotNull MemoryStore store) {
-    this(store, new EmbeddingBasedMemorizationStrategy(store));
-  }
-
-  /**
-   * Creates a new {@link MemoryActor} with a custom {@link MemorizationStrategy}.
-   *
-   * @param store                 the memory store; must not be {@code null}.
-   * @param memorizationStrategy  the strategy used to write memories; must not be {@code null}.
+   * @param store                the memory store used for query operations; must not be
+   *                             {@code null}.
+   * @param memorizationStrategy the strategy used to persist memories; must not be {@code null}.
    */
   public MemoryActor(
       final @NotNull MemoryStore store,
@@ -50,8 +42,7 @@ public final class MemoryActor extends Actor<MemoryCommand> {
 
   private void handleMemorize(final @NotNull MemoryCommand.Memorize cmd) {
     try {
-      final var memory = Memory.of(cmd.content(), cmd.embedding(), cmd.metadata());
-      final var id = memorizationStrategy.memorize(memory).join();
+      final var id = memorizationStrategy.memorize(cmd.content(), cmd.metadata()).join();
       respondWith(new MemoryResponse.Written(id));
     } catch (final Exception e) {
       respondWith(new MemoryResponse.Failure(e.getMessage()));

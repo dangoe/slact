@@ -11,13 +11,15 @@ public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryComm
   /**
    * Command to memorize a new memory entry.
    *
-   * @param content   the text content to remember.
-   * @param embedding the pre-computed embedding for the content.
-   * @param metadata  optional key-value metadata.
+   * <p>The concrete {@link MemorizationStrategy} decides how the content is persisted,
+   * including any embedding computation or deduplication — those are implementation details
+   * not visible at this level.
+   *
+   * @param content  the text content to remember.
+   * @param metadata optional key-value metadata.
    */
   record Memorize(
       @NotNull String content,
-      @NotNull Embedding embedding,
       @NotNull Map<String, String> metadata) implements MemoryCommand {
 
   }
