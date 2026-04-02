@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
+
 /**
  * Sealed interface for commands sent to memory actors.
  */
@@ -27,13 +28,16 @@ public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryComm
   }
 
   /**
-   * Command to query memories similar to the given embedding.
+   * Command to query memories for a given topic.
    *
-   * @param embedding  the query embedding.
+   * <p>The concrete {@link MemoryStrategy} decides how the topic is resolved into matching
+   * memory entries — those are implementation details not visible at this level.
+   *
+   * @param topic      the subject or question to find relevant memories for.
    * @param maxResults maximum number of results to return.
    */
   record Query(
-      @NotNull Embedding embedding,
+      @NotNull String topic,
       int maxResults) implements MemoryCommand {
 
   }
