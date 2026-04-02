@@ -1,13 +1,12 @@
 package de.dangoe.concurrent.slact.ai.memory.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.dangoe.concurrent.slact.ai.memory.Embedding;
-import de.dangoe.concurrent.slact.ai.memory.EmbeddingPort;
 import de.dangoe.concurrent.slact.ai.memory.Memory;
 import de.dangoe.concurrent.slact.ai.memory.MemoryEntry;
 import de.dangoe.concurrent.slact.ai.memory.MemoryStore;
@@ -30,17 +29,17 @@ class MemoryMcpServerTest {
 
   private static final Embedding EMBEDDING = new Embedding(new float[]{0.1f, 0.2f, 0.3f});
 
-  private EmbeddingPort embeddingPort;
+  private MemoryMcpServer.MemoryQueryHandler memoryQueryHandler;
   private MemoryStore memoryStore;
   private MemoryMcpServer.PromptHandler promptHandler;
   private MemoryMcpServer server;
 
   @BeforeEach
   void setUp() {
-    embeddingPort = mock(EmbeddingPort.class);
+    memoryQueryHandler = mock(MemoryMcpServer.MemoryQueryHandler.class);
     memoryStore = mock(MemoryStore.class);
     promptHandler = mock(MemoryMcpServer.PromptHandler.class);
-    server = new MemoryMcpServer(embeddingPort, memoryStore, promptHandler);
+    server = new MemoryMcpServer(memoryQueryHandler, memoryStore, promptHandler);
   }
 
   @Nested
@@ -53,10 +52,8 @@ class MemoryMcpServerTest {
       final var memory = Memory.of("user: name=Alice", EMBEDDING.values(), Map.of());
       final var entry = new MemoryEntry(memory, new Score(0.92));
 
-      when(embeddingPort.embed(anyString()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(EMBEDDING)));
-      when(memoryStore.query(any()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(List.of(entry))));
+      when(memoryQueryHandler.query(anyString(), anyInt()))
+          .thenReturn(List.of(entry));
 
       final var result = invokeQueryMemory("Alice", null);
 
@@ -70,12 +67,10 @@ class MemoryMcpServerTest {
     @Test
     @DisplayName("should return no-match message when no memories are found")
     void shouldReturnNoMatchMessageWhenNoMemoriesAreFound() throws Exception {
-      when(embeddingPort.embed(anyString()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(EMBEDDING)));
-      when(memoryStore.query(any()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(List.of())));
+      when(memoryQueryHandler.query(anyString(), anyInt()))
+          .thenReturn(List.of());
 
-      final var result = invokeQueryMemory("unknown criteria", null);
+      final var result = invokeQueryMemory("unknown topic", null);
 
       assertThat(result.isError()).isNotEqualTo(true);
       assertThat(((McpSchema.TextContent) result.content().get(0)).text())
@@ -85,10 +80,8 @@ class MemoryMcpServerTest {
     @Test
     @DisplayName("should use provided maxResults when supplied")
     void shouldUseProvidedMaxResultsWhenSupplied() throws Exception {
-      when(embeddingPort.embed(anyString()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(EMBEDDING)));
-      when(memoryStore.query(any()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(List.of())));
+      when(memoryQueryHandler.query(anyString(), anyInt()))
+          .thenReturn(List.of());
 
       final var result = invokeQueryMemory("test", 10);
 
@@ -96,33 +89,16 @@ class MemoryMcpServerTest {
     }
 
     @Test
-    @DisplayName("should return error result when embedding port throws")
-    void shouldReturnErrorResultWhenEmbeddingPortThrows() throws Exception {
-      when(embeddingPort.embed(anyString()))
-          .thenReturn(RichFuture.of(
-              CompletableFuture.failedFuture(new RuntimeException("embed error"))));
+    @DisplayName("should return error result when the query handler throws")
+    void shouldReturnErrorResultWhenQueryHandlerThrows() throws Exception {
+      when(memoryQueryHandler.query(anyString(), anyInt()))
+          .thenThrow(new RuntimeException("query error"));
 
       final var result = invokeQueryMemory("crash", null);
 
       assertThat(result.isError()).isTrue();
       assertThat(((McpSchema.TextContent) result.content().get(0)).text())
-          .contains("embed error");
-    }
-
-    @Test
-    @DisplayName("should return error result when memory store query throws")
-    void shouldReturnErrorResultWhenMemoryStoreQueryThrows() throws Exception {
-      when(embeddingPort.embed(anyString()))
-          .thenReturn(RichFuture.of(CompletableFuture.completedFuture(EMBEDDING)));
-      when(memoryStore.query(any()))
-          .thenReturn(RichFuture.of(
-              CompletableFuture.failedFuture(new RuntimeException("store error"))));
-
-      final var result = invokeQueryMemory("crash", null);
-
-      assertThat(result.isError()).isTrue();
-      assertThat(((McpSchema.TextContent) result.content().get(0)).text())
-          .contains("store error");
+          .contains("query error");
     }
   }
 
@@ -147,7 +123,8 @@ class MemoryMcpServerTest {
     @DisplayName("should return error result when the pipeline returns Failure")
     void shouldReturnErrorResultWhenPipelineReturnsFailure() throws Exception {
       when(promptHandler.process(anyString()))
-          .thenReturn(new PromptResponse.Failure("pipeline failed"));
+          .thenReturn(new PromptResponse.Failure("pipeline failed",
+              new RuntimeException("pipeline failed")));
 
       final var result = invokeProcessPrompt("bad prompt");
 
@@ -219,9 +196,9 @@ class MemoryMcpServerTest {
   // -------------------------------------------------------------------------
 
   private McpSchema.CallToolResult invokeQueryMemory(
-      final String criteria, final Integer maxResults) {
+      final String topic, final Integer maxResults) {
     final var args = new HashMap<String, Object>();
-    args.put("criteria", criteria);
+    args.put("topic", topic);
     if (maxResults != null) {
       args.put("maxResults", maxResults);
     }

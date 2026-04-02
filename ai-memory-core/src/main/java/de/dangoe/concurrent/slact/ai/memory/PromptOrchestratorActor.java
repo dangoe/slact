@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Actor responsible for orchestrating the prompt processing pipeline, including embedding
- * generation, memory retrieval, context merging, LLM completion, and memory extraction.
+ * Actor responsible for orchestrating the prompt processing pipeline: memory retrieval, context
+ * merging, LLM completion, and asynchronous memory extraction.
  */
 public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor.Message> {
 
@@ -27,9 +27,8 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
    * Messages handled by the {@link PromptOrchestratorActor}.
    */
   public sealed interface Message permits Message.Process, Message.PipelineDone,
-      Message.EmbeddingReady, Message.EmbeddingFailed, Message.MemoryQueryReady,
-      Message.MemoryQueryFailed, Message.TriggerContextMerge, Message.TriggerMemoryUpdate,
-      Message.ProcessNextCandidate, Message.MemoryUpdateFailed {
+      Message.MemoryQueryReady, Message.MemoryQueryFailed, Message.TriggerContextMerge,
+      Message.TriggerMemoryUpdate, Message.ProcessNextCandidate, Message.MemoryUpdateFailed {
 
     record Process(@NotNull String text) implements Message {
 
@@ -40,19 +39,7 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
     }
 
-    record EmbeddingReady(@NotNull String prompt, @NotNull Embedding embedding,
-                          @NotNull ActorHandle<PromptResponse> replyTo,
-                          @NotNull ActorHandle<PromptResponse> pipelineReplyTo) implements Message {
-
-    }
-
-    record EmbeddingFailed(@NotNull String prompt, @NotNull Throwable cause,
-                           @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
-
-    }
-
     record MemoryQueryReady(@NotNull String prompt, @NotNull List<MemoryEntry> memories,
-                            @NotNull ActorHandle<PromptResponse> replyTo,
                             @NotNull ActorHandle<PromptResponse> pipelineReplyTo)
         implements Message {
 
@@ -85,20 +72,18 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
   private static final int DEFAULT_MAX_MEMORY_RESULTS = 5;
 
-  private final @NotNull EmbeddingPort embeddingPort;
   private final @NotNull ActorHandle<MemoryCommand> memoryActor;
   private final int maxMemoryResults;
   private final @NotNull ActorHandle<ContextMergeActor.Message> contextMergeActor;
   private final @NotNull ActorHandle<LlmCallActor.Message> llmCallActor;
   private final @NotNull MemoryExtractionPort memoryExtractionPort;
 
-  public PromptOrchestratorActor(final @NotNull EmbeddingPort embeddingPort,
+  public PromptOrchestratorActor(
       final @NotNull ActorHandle<MemoryCommand> memoryActor, final int maxMemoryResults,
       final @NotNull ActorHandle<ContextMergeActor.Message> contextMergeActor,
       final @NotNull ActorHandle<LlmCallActor.Message> llmCallActor,
       final @NotNull MemoryExtractionPort memoryExtractionPort) {
 
-    this.embeddingPort = Objects.requireNonNull(embeddingPort, "EmbeddingPort must not be null");
     this.memoryActor = Objects.requireNonNull(memoryActor, "MemoryActor must not be null");
     this.maxMemoryResults = maxMemoryResults;
     this.contextMergeActor = Objects.requireNonNull(contextMergeActor,
@@ -108,12 +93,12 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
         "MemoryExtractionPort must not be null");
   }
 
-  public PromptOrchestratorActor(final @NotNull EmbeddingPort embeddingPort,
+  public PromptOrchestratorActor(
       final @NotNull ActorHandle<MemoryCommand> memoryActor,
       final @NotNull ActorHandle<ContextMergeActor.Message> contextMergeActor,
       final @NotNull ActorHandle<LlmCallActor.Message> llmCallActor,
       final @NotNull MemoryExtractionPort memoryExtractionPort) {
-    this(embeddingPort, memoryActor, DEFAULT_MAX_MEMORY_RESULTS, contextMergeActor, llmCallActor,
+    this(memoryActor, DEFAULT_MAX_MEMORY_RESULTS, contextMergeActor, llmCallActor,
         memoryExtractionPort);
   }
 
@@ -122,8 +107,6 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     switch (message) {
       case Message.Process cmd -> handleProcess(cmd);
       case Message.PipelineDone done -> handlePipelineDone(done);
-      case Message.EmbeddingReady embeddingReady -> handleEmbeddingReady(embeddingReady);
-      case Message.EmbeddingFailed embeddingFailed -> handleEmbeddingFailed(embeddingFailed);
       case Message.MemoryQueryReady memoryQueryReady -> handleMemoryQueryReady(memoryQueryReady);
       case Message.MemoryQueryFailed memoryQueryFailed ->
           handleMemoryQueryFailed(memoryQueryFailed);
@@ -137,9 +120,6 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
   private void handleProcess(final @NotNull Message.Process cmd) {
     final ActorHandle<PromptResponse> replyTo = sender();
-
-    // Spawn a bridge child actor that receives the PromptResponse from the LLM pipeline
-    // and forwards it back to this orchestrator as a PipelineDone message.
     final var self = self();
     final var prompt = cmd.text();
 
@@ -151,33 +131,17 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
           }
         });
 
-    final RichFuture<Message> phase = embeddingPort.embed(prompt).thenApply(
-            embedding -> (Message) new Message.EmbeddingReady(prompt, embedding, replyTo, bridge))
-        .exceptionally(e -> new Message.EmbeddingFailed(prompt, e, replyTo));
+    final RichFuture<Message> phase = asRichFuture(
+            context().requestResponseTo((MemoryCommand) new MemoryCommand.Query(prompt,
+                    maxMemoryResults))
+                .ofType(MemoryResponse.class).from(memoryActor))
+        .thenCompose(this::queryEntriesFromResponse)
+        .thenApply(
+            memories -> (Message) new Message.MemoryQueryReady(prompt, memories, bridge))
+        .exceptionally(
+            e -> new Message.MemoryQueryFailed(prompt, e, replyTo));
 
     pipeFuture(phase).to(self());
-  }
-
-  private void handleEmbeddingReady(final @NotNull Message.EmbeddingReady embeddingReady) {
-    final RichFuture<Message> queryFlow = asRichFuture(context().requestResponseTo(
-                (MemoryCommand) new MemoryCommand.Query(embeddingReady.embedding(), maxMemoryResults))
-            .ofType(MemoryResponse.class).from(memoryActor))
-        .thenCompose(this::queryEntriesFromResponse)
-        .thenApply(memories ->
-            (Message) new Message.MemoryQueryReady(embeddingReady.prompt(), memories,
-                embeddingReady.replyTo(), embeddingReady.pipelineReplyTo()))
-        .exceptionally(
-            e -> new Message.MemoryQueryFailed(embeddingReady.prompt(), e, embeddingReady.replyTo()));
-
-    pipeFuture(queryFlow).to(self());
-  }
-
-  private void handleEmbeddingFailed(final @NotNull Message.EmbeddingFailed embeddingFailed) {
-    send((Message) new Message.PipelineDone(embeddingFailed.prompt(),
-        new PromptResponse.Failure(
-            "Error during embedding: %s".formatted(embeddingFailed.cause().getMessage()),
-            embeddingFailed.cause()),
-        embeddingFailed.replyTo())).to(self());
   }
 
   private void handleMemoryQueryReady(final @NotNull Message.MemoryQueryReady memoryQueryReady) {
@@ -185,12 +149,12 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
         memoryQueryReady.memories(), memoryQueryReady.pipelineReplyTo())).to(self());
   }
 
-  private void handleMemoryQueryFailed(final @NotNull Message.MemoryQueryFailed memoryQueryFailed) {
-    send((Message) new Message.PipelineDone(memoryQueryFailed.prompt(),
+  private void handleMemoryQueryFailed(final @NotNull Message.MemoryQueryFailed failed) {
+    send((Message) new Message.PipelineDone(failed.prompt(),
         new PromptResponse.Failure(
-            "Error during memory query: %s".formatted(memoryQueryFailed.cause().getMessage()),
-            memoryQueryFailed.cause()),
-        memoryQueryFailed.replyTo())).to(self());
+            "Error during memory query: %s".formatted(failed.cause().getMessage()),
+            failed.cause()),
+        failed.replyTo())).to(self());
   }
 
   private void handleTriggerContextMerge(final @NotNull Message.TriggerContextMerge trigger) {
@@ -215,7 +179,6 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
   }
 
   private void handleProcessNextCandidate(final @NotNull Message.ProcessNextCandidate next) {
-
     if (next.index() >= next.candidates().size()) {
       return;
     }
@@ -223,16 +186,15 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     final var candidate = next.candidates().get(next.index());
     final var content = "%s:%s".formatted(candidate.subject(), candidate.fact());
 
-    // Delegate all memorization details (including embedding) to the MemorizationStrategy
-    // inside MemoryActor — callers only supply raw text.
     final RichFuture<Message> writeFlow = asRichFuture(
             context().requestResponseTo((MemoryCommand) new MemoryCommand.Memorize(content, Map.of()))
                 .ofType(MemoryResponse.class).from(memoryActor))
         .thenCompose(this::writeResultFromResponse)
         .thenApply(
-        unused -> (Message) new Message.ProcessNextCandidate(next.prompt(), next.candidates(),
-            next.index() + 1)).exceptionally(
-        e -> new Message.MemoryUpdateFailed(next.prompt(), Objects.toString(e.getMessage())));
+            unused -> (Message) new Message.ProcessNextCandidate(next.prompt(), next.candidates(),
+                next.index() + 1))
+        .exceptionally(
+            e -> new Message.MemoryUpdateFailed(next.prompt(), Objects.toString(e.getMessage())));
 
     pipeFuture(writeFlow).to(self());
   }
@@ -251,7 +213,8 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
         "Unexpected response: %s".formatted(response.getClass().getName()))));
   }
 
-  private @NotNull RichFuture<Void> writeResultFromResponse(final @NotNull MemoryResponse response) {
+  private @NotNull RichFuture<Void> writeResultFromResponse(
+      final @NotNull MemoryResponse response) {
 
     if (response instanceof MemoryResponse.Written) {
       return RichFuture.of(CompletableFuture.completedFuture(null));
@@ -266,11 +229,9 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
   @SuppressWarnings("unchecked")
   private static <T> @NotNull RichFuture<T> asRichFuture(final @NotNull Future<T> future) {
-
     if (future instanceof RichFuture<?> richFuture) {
       return (RichFuture<T>) richFuture;
     }
-
     return RichFuture.of(CompletableFuture.failedFuture(
         new IllegalStateException("Expected RichFuture from actor ask operation.")));
   }

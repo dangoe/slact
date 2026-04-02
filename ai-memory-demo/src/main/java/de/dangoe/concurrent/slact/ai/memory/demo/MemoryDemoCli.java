@@ -1,7 +1,7 @@
 package de.dangoe.concurrent.slact.ai.memory.demo;
 
 import de.dangoe.concurrent.slact.ai.memory.ContextMergeActor;
-import de.dangoe.concurrent.slact.ai.memory.EmbeddingBasedMemorizationStrategy;
+import de.dangoe.concurrent.slact.ai.memory.EmbeddingBasedMemoryStrategy;
 import de.dangoe.concurrent.slact.ai.memory.LlmCallActor;
 import de.dangoe.concurrent.slact.ai.memory.MemoryActor;
 import de.dangoe.concurrent.slact.ai.memory.PromptOrchestratorActor;
@@ -80,15 +80,14 @@ public final class MemoryDemoCli {
     memoryStore.initialize();
 
     try (driver; final var container = new SlactContainerBuilder().build()) {
-      final var memorizationStrategy = new EmbeddingBasedMemorizationStrategy(embeddingAdapter,
-          memoryStore);
+      final var memoryStrategy = new EmbeddingBasedMemoryStrategy(embeddingAdapter, memoryStore);
       final var memoryActor = container.spawn("memory-actor",
-          () -> new MemoryActor(memoryStore, memorizationStrategy));
+          () -> new MemoryActor(memoryStrategy));
       final var contextMergeActor = container.spawn("context-merge-actor", ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor",
           () -> new LlmCallActor(targetModelAdapter));
       final var orchestrator = container.spawn("orchestrator",
-          () -> new PromptOrchestratorActor(embeddingAdapter, memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionAdapter));
 
       logger.info("Memory demo started (Neo4j: {}, Ollama: {} / {}).", neo4jUri, ollamaUrl,

@@ -37,15 +37,15 @@ public final class EmbeddingBasedMemoryStrategy implements MemoryStrategy {
       final @NotNull String content,
       final @NotNull Map<String, String> metadata) {
     return embeddingPort.embed(content)
-        .thenCompose(embedding -> store.save(Memory.of(content, embedding, metadata)));
+        .thenCompose(computedEmbedding -> store.save(Memory.of(content, computedEmbedding, metadata)));
   }
 
   @Override
   public @NotNull RichFuture<List<MemoryEntry>> retrieve(
-      final @NotNull String criteria,
+      final @NotNull String topic,
       final int maxResults) {
-    return embeddingPort.embed(criteria)
-        .thenCompose(embedding -> store.query(new MemoryQuery(embedding, maxResults)));
+    return embeddingPort.embed(topic)
+        .thenCompose(computedEmbedding -> store.query(new MemoryQuery(computedEmbedding, maxResults)));
   }
 
   @Override

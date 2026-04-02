@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 
-
 /**
  * Sealed interface for commands sent to memory actors.
  */
@@ -14,9 +13,9 @@ public sealed interface MemoryCommand permits MemoryCommand.Memorize, MemoryComm
   /**
    * Command to memorize a new memory entry.
    *
-   * <p>The concrete {@link MemorizationStrategy} decides how the content is persisted,
-   * including any embedding computation or deduplication — those are implementation details not
-   * visible at this level.
+   * <p>The concrete {@link MemoryStrategy} decides how the content is persisted, including
+   * any embedding computation or deduplication — those are implementation details not visible at
+   * this level.
    *
    * @param content  the text content to remember.
    * @param metadata optional key-value metadata.

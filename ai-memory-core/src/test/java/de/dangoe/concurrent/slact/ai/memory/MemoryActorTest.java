@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.ai.memory;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -26,15 +27,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @DisplayName("MemoryActor")
 class MemoryActorTest {
 
-  private static final Embedding EMBEDDING = new Embedding(new float[]{0.1f, 0.2f, 0.3f});
-
-  private MemoryStore stubStoreWithSave() {
-    final var store = mock(MemoryStore.class);
-    when(store.save(any())).thenAnswer(inv -> {
-      final Memory saved = inv.getArgument(0);
-      return RichFuture.of(CompletableFuture.completedFuture(saved.id()));
-    });
-    return store;
+  private MemoryStrategy stubStrategy() {
+    return mock(MemoryStrategy.class);
   }
 
   // -------------------------------------------------------------------------
@@ -49,14 +43,12 @@ class MemoryActorTest {
     @DisplayName("should respond with Written containing the stored memory ID")
     void shouldRespondWithWritten(final @NotNull SlactTestContainer container) throws Exception {
 
-      final var strategy = mock(MemorizationStrategy.class);
+      final var strategy = stubStrategy();
       final var expectedId = UUID.randomUUID();
       when(strategy.memorize(anyString(), anyMap())).thenReturn(
           RichFuture.of(CompletableFuture.completedFuture(expectedId)));
 
-      final var store = mock(MemoryStore.class);
-      final var actor = container.spawn("memory-actor-memorize",
-          () -> new MemoryActor(store, strategy));
+      final var actor = container.spawn("memory-actor-memorize", () -> new MemoryActor(strategy));
       container.awaitReady(actor.path());
 
       final var eventualResponse = container.requestResponseTo(
@@ -73,14 +65,12 @@ class MemoryActorTest {
     void shouldRespondWithFailureOnStrategyError(final @NotNull SlactTestContainer container)
         throws Exception {
 
-      final var strategy = mock(MemorizationStrategy.class);
+      final var strategy = stubStrategy();
       when(strategy.memorize(anyString(), anyMap())).thenReturn(
           RichFuture.of(CompletableFuture.failedFuture(
               new RuntimeException("simulated save failure"))));
 
-      final var store = mock(MemoryStore.class);
-      final var actor = container.spawn("memory-actor-save-fail",
-          () -> new MemoryActor(store, strategy));
+      final var actor = container.spawn("memory-actor-save-fail", () -> new MemoryActor(strategy));
       container.awaitReady(actor.path());
 
       final var eventualResponse = container.requestResponseTo(
@@ -106,20 +96,19 @@ class MemoryActorTest {
     void shouldRespondWithQueryResult(final @NotNull SlactTestContainer container)
         throws Exception {
 
-      final var memory = Memory.of("hello", new float[]{0.1f, 0.2f, 0.3f}, Map.of());
+      final var embedding = new Embedding(new float[]{0.1f, 0.2f, 0.3f});
+      final var memory = Memory.of("hello", embedding.values(), Map.of());
       final var entry = new MemoryEntry(memory, new Score(0.95));
 
-      final var store = mock(MemoryStore.class);
-      when(store.query(any())).thenReturn(
+      final var strategy = stubStrategy();
+      when(strategy.retrieve(anyString(), anyInt())).thenReturn(
           RichFuture.of(CompletableFuture.completedFuture(List.of(entry))));
 
-      final var strategy = mock(MemorizationStrategy.class);
-      final var actor = container.spawn("memory-actor-query",
-          () -> new MemoryActor(store, strategy));
+      final var actor = container.spawn("memory-actor-query", () -> new MemoryActor(strategy));
       container.awaitReady(actor.path());
 
       final var eventualResponse = container.requestResponseTo(
-              (MemoryCommand) new MemoryCommand.Query(EMBEDDING, 5))
+              (MemoryCommand) new MemoryCommand.Query("hello", 5))
           .ofType(MemoryResponse.QueryResult.class).from(actor);
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
@@ -131,22 +120,21 @@ class MemoryActorTest {
     }
 
     @Test
-    @DisplayName("should respond with Failure when query throws")
+    @DisplayName("should respond with Failure when the strategy throws")
     void shouldRespondWithFailureOnQueryError(final @NotNull SlactTestContainer container)
         throws Exception {
 
-      final var store = mock(MemoryStore.class);
-      when(store.query(any())).thenReturn(
+      final var strategy = stubStrategy();
+      when(strategy.retrieve(anyString(), anyInt())).thenReturn(
           RichFuture.of(CompletableFuture.failedFuture(
               new RuntimeException("simulated query failure"))));
 
-      final var strategy = mock(MemorizationStrategy.class);
       final var actor = container.spawn("memory-actor-query-fail",
-          () -> new MemoryActor(store, strategy));
+          () -> new MemoryActor(strategy));
       container.awaitReady(actor.path());
 
       final var eventualResponse = container.requestResponseTo(
-              (MemoryCommand) new MemoryCommand.Query(EMBEDDING, 3))
+              (MemoryCommand) new MemoryCommand.Query("something", 3))
           .ofType(MemoryResponse.Failure.class).from(actor);
 
       await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
@@ -168,13 +156,11 @@ class MemoryActorTest {
     void shouldRespondWithForgotten(final @NotNull SlactTestContainer container) throws Exception {
 
       final var targetId = UUID.randomUUID();
-      final var store = mock(MemoryStore.class);
-      when(store.delete(targetId)).thenReturn(
+      final var strategy = stubStrategy();
+      when(strategy.delete(targetId)).thenReturn(
           RichFuture.of(CompletableFuture.completedFuture(null)));
 
-      final var strategy = mock(MemorizationStrategy.class);
-      final var actor = container.spawn("memory-actor-forget",
-          () -> new MemoryActor(store, strategy));
+      final var actor = container.spawn("memory-actor-forget", () -> new MemoryActor(strategy));
       container.awaitReady(actor.path());
 
       final var eventualResponse = container.requestResponseTo(
@@ -187,19 +173,18 @@ class MemoryActorTest {
     }
 
     @Test
-    @DisplayName("should respond with Failure when delete throws")
+    @DisplayName("should respond with Failure when the strategy throws")
     void shouldRespondWithFailureOnDeleteError(final @NotNull SlactTestContainer container)
         throws Exception {
 
       final var targetId = UUID.randomUUID();
-      final var store = mock(MemoryStore.class);
-      when(store.delete(targetId)).thenReturn(
+      final var strategy = stubStrategy();
+      when(strategy.delete(targetId)).thenReturn(
           RichFuture.of(CompletableFuture.failedFuture(
               new RuntimeException("simulated delete failure"))));
 
-      final var strategy = mock(MemorizationStrategy.class);
       final var actor = container.spawn("memory-actor-forget-fail",
-          () -> new MemoryActor(store, strategy));
+          () -> new MemoryActor(strategy));
       container.awaitReady(actor.path());
 
       final var eventualResponse = container.requestResponseTo(

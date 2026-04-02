@@ -3,6 +3,7 @@ package de.dangoe.concurrent.slact.ai.memory;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -16,8 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
@@ -31,24 +30,25 @@ class PromptOrchestratorActorTest {
 
   private static final Embedding EMBEDDING = new Embedding(new float[]{0.1f, 0.2f, 0.3f});
 
-  private EmbeddingPort stubEmbeddingPort() {
-    final var port = mock(EmbeddingPort.class);
-    when(port.embed(anyString())).thenReturn(
-        RichFuture.of(CompletableFuture.completedFuture(EMBEDDING)));
-    return port;
-  }
-
-  private MemoryStore emptyQueryStore() {
-    final var store = mock(MemoryStore.class);
-    when(store.query(any())).thenReturn(
+  private MemoryStrategy emptyQueryStrategy() {
+    final var strategy = mock(MemoryStrategy.class);
+    when(strategy.retrieve(anyString(), anyInt())).thenReturn(
         RichFuture.of(CompletableFuture.completedFuture(List.of())));
-    return store;
-  }
-
-  private MemorizationStrategy noOpStrategy() {
-    final var strategy = mock(MemorizationStrategy.class);
     when(strategy.memorize(anyString(), anyMap())).thenReturn(
         RichFuture.of(CompletableFuture.completedFuture(UUID.randomUUID())));
+    when(strategy.delete(any())).thenReturn(
+        RichFuture.of(CompletableFuture.completedFuture(null)));
+    return strategy;
+  }
+
+  private MemoryStrategy noOpStrategy() {
+    final var strategy = mock(MemoryStrategy.class);
+    when(strategy.memorize(anyString(), anyMap())).thenReturn(
+        RichFuture.of(CompletableFuture.completedFuture(UUID.randomUUID())));
+    when(strategy.retrieve(anyString(), anyInt())).thenReturn(
+        RichFuture.of(CompletableFuture.completedFuture(List.of())));
+    when(strategy.delete(any())).thenReturn(
+        RichFuture.of(CompletableFuture.completedFuture(null)));
     return strategy;
   }
 
@@ -69,14 +69,14 @@ class PromptOrchestratorActorTest {
           RichFuture.of(CompletableFuture.completedFuture(List.of())));
 
       final var memoryActor = container.spawn("memory-actor",
-          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
+          () -> new MemoryActor(emptyQueryStrategy()));
       final var contextMergeActor = container.spawn("context-merge-actor",
           ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor",
           () -> new LlmCallActor(targetModel));
 
       final var orchestrator = container.spawn("orchestrator",
-          () -> new PromptOrchestratorActor(stubEmbeddingPort(), memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
@@ -92,81 +92,28 @@ class PromptOrchestratorActorTest {
     }
 
     @Test
-    @DisplayName("should process pipeline when embedding completes asynchronously")
-    void shouldProcessPipelineWhenEmbeddingCompletesAsynchronously(
-        final @NotNull SlactTestContainer container) throws Exception {
+    @DisplayName("should respond with Failure when the memory query fails")
+    void shouldRespondWithFailureWhenMemoryQueryFails(final @NotNull SlactTestContainer container)
+        throws Exception {
 
-      final var embeddingFuture = new CompletableFuture<Embedding>();
-      final var completedOnExternalThread = new AtomicBoolean(false);
-      final var embeddingPort = mock(EmbeddingPort.class);
-      when(embeddingPort.embed(anyString())).thenReturn(RichFuture.of(embeddingFuture));
-
-      final var targetModel = mock(TargetModelPort.class);
-      when(targetModel.complete(anyString())).thenReturn(
-          RichFuture.of(CompletableFuture.completedFuture("mocked answer")));
-
-      final var extractionPort = mock(MemoryExtractionPort.class);
-      when(extractionPort.extract(anyString(), anyString())).thenReturn(
-          RichFuture.of(CompletableFuture.completedFuture(List.of())));
-
-      final var memoryActor = container.spawn("memory-actor-async-embedding",
-          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
-      final var contextMergeActor = container.spawn("context-merge-actor-async-embedding",
-          ContextMergeActor::new);
-      final var llmCallActor = container.spawn("llm-call-actor-async-embedding",
-          () -> new LlmCallActor(targetModel));
-
-      final var orchestrator = container.spawn("orchestrator-async-embedding",
-          () -> new PromptOrchestratorActor(embeddingPort, memoryActor, contextMergeActor,
-              llmCallActor, extractionPort));
-
-      container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
-          orchestrator.path());
-
-      final var eventualResponse = container.requestResponseTo(
-              (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process("hello"))
-          .ofType(PromptResponse.Answer.class).from(orchestrator);
-
-      try (final var executor = Executors.newSingleThreadExecutor(r -> {
-        final var thread = new Thread(r);
-        thread.setName("embedding-completer-external");
-        return thread;
-      })) {
-        executor.execute(() -> {
-          completedOnExternalThread.set(Thread.currentThread().getName()
-              .startsWith("embedding-completer-external"));
-          embeddingFuture.complete(EMBEDDING);
-        });
-      }
-
-      await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
-      assertThat(completedOnExternalThread.get()).isTrue();
-      assertThat(eventualResponse.get().text()).isEqualTo("mocked answer");
-    }
-
-    @Test
-    @DisplayName("should respond with Failure when embedding fails asynchronously")
-    void shouldRespondWithFailureWhenEmbeddingFailsAsynchronously(
-        final @NotNull SlactTestContainer container) throws Exception {
-
-      final var embeddingFuture = new CompletableFuture<Embedding>();
-      final var embeddingPort = mock(EmbeddingPort.class);
-      when(embeddingPort.embed(anyString())).thenReturn(RichFuture.of(embeddingFuture));
+      final var strategy = mock(MemoryStrategy.class);
+      when(strategy.retrieve(anyString(), anyInt())).thenReturn(
+          RichFuture.of(CompletableFuture.failedFuture(new RuntimeException("query error"))));
 
       final var targetModel = mock(TargetModelPort.class);
       final var extractionPort = mock(MemoryExtractionPort.class);
       when(extractionPort.extract(anyString(), anyString())).thenReturn(
           RichFuture.of(CompletableFuture.completedFuture(List.of())));
 
-      final var memoryActor = container.spawn("memory-actor-async-embedding-fail",
-          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
-      final var contextMergeActor = container.spawn("context-merge-actor-async-embedding-fail",
+      final var memoryActor = container.spawn("memory-actor-query-fail",
+          () -> new MemoryActor(strategy));
+      final var contextMergeActor = container.spawn("context-merge-actor-query-fail",
           ContextMergeActor::new);
-      final var llmCallActor = container.spawn("llm-call-actor-async-embedding-fail",
+      final var llmCallActor = container.spawn("llm-call-actor-query-fail",
           () -> new LlmCallActor(targetModel));
 
-      final var orchestrator = container.spawn("orchestrator-async-embedding-fail",
-          () -> new PromptOrchestratorActor(embeddingPort, memoryActor, contextMergeActor,
+      final var orchestrator = container.spawn("orchestrator-query-fail",
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
@@ -176,13 +123,8 @@ class PromptOrchestratorActorTest {
               (PromptOrchestratorActor.Message) new PromptOrchestratorActor.Message.Process("hello"))
           .ofType(PromptResponse.Failure.class).from(orchestrator);
 
-      try (final var executor = Executors.newSingleThreadExecutor()) {
-        executor.execute(() -> embeddingFuture.completeExceptionally(
-            new RuntimeException("embedding error")));
-      }
-
       await().atMost(Constants.DEFAULT_TIMEOUT).until(eventualResponse::isDone);
-      assertThat(eventualResponse.get().errorMessage()).contains("embedding error");
+      assertThat(eventualResponse.get().errorMessage()).contains("query error");
     }
 
     @Test
@@ -199,14 +141,14 @@ class PromptOrchestratorActorTest {
           RichFuture.of(CompletableFuture.completedFuture(List.of())));
 
       final var memoryActor = container.spawn("memory-actor-fail",
-          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
+          () -> new MemoryActor(emptyQueryStrategy()));
       final var contextMergeActor = container.spawn("context-merge-actor-fail",
           ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor-fail",
           () -> new LlmCallActor(targetModel));
 
       final var orchestrator = container.spawn("orchestrator-fail",
-          () -> new PromptOrchestratorActor(stubEmbeddingPort(), memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
@@ -229,9 +171,11 @@ class PromptOrchestratorActorTest {
       final var memoryEntry = new MemoryEntry(
           Memory.of("user: name=Alice", EMBEDDING.values(), Map.of()), new Score(0.9));
 
-      final var store = mock(MemoryStore.class);
-      when(store.query(any())).thenReturn(
+      final var strategy = mock(MemoryStrategy.class);
+      when(strategy.retrieve(anyString(), anyInt())).thenReturn(
           RichFuture.of(CompletableFuture.completedFuture(List.of(memoryEntry))));
+      when(strategy.memorize(anyString(), anyMap())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(UUID.randomUUID())));
 
       final var capturedPrompt = new AtomicReference<String>();
       final var targetModel = mock(TargetModelPort.class);
@@ -245,14 +189,14 @@ class PromptOrchestratorActorTest {
           RichFuture.of(CompletableFuture.completedFuture(List.of())));
 
       final var memoryActor = container.spawn("memory-actor-merge",
-          () -> new MemoryActor(store, noOpStrategy()));
+          () -> new MemoryActor(strategy));
       final var contextMergeActor = container.spawn("context-merge-actor-merge",
           ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor-merge",
           () -> new LlmCallActor(targetModel));
 
       final var orchestrator = container.spawn("orchestrator-merge",
-          () -> new PromptOrchestratorActor(stubEmbeddingPort(), memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
@@ -283,14 +227,14 @@ class PromptOrchestratorActorTest {
           RichFuture.of(extractionFuture));
 
       final var memoryActor = container.spawn("memory-actor-wait",
-          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
+          () -> new MemoryActor(emptyQueryStrategy()));
       final var contextMergeActor = container.spawn("context-merge-actor-wait",
           ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor-wait",
           () -> new LlmCallActor(targetModel));
 
       final var orchestrator = container.spawn("orchestrator-wait",
-          () -> new PromptOrchestratorActor(stubEmbeddingPort(), memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
@@ -319,14 +263,14 @@ class PromptOrchestratorActorTest {
           RichFuture.of(CompletableFuture.failedFuture(new RuntimeException("extract error"))));
 
       final var memoryActor = container.spawn("memory-actor-extract-fail",
-          () -> new MemoryActor(emptyQueryStore(), noOpStrategy()));
+          () -> new MemoryActor(emptyQueryStrategy()));
       final var contextMergeActor = container.spawn("context-merge-actor-extract-fail",
           ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor-extract-fail",
           () -> new LlmCallActor(targetModel));
 
       final var orchestrator = container.spawn("orchestrator-extract-fail",
-          () -> new PromptOrchestratorActor(stubEmbeddingPort(), memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),
@@ -353,19 +297,21 @@ class PromptOrchestratorActorTest {
       when(extractionPort.extract(anyString(), anyString())).thenReturn(RichFuture.of(
           CompletableFuture.completedFuture(List.of(new MemoryCandidate("user", "name=Alice")))));
 
-      final var strategy = mock(MemorizationStrategy.class);
+      final var strategy = mock(MemoryStrategy.class);
+      when(strategy.retrieve(anyString(), anyInt())).thenReturn(
+          RichFuture.of(CompletableFuture.completedFuture(List.of())));
       when(strategy.memorize(anyString(), anyMap())).thenReturn(
           RichFuture.of(CompletableFuture.failedFuture(new RuntimeException("memorize error"))));
 
       final var memoryActor = container.spawn("memory-actor-memorize-fail",
-          () -> new MemoryActor(emptyQueryStore(), strategy));
+          () -> new MemoryActor(strategy));
       final var contextMergeActor = container.spawn("context-merge-actor-memorize-fail",
           ContextMergeActor::new);
       final var llmCallActor = container.spawn("llm-call-actor-memorize-fail",
           () -> new LlmCallActor(targetModel));
 
       final var orchestrator = container.spawn("orchestrator-memorize-fail",
-          () -> new PromptOrchestratorActor(stubEmbeddingPort(), memoryActor, contextMergeActor,
+          () -> new PromptOrchestratorActor(memoryActor, contextMergeActor,
               llmCallActor, extractionPort));
 
       container.awaitReady(memoryActor.path(), contextMergeActor.path(), llmCallActor.path(),

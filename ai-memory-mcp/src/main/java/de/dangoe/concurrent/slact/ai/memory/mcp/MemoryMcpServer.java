@@ -1,9 +1,6 @@
 package de.dangoe.concurrent.slact.ai.memory.mcp;
 
-import de.dangoe.concurrent.slact.ai.memory.Embedding;
-import de.dangoe.concurrent.slact.ai.memory.EmbeddingPort;
 import de.dangoe.concurrent.slact.ai.memory.MemoryEntry;
-import de.dangoe.concurrent.slact.ai.memory.MemoryQuery;
 import de.dangoe.concurrent.slact.ai.memory.MemoryStore;
 import de.dangoe.concurrent.slact.ai.memory.PromptResponse;
 import io.modelcontextprotocol.json.McpJsonDefaults;
@@ -25,8 +22,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Provides three tools:
  * <ul>
- *   <li>{@code query_memory} — retrieves similar memories for a given text criteria. The criteria
- *       is embedded internally via the {@link EmbeddingPort}.</li>
+ *   <li>{@code query_memory} — retrieves memories relevant to a given topic. The topic is
+ *       resolved internally by the {@link MemoryQueryHandler}.</li>
  *   <li>{@code delete_memory} — deletes a stored memory entry by its ID.</li>
  *   <li>{@code process_prompt} — sends a prompt through the full orchestration pipeline and
  *       returns the answer.</li>
@@ -44,12 +41,12 @@ public final class MemoryMcpServer {
   private static final McpSchema.JsonSchema QUERY_MEMORY_SCHEMA = new McpSchema.JsonSchema(
       "object",
       Map.of(
-          "criteria", Map.of("type", "string",
-              "description", "Text criteria for finding similar memories"),
+          "topic", Map.of("type", "string",
+              "description", "Topic or question to find relevant memories for"),
           "maxResults", Map.of("type", "integer",
               "description", "Maximum number of results to return (default: "
                   + DEFAULT_MAX_RESULTS + ")")),
-      List.of("criteria"),
+      List.of("topic"),
       null, null, null);
 
   private static final McpSchema.JsonSchema PROCESS_PROMPT_SCHEMA = new McpSchema.JsonSchema(
@@ -68,23 +65,25 @@ public final class MemoryMcpServer {
       List.of("id"),
       null, null, null);
 
-  private final @NotNull EmbeddingPort embeddingPort;
+  private final @NotNull MemoryQueryHandler memoryQueryHandler;
   private final @NotNull MemoryStore memoryStore;
   private final @NotNull PromptHandler promptHandler;
 
   /**
    * Creates a new {@link MemoryMcpServer}.
    *
-   * @param embeddingPort the port used to embed query criteria; must not be {@code null}.
-   * @param memoryStore   the memory store used for similarity queries; must not be {@code null}.
-   * @param promptHandler the handler that processes prompts via the orchestration pipeline; must
-   *                      not be {@code null}.
+   * @param memoryQueryHandler the handler that resolves a topic to matching memory entries; must
+   *                           not be {@code null}.
+   * @param memoryStore        the memory store used for deletion; must not be {@code null}.
+   * @param promptHandler      the handler that processes prompts via the orchestration pipeline;
+   *                           must not be {@code null}.
    */
   public MemoryMcpServer(
-      final @NotNull EmbeddingPort embeddingPort,
+      final @NotNull MemoryQueryHandler memoryQueryHandler,
       final @NotNull MemoryStore memoryStore,
       final @NotNull PromptHandler promptHandler) {
-    this.embeddingPort = Objects.requireNonNull(embeddingPort, "EmbeddingPort must not be null");
+    this.memoryQueryHandler = Objects.requireNonNull(memoryQueryHandler,
+        "MemoryQueryHandler must not be null");
     this.memoryStore = Objects.requireNonNull(memoryStore, "Memory store must not be null");
     this.promptHandler = Objects.requireNonNull(promptHandler, "PromptHandler must not be null");
   }
@@ -102,8 +101,8 @@ public final class MemoryMcpServer {
             McpSchema.Tool.builder()
                 .name(TOOL_QUERY_MEMORY)
                 .description(
-                    "Queries memories similar to the given text criteria. "
-                        + "The criteria is embedded internally.")
+                    "Retrieves memories relevant to a given topic. "
+                        + "The topic is resolved internally.")
                 .inputSchema(QUERY_MEMORY_SCHEMA)
                 .build(),
             this::handleQueryMemory)
@@ -134,13 +133,12 @@ public final class MemoryMcpServer {
       final @NotNull McpSchema.CallToolRequest request) {
     try {
       final var args = request.arguments();
-      final var criteria = (String) args.get("criteria");
+      final var topic = (String) args.get("topic");
       final var maxResults = args.containsKey("maxResults")
           ? ((Number) args.get("maxResults")).intValue()
           : DEFAULT_MAX_RESULTS;
 
-      final Embedding embedding = embeddingPort.embed(criteria).join();
-      final var results = memoryStore.query(new MemoryQuery(embedding, maxResults)).join();
+      final var results = memoryQueryHandler.query(topic, maxResults);
 
       return CallToolResult.builder()
           .addTextContent(formatResults(results))
@@ -217,6 +215,23 @@ public final class MemoryMcpServer {
           .append(entry.memory().content()).append('\n');
     }
     return sb.toString();
+  }
+
+  /**
+   * Resolves a topic to matching memory entries.
+   */
+  @FunctionalInterface
+  public interface MemoryQueryHandler {
+
+    /**
+     * Returns memory entries relevant to the given topic.
+     *
+     * @param topic      the topic or question to query for.
+     * @param maxResults the maximum number of entries to return.
+     * @return the matching memory entries.
+     * @throws Exception if the query fails.
+     */
+    @NotNull List<MemoryEntry> query(@NotNull String topic, int maxResults) throws Exception;
   }
 
   /**

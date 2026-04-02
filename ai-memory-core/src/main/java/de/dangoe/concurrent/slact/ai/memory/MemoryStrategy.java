@@ -28,13 +28,13 @@ public interface MemoryStrategy {
       @NotNull Map<String, String> metadata);
 
   /**
-   * Retrieves memories similar to the given criteria.
+   * Retrieves memories relevant to the given topic.
    *
-   * @param criteria   the raw text criteria to match against.
+   * @param topic      the subject or question to find relevant memories for.
    * @param maxResults the maximum number of results to return.
    * @return a future completing with the matching memory entries.
    */
-  @NotNull RichFuture<List<MemoryEntry>> retrieve(@NotNull String criteria, int maxResults);
+  @NotNull RichFuture<List<MemoryEntry>> retrieve(@NotNull String topic, int maxResults);
 
   /**
    * Deletes a memory entry by its ID. Completes normally if the ID does not exist.
