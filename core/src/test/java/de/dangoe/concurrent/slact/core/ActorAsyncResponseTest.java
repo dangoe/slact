@@ -75,6 +75,67 @@ public class ActorAsyncResponseTest {
     }
 
     @Test
+    @DisplayName("should fail fast when actor context APIs are used in async callback thread")
+    void shouldFailFastWhenContextApisUsedOutsideActiveContext(
+        final @NotNull SlactTestContainer container) {
+
+      final var callbackFailure = new AtomicReference<Throwable>();
+      final var callbackStarted = new CompletableFuture<Void>();
+
+      final var actor = container.spawn("context-misuse-actor", () -> new Actor<String>() {
+        @Override
+        public void onMessage(final @NotNull String message) {
+          final var future = new CompletableFuture<String>();
+          future.thenApply(ignored -> {
+            callbackStarted.complete(null);
+            try {
+              context().self();
+            } catch (final Throwable t) {
+              callbackFailure.set(t);
+              throw t;
+            }
+            return ignored;
+          });
+
+          try (final var executor = Executors.newSingleThreadExecutor()) {
+            executor.execute(() -> future.complete("ok"));
+          }
+        }
+      });
+
+      container.send("trigger").to(actor);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).until(callbackStarted::isDone);
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(() -> {
+        assertThat(callbackFailure.get()).isInstanceOf(IllegalStateException.class);
+        assertThat(callbackFailure.get().getMessage()).isEqualTo("No active context found.");
+      });
+    }
+
+    @Test
+    @DisplayName("should allow context API usage when callback is re-entered via pipeFuture")
+    void shouldAllowContextApisWhenReenteredViaPipeFuture(final @NotNull SlactTestContainer container) {
+
+      final var callbackResult = new AtomicReference<String>();
+
+      final var actor = container.spawn("context-safe-pipe-actor", () -> new Actor<String>() {
+        @Override
+        public void onMessage(final @NotNull String message) {
+          if ("start".equals(message)) {
+            pipeFuture(CompletableFuture.completedFuture("after-async")).to(self());
+            return;
+          }
+          callbackResult.set(context().self().path().toString());
+        }
+      });
+
+      container.send("start").to(actor);
+
+      await().atMost(Constants.DEFAULT_TIMEOUT).untilAsserted(() ->
+          assertThat(callbackResult.get()).contains("context-safe-pipe-actor"));
+    }
+
+    @Test
     @DisplayName("should not deliver a message to the target actor when the piped future fails exceptionally")
     void shouldNotDeliverMessageWhenPipedFutureFailsExceptionally(
         final @NotNull SlactTestContainer container) {

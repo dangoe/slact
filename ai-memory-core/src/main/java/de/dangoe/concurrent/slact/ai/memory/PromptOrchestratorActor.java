@@ -27,8 +27,9 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
    * Messages handled by the {@link PromptOrchestratorActor}.
    */
   public sealed interface Message permits Message.Process, Message.PipelineDone,
-      Message.TriggerContextMerge, Message.TriggerMemoryUpdate, Message.ProcessNextCandidate,
-      Message.MemoryUpdateFailed {
+      Message.EmbeddingReady, Message.EmbeddingFailed, Message.MemoryQueryReady,
+      Message.MemoryQueryFailed, Message.TriggerContextMerge, Message.TriggerMemoryUpdate,
+      Message.ProcessNextCandidate, Message.MemoryUpdateFailed {
 
     record Process(@NotNull String text) implements Message {
 
@@ -36,6 +37,29 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
     record PipelineDone(@NotNull String prompt, @NotNull PromptResponse result,
                         @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
+
+    }
+
+    record EmbeddingReady(@NotNull String prompt, @NotNull Embedding embedding,
+                          @NotNull ActorHandle<PromptResponse> replyTo,
+                          @NotNull ActorHandle<PromptResponse> pipelineReplyTo) implements Message {
+
+    }
+
+    record EmbeddingFailed(@NotNull String prompt, @NotNull Throwable cause,
+                           @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
+
+    }
+
+    record MemoryQueryReady(@NotNull String prompt, @NotNull List<MemoryEntry> memories,
+                            @NotNull ActorHandle<PromptResponse> replyTo,
+                            @NotNull ActorHandle<PromptResponse> pipelineReplyTo)
+        implements Message {
+
+    }
+
+    record MemoryQueryFailed(@NotNull String prompt, @NotNull Throwable cause,
+                             @NotNull ActorHandle<PromptResponse> replyTo) implements Message {
 
     }
 
@@ -98,6 +122,11 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     switch (message) {
       case Message.Process cmd -> handleProcess(cmd);
       case Message.PipelineDone done -> handlePipelineDone(done);
+      case Message.EmbeddingReady embeddingReady -> handleEmbeddingReady(embeddingReady);
+      case Message.EmbeddingFailed embeddingFailed -> handleEmbeddingFailed(embeddingFailed);
+      case Message.MemoryQueryReady memoryQueryReady -> handleMemoryQueryReady(memoryQueryReady);
+      case Message.MemoryQueryFailed memoryQueryFailed ->
+          handleMemoryQueryFailed(memoryQueryFailed);
       case Message.TriggerContextMerge trigger -> handleTriggerContextMerge(trigger);
       case Message.TriggerMemoryUpdate update -> handleTriggerMemoryUpdate(update);
       case Message.ProcessNextCandidate next -> handleProcessNextCandidate(next);
@@ -122,15 +151,46 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
           }
         });
 
-    final RichFuture<Message> phase = embeddingPort.embed(prompt).thenCompose(
-            embedding -> askMemoryQuery(embedding, memoryActor).thenApply(
-                memories -> (Message) new Message.TriggerContextMerge(prompt, memories, bridge)))
-        .exceptionally(
-            e -> new Message.PipelineDone(prompt, new PromptResponse.Failure(
-                "Error during embedding or memory query: %s".formatted(e.getMessage()), e),
-                replyTo));
+    final RichFuture<Message> phase = embeddingPort.embed(prompt).thenApply(
+            embedding -> (Message) new Message.EmbeddingReady(prompt, embedding, replyTo, bridge))
+        .exceptionally(e -> new Message.EmbeddingFailed(prompt, e, replyTo));
 
     pipeFuture(phase).to(self());
+  }
+
+  private void handleEmbeddingReady(final @NotNull Message.EmbeddingReady embeddingReady) {
+    final RichFuture<Message> queryFlow = asRichFuture(context().requestResponseTo(
+                (MemoryCommand) new MemoryCommand.Query(embeddingReady.embedding(), maxMemoryResults))
+            .ofType(MemoryResponse.class).from(memoryActor))
+        .thenCompose(this::queryEntriesFromResponse)
+        .thenApply(memories ->
+            (Message) new Message.MemoryQueryReady(embeddingReady.prompt(), memories,
+                embeddingReady.replyTo(), embeddingReady.pipelineReplyTo()))
+        .exceptionally(
+            e -> new Message.MemoryQueryFailed(embeddingReady.prompt(), e, embeddingReady.replyTo()));
+
+    pipeFuture(queryFlow).to(self());
+  }
+
+  private void handleEmbeddingFailed(final @NotNull Message.EmbeddingFailed embeddingFailed) {
+    send((Message) new Message.PipelineDone(embeddingFailed.prompt(),
+        new PromptResponse.Failure(
+            "Error during embedding: %s".formatted(embeddingFailed.cause().getMessage()),
+            embeddingFailed.cause()),
+        embeddingFailed.replyTo())).to(self());
+  }
+
+  private void handleMemoryQueryReady(final @NotNull Message.MemoryQueryReady memoryQueryReady) {
+    send((Message) new Message.TriggerContextMerge(memoryQueryReady.prompt(),
+        memoryQueryReady.memories(), memoryQueryReady.pipelineReplyTo())).to(self());
+  }
+
+  private void handleMemoryQueryFailed(final @NotNull Message.MemoryQueryFailed memoryQueryFailed) {
+    send((Message) new Message.PipelineDone(memoryQueryFailed.prompt(),
+        new PromptResponse.Failure(
+            "Error during memory query: %s".formatted(memoryQueryFailed.cause().getMessage()),
+            memoryQueryFailed.cause()),
+        memoryQueryFailed.replyTo())).to(self());
   }
 
   private void handleTriggerContextMerge(final @NotNull Message.TriggerContextMerge trigger) {
@@ -165,7 +225,11 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
 
     // Delegate all memorization details (including embedding) to the MemorizationStrategy
     // inside MemoryActor — callers only supply raw text.
-    final RichFuture<Message> writeFlow = askMemoryWrite(content).thenApply(
+    final RichFuture<Message> writeFlow = asRichFuture(
+            context().requestResponseTo((MemoryCommand) new MemoryCommand.Memorize(content, Map.of()))
+                .ofType(MemoryResponse.class).from(memoryActor))
+        .thenCompose(this::writeResultFromResponse)
+        .thenApply(
         unused -> (Message) new Message.ProcessNextCandidate(next.prompt(), next.candidates(),
             next.index() + 1)).exceptionally(
         e -> new Message.MemoryUpdateFailed(next.prompt(), Objects.toString(e.getMessage())));
@@ -173,41 +237,31 @@ public final class PromptOrchestratorActor extends Actor<PromptOrchestratorActor
     pipeFuture(writeFlow).to(self());
   }
 
-  private @NotNull RichFuture<List<MemoryEntry>> askMemoryQuery(final @NotNull Embedding embedding,
-      final @NotNull ActorHandle<MemoryCommand> actor) {
+  private @NotNull RichFuture<List<MemoryEntry>> queryEntriesFromResponse(
+      final @NotNull MemoryResponse response) {
 
-    return asRichFuture(context().requestResponseTo(
-            (MemoryCommand) new MemoryCommand.Query(embedding, maxMemoryResults))
-        .ofType(MemoryResponse.class).from(actor)).thenCompose(response -> {
+    if (response instanceof MemoryResponse.QueryResult(List<MemoryEntry> entries)) {
+      return RichFuture.of(CompletableFuture.completedFuture(entries));
+    } else if (response instanceof MemoryResponse.Failure(String errorMessage)) {
+      return RichFuture.of(
+          CompletableFuture.failedFuture(new IllegalStateException(errorMessage)));
+    }
 
-      if (response instanceof MemoryResponse.QueryResult(List<MemoryEntry> entries)) {
-        return RichFuture.of(CompletableFuture.completedFuture(entries));
-      } else if (response instanceof MemoryResponse.Failure(String errorMessage)) {
-        return RichFuture.of(
-            CompletableFuture.failedFuture(new IllegalStateException(errorMessage)));
-      }
-
-      return RichFuture.of(CompletableFuture.failedFuture(new IllegalStateException(
-          "Unexpected response: %s".formatted(response.getClass().getName()))));
-    });
+    return RichFuture.of(CompletableFuture.failedFuture(new IllegalStateException(
+        "Unexpected response: %s".formatted(response.getClass().getName()))));
   }
 
-  private @NotNull RichFuture<Void> askMemoryWrite(final @NotNull String content) {
+  private @NotNull RichFuture<Void> writeResultFromResponse(final @NotNull MemoryResponse response) {
 
-    return asRichFuture(
-        context().requestResponseTo((MemoryCommand) new MemoryCommand.Memorize(content, Map.of()))
-            .ofType(MemoryResponse.class).from(memoryActor)).thenCompose(response -> {
+    if (response instanceof MemoryResponse.Written) {
+      return RichFuture.of(CompletableFuture.completedFuture(null));
+    } else if (response instanceof MemoryResponse.Failure(String errorMessage)) {
+      return RichFuture.of(
+          CompletableFuture.failedFuture(new IllegalStateException(errorMessage)));
+    }
 
-      if (response instanceof MemoryResponse.Written) {
-        return RichFuture.of(CompletableFuture.completedFuture(null));
-      } else if (response instanceof MemoryResponse.Failure(String errorMessage)) {
-        return RichFuture.of(
-            CompletableFuture.failedFuture(new IllegalStateException(errorMessage)));
-      }
-
-      return RichFuture.of(CompletableFuture.failedFuture(new IllegalStateException(
-          "Unexpected response: %s".formatted(response.getClass().getName()))));
-    });
+    return RichFuture.of(CompletableFuture.failedFuture(new IllegalStateException(
+        "Unexpected response: %s".formatted(response.getClass().getName()))));
   }
 
   @SuppressWarnings("unchecked")

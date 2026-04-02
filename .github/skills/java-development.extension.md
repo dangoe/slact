@@ -110,6 +110,11 @@ context().respondWith(result);         // reply to sender
 context().pipeFuture(someCompletableFuture); // pipe future result into mailbox
 ```
 
+### Async callback boundaries in actors
+- `context()`-dependent APIs (`send`, `respondWith`, `requestResponseTo`, `spawn`, `self`, `sender`, `parent`) are only valid while processing a mailbox message.
+- Do not call actor APIs from raw `CompletableFuture` callbacks (`thenApply`, `thenCompose`, `exceptionally`) because they can run on non-actor threads without an active context.
+- Use `pipeFuture(...)` to re-enter the mailbox and continue actor logic in a subsequent actor message handler.
+
 ## Coding Style Quick Reference
 
 - Use records for message types and value objects.
