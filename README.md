@@ -105,6 +105,16 @@ Integration tests require Docker.
 - **Awaitility** — async testing support
 - **SLF4J / Logback** — logging
 
+## Roadmap
+
+The following features are not yet implemented but will be added when of interest:
+
+- **Supervision strategies** — configurable failure handling policies (restart, stop, escalate) for parent-child actor hierarchies
+- **Backpressure / bounded mailboxes** — mailbox capacity limits with overflow strategies (e.g. drop, reject) to prevent unbounded memory growth
+- **Dead letter handling** — capture and surface messages sent to stopped or non-existent actors for debugging and monitoring
+- **Configurable timeouts** — user-defined timeouts for request-response, future piping, and container shutdown
+- **Observability** — hooks for metrics (mailbox depth, message throughput, processing latency) and structured diagnostics
+
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for branching strategy,
