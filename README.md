@@ -1,10 +1,18 @@
 # slact
 
+[![CI](https://github.com/dangoe/slacktors/actions/workflows/ci.yml/badge.svg)](https://github.com/dangoe/slacktors/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
+
 A lightweight actor system implementation in Java 21 — built as a learning project to explore the actor model and concurrent message passing from scratch.
 
 ## Motivation
 
 This is a **tinker project** created to learn about actor system internals: message dispatching, actor lifecycle management, hierarchical supervision, and behavioral switching. It is not intended for production use but rather as an educational exercise in building concurrency primitives.
+
+## Current State
+
+> **Note:** slact is under active development as a learning project. APIs, modules, and
+> persistence surfaces may change between versions without prior deprecation.
 
 ## Features
 
@@ -23,11 +31,14 @@ This is a **tinker project** created to learn about actor system internals: mess
 
 ## Project Structure
 
-| Module        | Description                                              |
-|---------------|----------------------------------------------------------|
-| `core`        | Main library — actor runtime, message handling, patterns |
-| `testkit`     | Testing utilities — test container, JUnit 5 extension    |
-| `build-logic` | Gradle convention plugins for shared build configuration |
+| Module                | Path                   | Description                                                        |
+|-----------------------|------------------------|--------------------------------------------------------------------|
+| `core`                | `core`                 | Main library — actor runtime, message handling, and patterns       |
+| `testkit`             | `testkit`              | Testing utilities — test container and JUnit 5 extension           |
+| `persistence`         | `persistence`          | Event sourcing abstraction — event stores and persistent actors    |
+| `persistence-jdbc`    | `persistence-jdbc`     | JDBC-backed persistence implementation with PostgreSQL and HikariCP |
+| `persistence-testkit` | `persistence-testkit`  | Shared persistence testing specs and reusable contract coverage    |
+| `build-logic`         | `build-logic`          | Gradle convention plugins for shared build configuration           |
 
 ## Quick Start
 
@@ -72,9 +83,18 @@ try (var container = new SlactContainerBuilder().build()) {
 }
 ```
 
-## AI-Assisted Development
+## Development
 
-Parts of this codebase were created with the help of **AI agents** (GitHub Copilot). AI was primarily used to improve **test completeness** — generating test cases for edge cases, lifecycle scenarios, and message flow coverage. The core architecture and design decisions are human-driven. All AI generated code is reviewed by the author for correctness and maintainability.
+```bash
+./gradlew build
+./gradlew test
+./gradlew :core:test --tests "ClassName"
+./gradlew :core:test --tests "ClassName.method"
+./gradlew :persistence-jdbc:integrationTest
+PERF_TEST=true ./gradlew :core:test --tests "*ActorPerformanceTest"
+```
+
+Integration tests require Docker.
 
 ## Tech Stack
 
@@ -85,7 +105,13 @@ Parts of this codebase were created with the help of **AI agents** (GitHub Copil
 - **Awaitility** — async testing support
 - **SLF4J / Logback** — logging
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for branching strategy,
+development workflow, and guidelines.
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
+Copyright © 2024-2026 Daniel Götten

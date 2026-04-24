@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 package de.dangoe.concurrent.slact.persistence;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
