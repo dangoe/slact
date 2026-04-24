@@ -7,7 +7,7 @@ A lightweight actor system implementation in Java 21 — built as a learning pro
 
 ## Motivation
 
-This is a **tinker project** created to learn about actor system internals: message dispatching, actor lifecycle management, hierarchical supervision, and behavioral switching. It is not intended for production use but rather as an educational exercise in building concurrency primitives.
+This project began as a **tinker project** to learn actor system internals — message dispatching, actor lifecycle management, hierarchical supervision, and behavioral switching. Over time it has matured into a compact, well-tested runtime with a practical feature set; publishing artifacts may now be of interest for others who want a lightweight Java 21 actor toolkit or a learning resource.
 
 ## Current State
 
@@ -31,14 +31,14 @@ This is a **tinker project** created to learn about actor system internals: mess
 
 ## Project Structure
 
-| Module                | Path                   | Description                                                        |
-|-----------------------|------------------------|--------------------------------------------------------------------|
-| `core`                | `core`                 | Main library — actor runtime, message handling, and patterns       |
-| `testkit`             | `testkit`              | Testing utilities — test container and JUnit 5 extension           |
-| `persistence`         | `persistence`          | Event sourcing abstraction — event stores and persistent actors    |
-| `persistence-jdbc`    | `persistence-jdbc`     | JDBC-backed persistence implementation with PostgreSQL and HikariCP |
-| `persistence-testkit` | `persistence-testkit`  | Shared persistence testing specs and reusable contract coverage    |
-| `build-logic`         | `build-logic`          | Gradle convention plugins for shared build configuration           |
+| Module                | Path                  | Description                                                         |
+| --------------------- | --------------------- | ------------------------------------------------------------------- |
+| `core`                | `core`                | Main library — actor runtime, message handling, and patterns        |
+| `testkit`             | `testkit`             | Testing utilities — test container and JUnit 5 extension            |
+| `persistence`         | `persistence`         | Event sourcing abstraction — event stores and persistent actors     |
+| `persistence-jdbc`    | `persistence-jdbc`    | JDBC-backed persistence implementation with PostgreSQL and HikariCP |
+| `persistence-testkit` | `persistence-testkit` | Shared persistence testing specs and reusable contract coverage     |
+| `build-logic`         | `build-logic`         | Gradle convention plugins for shared build configuration            |
 
 ## Quick Start
 
