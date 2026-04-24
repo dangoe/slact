@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 package de.dangoe.concurrent.slact.core.exception;
 
 import de.dangoe.concurrent.slact.core.ActorPath;

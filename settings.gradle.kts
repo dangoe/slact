@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 rootProject.name = "slact"
 
 include("core", "testkit", "persistence", "persistence-jdbc", "persistence-testkit")
